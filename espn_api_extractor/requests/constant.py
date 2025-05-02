@@ -7,3 +7,7 @@ FANTASY_SPORTS = {
     "mlb": "flb",
     "wnba": "wfba",
 }
+ESPN_CORE_ENDPOINT = "http://sports.core.api.espn.com/v2"
+ESPN_CORE_MLB_ENDPOINT = ESPN_CORE_ENDPOINT + "/sports/baseball/leagues/mlb"
+ESPN_CORE_MLB_PLAYERS_ENDPOINT = ESPN_CORE_MLB_ENDPOINT + "/athletes"
+ESPN_CORE_SPORT_ENDPOINTS = {"mlb": ESPN_CORE_ENDPOINT + "/sports/baseball/leagues/mlb"}

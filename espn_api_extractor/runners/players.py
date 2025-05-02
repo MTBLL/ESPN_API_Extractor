@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import argparse
 
+from espn_api_extractor.baseball.player import Player
+
 # Using absolute imports
 from espn_api_extractor.requests.espn_requests import EspnFantasyRequests
 from espn_api_extractor.utils.logger import Logger
@@ -24,8 +26,11 @@ def main():
             logger=logger,
         )
         players = requestor.get_pro_players()
-        breakpoint()
         logger.logging.info(f"successfully got {len(players)} players")
+        # cast the json response into Player objects
+        player_objs = [Player(player) for player in players]
+        # once we have the player objects, we need to hydrate the rest of the player data,
+        # either by self mutable calls or a functional method that returns the hydrated players
 
     except Exception as e:
         print(f"Error: {e}")

@@ -6,9 +6,9 @@ from .constant import NOMINAL_POSITION_MAP, POSITION_MAP, PRO_TEAM_MAP, STATS_MA
 class Player(object):
     """Player are part of team"""
 
-    def __init__(self, data, year):
+    def __init__(self, data):
         self.name: str | None = json_parsing(data, "fullName")
-        self.playerId: int | None = json_parsing(data, "id")
+        self.id: int | None = json_parsing(data, "id")
 
         # Handle potential None/empty results from json_parsing
         position_id = json_parsing(data, "defaultPositionId")
