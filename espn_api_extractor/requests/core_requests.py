@@ -1,6 +1,8 @@
 import requests
 from requests.sessions import cookies
+from typing_extensions import List
 
+from espn_api_extractor.baseball.player import Player
 from espn_api_extractor.utils.logger import Logger
 
 from .constant import ESPN_CORE_SPORT_ENDPOINTS
@@ -60,9 +62,36 @@ class EspnCoreRequests:
             )
         return r.json()
 
-    def _hydrate_player(self, id: int):
-        pass
+    def _get_player_data(self, player_id: int, params: dict = {}):
+        endpoint = self.sport_endpoint + f"/athletes/{player_id}"
+        r = requests.get(
+            endpoint,
+            params=params,
+            headers=self.session.headers,
+            cookies=self.session.cookies,
+        )
+        self._checkRequestStatus(r.status_code)
 
-    def hydrate_players(self, ids: list[int]):
-        for id in ids:
-            self._hydrate_player(id)
+        if self.logger:
+            self.logger.log_request(
+                endpoint=endpoint,
+                params=params,
+                headers=self.session.headers,
+                response=r.json(),
+            )
+        return r.json()
+
+    def _hydrate_player(self, player: Player) -> Player:
+        assert player.id is not None, "Player ID is required"
+        data = self._get_player_data(player.id)
+
+        hydrated_player = player
+        hydrated_player.hydrate(data)
+        return hydrated_player
+
+    def hydrate_players(self, players: list[Player]) -> List[Player]:
+        hydrated_players: List[Player] = []
+        for player in players:
+            hydrated_players.append(self._hydrate_player(player))
+
+        return hydrated_players

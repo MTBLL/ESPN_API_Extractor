@@ -3,7 +3,7 @@ from typing import List
 
 from .base_pick import BasePick
 from .base_settings import BaseSettings
-from .requests.espn_requests import EspnFantasyRequests
+from .requests.fantasy_requests import EspnFantasyRequests
 from .utils.logger import Logger
 
 

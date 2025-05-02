@@ -91,3 +91,107 @@ def test_player_missing_data():
     assert player.proTeam is None  # No proTeamId in data
     assert player.eligibleSlots == []  # No eligibleSlots in data
     assert player.percent_owned == -1  # Default when ownership data is missing
+    
+    
+@pytest.fixture
+def player_details_data():
+    """
+    Fixture providing sample player details data in the format returned by the ESPN API.
+    """
+    return {
+        "id": "42404",
+        "firstName": "Corbin",
+        "lastName": "Carroll",
+        "fullName": "Corbin Carroll",
+        "displayName": "Corbin Carroll",
+        "shortName": "C. Carroll",
+        "nickname": "Clutch Corbin",
+        "weight": 165,
+        "displayWeight": "165 lbs",
+        "height": 69,
+        "displayHeight": "5' 9\"",
+        "age": 24,
+        "dateOfBirth": "2000-08-21T07:00Z",
+        "birthPlace": {
+            "city": "Seattle",
+            "country": "USA"
+        },
+        "debutYear": 2022,
+        "jersey": "7",
+        "position": {
+            "name": "Center Fielder",
+            "displayName": "Center Fielder",
+            "abbreviation": "CF"
+        },
+        "bats": {
+            "displayValue": "Left"
+        },
+        "throws": {
+            "displayValue": "Left"
+        },
+        "active": True,
+        "status": {
+            "name": "Active",
+            "type": "active"
+        },
+        "experience": {
+            "years": 3
+        },
+        "headshot": {
+            "href": "https://a.espncdn.com/i/headshots/mlb/players/full/42404.png"
+        }
+    }
+
+
+def test_player_hydration(player_data, player_details_data):
+    """
+    Test the Player hydration with additional details data.
+    """
+    # Initialize a player
+    player = Player(player_data)
+    
+    # Initial state should not have detailed attributes
+    assert not hasattr(player, "displayName")
+    assert not hasattr(player, "shortName")
+    assert not hasattr(player, "dateOfBirth")
+    
+    # Hydrate the player
+    player.hydrate(player_details_data)
+    
+    # Verify basic attributes are now set
+    assert player.displayName == "Corbin Carroll"
+    assert player.shortName == "C. Carroll"
+    assert player.nickname == "Clutch Corbin"
+    
+    # Verify physical attributes
+    assert player.weight == 165
+    assert player.displayWeight == "165 lbs"
+    assert player.height == 69
+    assert player.displayHeight == "5' 9\""
+    
+    # Verify biographical information
+    assert player.age == 24
+    assert player.dateOfBirth == "2000-08-21T07:00Z"
+    assert player.birthPlace == {"city": "Seattle", "country": "USA"}
+    assert player.debutYear == 2022
+    
+    # Verify jersey and position
+    assert player.jersey == "7"
+    assert player.positionName == "Center Fielder"
+    assert player.positionDisplayName == "Center Fielder"
+    assert player.positionAbbreviation == "CF"
+    
+    # Verify playing characteristics
+    assert player.bats == "Left"
+    assert player.throws == "Left"
+    
+    # Verify status
+    assert player.active is True
+    assert player.statusName == "Active"
+    assert player.statusType == "active"
+    
+    # Verify experience
+    assert player.experienceYears == 3
+    
+    # Verify headshot
+    assert player.headshot == "https://a.espncdn.com/i/headshots/mlb/players/full/42404.png"
