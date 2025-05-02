@@ -24,6 +24,7 @@ def main():
             logger=logger,
         )
         players = requestor.get_pro_players()
+        breakpoint()
         logger.logging.info(f"successfully got {len(players)} players")
 
     except Exception as e:
