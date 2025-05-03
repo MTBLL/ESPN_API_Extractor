@@ -1,6 +1,7 @@
 import json
 import logging
 import sys
+from typing import MutableMapping
 
 
 class Logger(object):
@@ -26,7 +27,7 @@ class Logger(object):
         endpoint: str,
         response: dict,
         params: dict | None = None,
-        headers: dict | None = None,
+        headers: dict | MutableMapping[str, str | bytes] | None = None,
     ):
         log = f"ESPN API Request: url: {endpoint} params: {params} headers: {headers} \nESPN API Response: {json.dumps(response)}"
         self.logging.debug(log)

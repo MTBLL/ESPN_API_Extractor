@@ -5,5 +5,5 @@ __all__ = [
     "ESPNUnknownError",
 ]
 
-from .espn_requests import EspnFantasyRequests
 from .exceptions import ESPNAccessDenied, ESPNInvalidLeague, ESPNUnknownError
+from .fantasy_requests import EspnFantasyRequests

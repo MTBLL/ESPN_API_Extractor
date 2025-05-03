@@ -1,7 +1,7 @@
 import datetime
 import pytest
 
-from espn_api_extractor.requests.espn_requests import EspnFantasyRequests
+from espn_api_extractor.requests.fantasy_requests import EspnFantasyRequests
 
 
 @pytest.fixture

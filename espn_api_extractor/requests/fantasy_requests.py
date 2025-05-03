@@ -51,7 +51,7 @@ class EspnFantasyRequests(object):
                 "/seasons/" + self.year + "/segments/0/leagueleaguedefaults/1"
             )
 
-    def checkRequestStatus(
+    def _checkRequestStatus(
         self,
         status: int,
         extend: str = "",
@@ -98,7 +98,7 @@ class EspnFantasyRequests(object):
     def _get(self, params: dict = {}, headers: dict = {}, extend: str = ""):
         endpoint = self.SEASON_ENDPOINT + extend
         r = requests.get(endpoint, params=params, headers=headers, cookies=self.cookies)
-        self.checkRequestStatus(r.status_code)
+        self._checkRequestStatus(r.status_code)
 
         if self.logger:
             self.logger.log_request(
@@ -110,7 +110,7 @@ class EspnFantasyRequests(object):
         endpoint = self.LEAGUE_ENDPOINT + extend
         breakpoint()
         r = requests.get(endpoint, params=params, headers=headers, cookies=self.cookies)
-        alternate_response = self.checkRequestStatus(
+        alternate_response = self._checkRequestStatus(
             r.status_code, extend=extend, params=params, headers=headers
         )
 

@@ -1,1 +1,7 @@
 **__pycache__**
+.coverage**
+.venv
+.pytest_cache
+.ropeproject
+
+test.json
