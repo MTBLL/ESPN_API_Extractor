@@ -242,7 +242,7 @@ class EspnCoreRequests:
                                     with self.logger_lock:
                                         self.logger.logging.warn(
                                             f"Failed to hydrate player: {player.id} - "
-                                            f"{player.displayName if hasattr(player, 'displayName') else 'Unknown'}"
+                                            f"{player.display_name if hasattr(player, 'display_name') else 'Unknown'}"
                                         )
                             except Exception as exc:
                                 # Handle any uncaught exceptions from the thread
@@ -269,8 +269,8 @@ class EspnCoreRequests:
                     failed_players[:10]
                 ):  # Log first 10 failed players
                     player_name = (
-                        player.displayName
-                        if hasattr(player, "displayName")
+                        player.display_name
+                        if hasattr(player, "display_name")
                         else "Unknown"
                     )
                     self.logger.logging.warning(

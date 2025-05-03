@@ -137,7 +137,7 @@ class TestPlayerEnhanced:
         # This section is removed.
 
         # Verify player info from playerPoolEntry
-        assert player.injuryStatus == "ACTIVE"
+        assert player.injury_status == "ACTIVE"
         assert player.injured is False
         assert player.percent_started == 95.5
         assert player.percent_owned == 99.8
@@ -147,8 +147,8 @@ class TestPlayerEnhanced:
         data = {"id": 123, "fullName": "Test Player", "eligibleSlots": []}
         player = Player(data)
 
-        # Should have empty eligibleSlots list
-        assert player.eligibleSlots == []
+        # Should have empty eligible_slots list
+        assert player.eligible_slots == []
 
     def test_missing_eligible_slots(self):
         """Test player with missing eligibleSlots field"""
@@ -159,8 +159,8 @@ class TestPlayerEnhanced:
         }
         player = Player(data)
 
-        # Should have empty eligibleSlots list
-        assert player.eligibleSlots == []
+        # Should have empty eligible_slots list
+        assert player.eligible_slots == []
 
     def test_player_ownership_formats(self):
         """Test different formats of ownership data"""
@@ -193,7 +193,7 @@ class TestPlayerEnhanced:
 
         # Verify lineup slot
         expected_lineup_slot = POSITION_MAP.get(10)  # RF
-        assert player.lineupSlot == expected_lineup_slot
+        assert player.lineup_slot == expected_lineup_slot
 
     def test_player_hydration_with_edge_cases(self):
         """Test player hydration with edge cases and missing fields"""
@@ -208,13 +208,13 @@ class TestPlayerEnhanced:
         )
 
         # Verify basic fields were set
-        assert player.displayName == "Test Player"
+        assert player.display_name == "Test Player"
 
         # Fields that depend on nested data should not be set
         assert not hasattr(player, "bats")
         assert not hasattr(player, "throws")
-        assert not hasattr(player, "statusName")
-        assert not hasattr(player, "experienceYears")
+        assert not hasattr(player, "status_name")
+        assert not hasattr(player, "experience_years")
         assert not hasattr(player, "headshot")
 
         # Default values for certain fields
@@ -241,14 +241,14 @@ class TestPlayerEnhanced:
         )
 
         # Verify partial nested data handled properly
-        assert player.positionName == "Pitcher"
+        assert player.position_name == "Pitcher"
         # The Player.hydrate method sets all position attributes from position dictionary
         # even if some fields are missing in the data
         assert player.pos is None  # None because it's missing in data
         assert player.status is None  # None because it's missing in data
 
-        # experienceYears is not set because the empty experience dictionary is not handled in the code
-        assert not hasattr(player, "experienceYears")
+        # experience_years is not set because the empty experience dictionary is not handled in the code
+        assert not hasattr(player, "experience_years")
 
         # headshot is not set because the empty headshot dictionary is not handled in the code
         assert not hasattr(player, "headshot")

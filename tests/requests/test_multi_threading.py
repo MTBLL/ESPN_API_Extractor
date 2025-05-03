@@ -66,7 +66,7 @@ class TestMultiThreading:
         
         # Verify the result
         assert success is True
-        assert result_player.displayName == "Test Player"
+        assert result_player.display_name == "Test Player"
         assert result_player.bats == "Right"
         assert result_player.throws == "Right"
         
@@ -98,8 +98,8 @@ class TestMultiThreading:
         
         # Verify each player was properly hydrated
         for player in hydrated_players:
-            assert hasattr(player, "displayName")
-            assert player.displayName == "Test Player"
+            assert hasattr(player, "display_name")
+            assert player.display_name == "Test Player"
             assert player.bats == "Right"
             assert player.throws == "Right"
         
@@ -146,7 +146,7 @@ class TestMultiThreading:
         
         # Verify each successful player was properly hydrated
         for player in hydrated_players:
-            assert hasattr(player, "displayName")
+            assert hasattr(player, "display_name")
             assert player.bats == "Right"
             assert player.throws == "Right"
         

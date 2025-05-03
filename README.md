@@ -77,10 +77,12 @@ player = Player(player_data)
 player.hydrate(detailed_data)
 
 # Access player attributes
-player.name        # Player name
-player.id          # ESPN player ID
-player.proTeam     # MLB team
-player.stats       # Player statistics
+player.name               # Player name
+player.id                 # ESPN player ID
+player.pro_team           # MLB team (now uses snake_case naming)
+player.primary_position   # Position
+player.date_of_birth      # Birth date (YYYY-MM-DD format)
+player.stats              # Player statistics
 # ... and many more attributes after hydration
 ```
 
@@ -129,27 +131,39 @@ hydrated_players, failed_players = core_requestor.hydrate_players(player_objects
 
 # Use the fully hydrated player objects
 for player in hydrated_players:
-    print(f"{player.name} ({player.proTeam}) - Bats: {player.bats}, Throws: {player.throws}")
+    print(f"{player.name} ({player.pro_team}) - Bats: {player.bats}, Throws: {player.throws}")
 ```
 
-### Using with Pydantic (Future Feature)
+### Using with Pydantic Models
 
-The hydrated Player objects are designed to be easily serializable with Pydantic:
+The Player objects can be easily converted to and from Pydantic models for validation, serialization, and database integration:
 
 ```python
-# Example of future Pydantic integration
-from pydantic import BaseModel
+from espn_api_extractor.models.player_model import PlayerModel
+from espn_api_extractor.baseball.player import Player
 
-class PlayerModel(BaseModel):
-    id: int
-    name: str
-    team: str
-    position: str
-    # ... other fields
+# Convert a Player object to a Pydantic model
+player_model = player.to_model()
 
-# Convert hydrated Player objects to Pydantic models
-player_models = [PlayerModel.model_validate(player.__dict__) for player in hydrated_players]
+# Serialize to JSON
+json_data = player_model.model_dump_json()
+
+# Deserialize from JSON
+deserialized_model = PlayerModel.model_validate_json(json_data)
+
+# Convert back to a Player object
+player_object = Player.from_model(player_model)
+
+# Batch convert multiple Player objects
+player_models = [player.to_model() for player in hydrated_players]
 ```
+
+The Pydantic model handles various data validation tasks and provides:
+- Clean date format handling (YYYY-MM-DD)
+- Proper type validation for all fields
+- Standardized snake_case property naming
+- Support for nested models (e.g., BirthPlace)
+- Serialization/deserialization for database storage
 
 ## Installation
 
