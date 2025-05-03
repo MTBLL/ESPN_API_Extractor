@@ -9,8 +9,10 @@ class Player(object):
     """Player are part of team"""
 
     def __init__(self, data):
-        self.name: str | None = json_parsing(data, "fullName")
         self.id: int | None = json_parsing(data, "id")
+        self.name: str | None = json_parsing(data, "fullName")
+        self.first_name: str | None = json_parsing(data, "firstName")
+        self.last_name: str | None = json_parsing(data, "lastName")
 
         # Handle potential None/empty results from json_parsing
         position_id = json_parsing(data, "defaultPositionId")
@@ -27,8 +29,6 @@ class Player(object):
             if pos != 16 or pos != 17
         ]  # if position isn't in position map, just use the position id number
 
-        self.acquisitionType = json_parsing(data, "acquisitionType")
-
         pro_team_id = json_parsing(data, "proTeamId")
         self.proTeam = (
             PRO_TEAM_MAP.get(pro_team_id) if pro_team_id is not None else None
@@ -42,6 +42,7 @@ class Player(object):
             round(percent_owned_value, 2) if percent_owned_value else -1
         )
 
+        player_stats = []
         # Handle case where player info might be missing
         try:
             player = data.get("playerPoolEntry", {}).get("player") or data.get(
@@ -52,19 +53,15 @@ class Player(object):
             self.percent_started = round(
                 player.get("ownership", {}).get("percentStarted", -1), 2
             )
+            player_stats = player.get("stats", [])
 
             # add available stats from player data
-            player_stats = player.get("stats", [])
         except (KeyError, TypeError):
             # If we can't get player data, set defaults
             self.injured = False
             self.percent_owned = round(
                 data.get("ownership", {}).get("percentOwned", -1), 2
             )
-            self.percent_started = -1
-
-            # No player stats available
-            player_stats = []
 
         year = datetime.now().year
         for stats in player_stats:
@@ -94,8 +91,6 @@ class Player(object):
                     points_type: points,
                     breakdown_type: breakdown,
                 }
-        self.total_points = self.stats.get(0, {}).get("points", 0)
-        self.projected_total_points = self.stats.get(0, {}).get("projected_points", 0)
 
     def __repr__(self) -> str:
         return "Player(%s)" % (self.name,)
@@ -111,6 +106,7 @@ class Player(object):
         self.displayName = data.get("displayName", "")
         self.shortName = data.get("shortName", "")
         self.nickname = data.get("nickname", "")
+        self.slug = data.get("slug", "")
 
         # Physical attributes
         self.weight = data.get("weight")
@@ -119,7 +115,6 @@ class Player(object):
         self.displayHeight = data.get("displayHeight", "")
 
         # Biographical information
-        self.age = data.get("age")
         self.dateOfBirth = data.get("dateOfBirth")
         self.birthPlace = data.get("birthPlace", {})
         self.debutYear = data.get("debutYear")
@@ -128,8 +123,7 @@ class Player(object):
         self.jersey = data.get("jersey", "")
         if data.get("position"):
             self.positionName = data.get("position", {}).get("name")
-            self.positionDisplayName = data.get("position", {}).get("displayName")
-            self.positionAbbreviation = data.get("position", {}).get("abbreviation")
+            self.pos = data.get("position", {}).get("abbreviation")
 
         # Playing characteristics
         if data.get("bats"):
@@ -140,12 +134,7 @@ class Player(object):
         # Status information
         self.active = data.get("active", False)
         if data.get("status"):
-            self.statusName = data.get("status", {}).get("name")
-            self.statusType = data.get("status", {}).get("type")
-
-        # Experience
-        if data.get("experience"):
-            self.experienceYears = data.get("experience", {}).get("years")
+            self.status = data.get("status", {}).get("type")
 
         # Headshot URL if available
         if data.get("headshot"):

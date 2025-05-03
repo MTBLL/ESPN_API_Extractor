@@ -1,12 +1,8 @@
-import pytest
 from datetime import datetime
 
-from espn_api_extractor.baseball.constant import (
-    NOMINAL_POSITION_MAP,
-    POSITION_MAP,
-    PRO_TEAM_MAP,
-    STATS_MAP
-)
+import pytest
+
+from espn_api_extractor.baseball.constant import POSITION_MAP
 from espn_api_extractor.baseball.player import Player
 
 
@@ -29,7 +25,7 @@ class TestPlayerEnhanced:
         """Fixture providing player data with stats"""
         current_year = datetime.now().year
         return {
-            "defaultPositionId": 8, 
+            "defaultPositionId": 8,
             "eligibleSlots": [9, 10, 5, 12, 16, 17],
             "fullName": "Corbin Carroll",
             "id": 42404,
@@ -46,9 +42,9 @@ class TestPlayerEnhanced:
                             "statSplitTypeId": 0,
                             "stats": {
                                 "0": 145,  # At bats
-                                "1": 42,   # Hits
-                                "2": 8,    # Home runs
-                                "20": 12   # Stolen bases
+                                "1": 42,  # Hits
+                                "2": 8,  # Home runs
+                                "20": 12,  # Stolen bases
                             },
                             "appliedTotal": 120.5,
                             "scoringPeriodId": 0,
@@ -61,8 +57,8 @@ class TestPlayerEnhanced:
                             "appliedStats": {
                                 "0": 600,  # At bats
                                 "1": 165,  # Hits
-                                "2": 28,   # Home runs
-                                "20": 45   # Stolen bases
+                                "2": 28,  # Home runs
+                                "20": 45,  # Stolen bases
                             },
                             "appliedTotal": 450.2,
                             "scoringPeriodId": 0,
@@ -86,18 +82,15 @@ class TestPlayerEnhanced:
                             "scoringPeriodId": 10,  # Week 10
                             "statSourceId": 0,
                         },
-                    ]
+                    ],
                 }
-            }
+            },
         }
 
     @pytest.fixture
     def player_missing_data(self):
         """Fixture providing player data with minimal fields"""
-        return {
-            "id": 12345,
-            "fullName": "Minimal Player"
-        }
+        return {"id": 12345, "fullName": "Minimal Player"}
 
     @pytest.fixture
     def player_with_acquisition_data(self):
@@ -106,43 +99,43 @@ class TestPlayerEnhanced:
             "id": 12345,
             "fullName": "Drafted Player",
             "acquisitionType": "DRAFT",
-            "lineupSlotId": 10  # RF
+            "lineupSlotId": 10,  # RF
         }
 
     def test_player_with_stats_processing(self, player_stats_data):
         """Test player initialization with stats processing"""
         player = Player(player_stats_data)
-        
+
         # Verify stats are processed correctly
         assert 0 in player.stats  # Season stats
-        
+
         # Note: Week 10 stats are not included because statSplitTypeId is not 0 or 5
         # The statSplitTypeId: 1 (Last 7 days) is filtered out by the if condition in Player.__init__
-        
+
         # Verify season stats
         season_stats = player.stats[0]
         assert season_stats["points"] == 120.5
         assert season_stats["projected_points"] == 450.2
-        
+
         # Verify stats in breakdown (field names depend on STATS_MAP in constant.py)
         # The actual keys may not be "atBats", "hits", etc. but could be abbreviated
         assert "AB" in season_stats["breakdown"]
         assert season_stats["breakdown"]["AB"] == 145
         assert season_stats["breakdown"]["H"] == 42
-        assert season_stats["breakdown"]["AVG"] == 8  # This might be homeRuns in STATS_MAP
-        assert season_stats["breakdown"]["R"] == 12   # This might be stolenBases in STATS_MAP
-        
+        assert (
+            season_stats["breakdown"]["AVG"] == 8
+        )  # This might be homeRuns in STATS_MAP
+        assert (
+            season_stats["breakdown"]["R"] == 12
+        )  # This might be stolenBases in STATS_MAP
+
         # Verify projected stats
         assert "projected_breakdown" in season_stats
         assert season_stats["projected_breakdown"]["AB"] == 600
-        
+
         # Since weekly stats with statSplitTypeId=1 are excluded, we can't test them.
         # This section is removed.
-        
-        # Verify total points are set
-        assert player.total_points == 120.5
-        assert player.projected_total_points == 450.2
-        
+
         # Verify player info from playerPoolEntry
         assert player.injuryStatus == "ACTIVE"
         assert player.injured is False
@@ -151,13 +144,9 @@ class TestPlayerEnhanced:
 
     def test_empty_eligible_slots(self):
         """Test player with empty eligibleSlots field"""
-        data = {
-            "id": 123,
-            "fullName": "Test Player",
-            "eligibleSlots": []
-        }
+        data = {"id": 123, "fullName": "Test Player", "eligibleSlots": []}
         player = Player(data)
-        
+
         # Should have empty eligibleSlots list
         assert player.eligibleSlots == []
 
@@ -165,11 +154,11 @@ class TestPlayerEnhanced:
         """Test player with missing eligibleSlots field"""
         data = {
             "id": 123,
-            "fullName": "Test Player"
+            "fullName": "Test Player",
             # No eligibleSlots field
         }
         player = Player(data)
-        
+
         # Should have empty eligibleSlots list
         assert player.eligibleSlots == []
 
@@ -179,37 +168,29 @@ class TestPlayerEnhanced:
         data1 = {
             "id": 123,
             "fullName": "Test Player",
-            "ownership": {"percentOwned": 88.5}
+            "ownership": {"percentOwned": 88.5},
         }
         player1 = Player(data1)
         assert player1.percent_owned == 88.5
-        
+
         # Test with ownership in player field
         data2 = {
             "id": 123,
             "fullName": "Test Player",
-            "player": {
-                "ownership": {"percentOwned": 77.3}
-            }
+            "player": {"ownership": {"percentOwned": 77.3}},
         }
         player2 = Player(data2)
         assert player2.percent_owned == 77.3
-        
+
         # Test with missing ownership
-        data3 = {
-            "id": 123,
-            "fullName": "Test Player"
-        }
+        data3 = {"id": 123, "fullName": "Test Player"}
         player3 = Player(data3)
         assert player3.percent_owned == -1
 
     def test_acquisition_type_and_lineup_slot(self, player_with_acquisition_data):
         """Test player with acquisition type and lineup slot data"""
         player = Player(player_with_acquisition_data)
-        
-        # Verify acquisition type
-        assert player.acquisitionType == "DRAFT"
-        
+
         # Verify lineup slot
         expected_lineup_slot = POSITION_MAP.get(10)  # RF
         assert player.lineupSlot == expected_lineup_slot
@@ -217,58 +198,57 @@ class TestPlayerEnhanced:
     def test_player_hydration_with_edge_cases(self):
         """Test player hydration with edge cases and missing fields"""
         player = Player({"id": 123, "fullName": "Test Player"})
-        
+
         # Hydrate with minimal data
-        player.hydrate({
-            "displayName": "Test Player"
-            # Missing many fields
-        })
-        
+        player.hydrate(
+            {
+                "displayName": "Test Player"
+                # Missing many fields
+            }
+        )
+
         # Verify basic fields were set
         assert player.displayName == "Test Player"
-        
+
         # Fields that depend on nested data should not be set
         assert not hasattr(player, "bats")
         assert not hasattr(player, "throws")
         assert not hasattr(player, "statusName")
         assert not hasattr(player, "experienceYears")
         assert not hasattr(player, "headshot")
-        
+
         # Default values for certain fields
         assert player.active is False
-        
+
         # Hydrate with partial nested data
-        player.hydrate({
-            "position": {
-                "name": "Pitcher"
-                # Missing displayName and abbreviation
-            },
-            "status": {
-                "name": "Active"
-                # Missing type
-            },
-            "experience": {
-                # Missing years
-            },
-            "headshot": {
-                # Missing href
+        player.hydrate(
+            {
+                "position": {
+                    "name": "Pitcher"
+                    # Missing displayName and abbreviation
+                },
+                "status": {
+                    "name": "Active"
+                    # Missing type
+                },
+                "experience": {
+                    # Missing years
+                },
+                "headshot": {
+                    # Missing href
+                },
             }
-        })
-        
+        )
+
         # Verify partial nested data handled properly
         assert player.positionName == "Pitcher"
         # The Player.hydrate method sets all position attributes from position dictionary
         # even if some fields are missing in the data
-        assert hasattr(player, "positionDisplayName")
-        assert player.positionDisplayName is None  # None because it's missing in data
-        assert hasattr(player, "positionAbbreviation")
-        assert player.positionAbbreviation is None  # None because it's missing in data
-        assert player.statusName == "Active"
-        assert hasattr(player, "statusType")
-        assert player.statusType is None  # None because it's missing in data
-        
+        assert player.pos is None  # None because it's missing in data
+        assert player.status is None  # None because it's missing in data
+
         # experienceYears is not set because the empty experience dictionary is not handled in the code
         assert not hasattr(player, "experienceYears")
-        
+
         # headshot is not set because the empty headshot dictionary is not handled in the code
         assert not hasattr(player, "headshot")

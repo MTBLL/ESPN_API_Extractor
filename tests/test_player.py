@@ -64,8 +64,6 @@ def test_player_initialization(player_data):
 
     # The following are not present in our test data but should have default values
     assert player.stats == {}
-    assert player.total_points == 0
-    assert player.projected_total_points == 0
 
 
 def test_player_repr(player_data):
@@ -91,8 +89,8 @@ def test_player_missing_data():
     assert player.proTeam is None  # No proTeamId in data
     assert player.eligibleSlots == []  # No eligibleSlots in data
     assert player.percent_owned == -1  # Default when ownership data is missing
-    
-    
+
+
 @pytest.fixture
 def player_details_data():
     """
@@ -112,34 +110,22 @@ def player_details_data():
         "displayHeight": "5' 9\"",
         "age": 24,
         "dateOfBirth": "2000-08-21T07:00Z",
-        "birthPlace": {
-            "city": "Seattle",
-            "country": "USA"
-        },
+        "birthPlace": {"city": "Seattle", "country": "USA"},
         "debutYear": 2022,
         "jersey": "7",
         "position": {
             "name": "Center Fielder",
             "displayName": "Center Fielder",
-            "abbreviation": "CF"
+            "abbreviation": "CF",
         },
-        "bats": {
-            "displayValue": "Left"
-        },
-        "throws": {
-            "displayValue": "Left"
-        },
+        "bats": {"displayValue": "Left"},
+        "throws": {"displayValue": "Left"},
         "active": True,
-        "status": {
-            "name": "Active",
-            "type": "active"
-        },
-        "experience": {
-            "years": 3
-        },
+        "status": {"name": "Active", "type": "active"},
+        "experience": {"years": 3},
         "headshot": {
             "href": "https://a.espncdn.com/i/headshots/mlb/players/full/42404.png"
-        }
+        },
     }
 
 
@@ -149,49 +135,46 @@ def test_player_hydration(player_data, player_details_data):
     """
     # Initialize a player
     player = Player(player_data)
-    
+
     # Initial state should not have detailed attributes
     assert not hasattr(player, "displayName")
     assert not hasattr(player, "shortName")
     assert not hasattr(player, "dateOfBirth")
-    
+
     # Hydrate the player
     player.hydrate(player_details_data)
-    
+
     # Verify basic attributes are now set
     assert player.displayName == "Corbin Carroll"
     assert player.shortName == "C. Carroll"
     assert player.nickname == "Clutch Corbin"
-    
+
     # Verify physical attributes
     assert player.weight == 165
     assert player.displayWeight == "165 lbs"
     assert player.height == 69
     assert player.displayHeight == "5' 9\""
-    
+
     # Verify biographical information
-    assert player.age == 24
     assert player.dateOfBirth == "2000-08-21T07:00Z"
     assert player.birthPlace == {"city": "Seattle", "country": "USA"}
     assert player.debutYear == 2022
-    
+
     # Verify jersey and position
     assert player.jersey == "7"
     assert player.positionName == "Center Fielder"
-    assert player.positionDisplayName == "Center Fielder"
-    assert player.positionAbbreviation == "CF"
-    
+    assert player.pos == "CF"
+
     # Verify playing characteristics
     assert player.bats == "Left"
     assert player.throws == "Left"
-    
+
     # Verify status
     assert player.active is True
-    assert player.statusName == "Active"
-    assert player.statusType == "active"
-    
-    # Verify experience
-    assert player.experienceYears == 3
-    
+    assert player.status == "active"
+
     # Verify headshot
-    assert player.headshot == "https://a.espncdn.com/i/headshots/mlb/players/full/42404.png"
+    assert (
+        player.headshot
+        == "https://a.espncdn.com/i/headshots/mlb/players/full/42404.png"
+    )

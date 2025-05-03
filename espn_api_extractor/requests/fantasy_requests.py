@@ -108,7 +108,6 @@ class EspnFantasyRequests(object):
 
     def league_get(self, params: dict = {}, headers: dict = {}, extend: str = ""):
         endpoint = self.LEAGUE_ENDPOINT + extend
-        breakpoint()
         r = requests.get(endpoint, params=params, headers=headers, cookies=self.cookies)
         alternate_response = self._checkRequestStatus(
             r.status_code, extend=extend, params=params, headers=headers
