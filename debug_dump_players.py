@@ -2,23 +2,7 @@
 import json
 import argparse
 from espn_api_extractor.runners.players import main as players_main
-
-def player_to_dict(player):
-    """Convert a Player object to a dict for JSON serialization"""
-    result = {}
-    for attr in dir(player):
-        # Skip private/special attributes and methods
-        if not attr.startswith('_') and not callable(getattr(player, attr)):
-            try:
-                value = getattr(player, attr)
-                # Handle special cases for serialization
-                if isinstance(value, set):
-                    value = list(value)
-                result[attr] = value
-            except Exception as e:
-                # If we can't serialize, convert to string
-                result[attr] = f"[Not serializable: {str(e)}]"
-    return result
+from espn_api_extractor.models.player_model import PlayerModel
 
 def main():
     parser = argparse.ArgumentParser(description="Get player data and save to JSON for debugging")
@@ -42,6 +26,10 @@ def main():
         "--sample", type=int, default=20,
         help="Number of players to include in the sample (default: 20)"
     )
+    parser.add_argument(
+        "--pretty", action="store_true",
+        help="Output pretty-printed (indented) JSON (default: False)"
+    )
     
     args = parser.parse_args()
     
@@ -63,24 +51,42 @@ def main():
     
     print(f"Got {len(players)} players, saving {min(args.sample, len(players))} to {args.output}")
     
-    # Convert player objects to dicts for JSON serialization
-    # Just use a sample of players to keep the file size reasonable
+    # Take a sample of players to keep the file size reasonable
     sample_size = min(args.sample, len(players))
-    players_data = [player_to_dict(player) for player in players[:sample_size]]
+    sample_players = players[:sample_size]
     
-    # Save to JSON
-    with open(args.output, 'w') as f:
-        json.dump(players_data, f, indent=2, default=str)
+    # Convert player objects to Pydantic models
+    player_models = [player.to_model() for player in sample_players]
     
-    print(f"Saved {len(players_data)} players to {args.output}")
+    # Serialize to JSON
+    if args.pretty:
+        # Pretty print with indentation
+        json_data = "[\n"
+        for i, model in enumerate(player_models):
+            model_json = model.model_dump_json(indent=2)
+            json_data += "  " + model_json.replace("\n", "\n  ")
+            if i < len(player_models) - 1:
+                json_data += ",\n"
+            else:
+                json_data += "\n"
+        json_data += "]\n"
+        
+        with open(args.output, 'w') as f:
+            f.write(json_data)
+    else:
+        # Use standard JSON serialization
+        json_list = [model.model_dump() for model in player_models]
+        with open(args.output, 'w') as f:
+            json.dump(json_list, f, indent=2)
+    
+    print(f"Saved {len(player_models)} players to {args.output}")
     
     # Print a summary of what attributes are available
-    all_keys = set()
-    for player_dict in players_data:
-        all_keys.update(player_dict.keys())
+    example_model = player_models[0].model_dump() if player_models else {}
+    all_keys = sorted(example_model.keys())
     
     print("\nAvailable player attributes:")
-    for key in sorted(all_keys):
+    for key in all_keys:
         print(f"- {key}")
 
 if __name__ == "__main__":

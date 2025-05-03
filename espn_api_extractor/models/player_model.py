@@ -32,7 +32,6 @@ class PlayerModel(BaseModel):
 
     # Position information
     primary_position: Optional[str] = Field(None, alias="primaryPosition")
-    lineup_slot: Optional[str] = Field("", alias="lineupSlot")
     eligible_slots: List[str] = Field(default_factory=list, alias="eligibleSlots")
     position_name: Optional[str] = Field(None, alias="positionName")
     pos: Optional[str] = None
@@ -107,7 +106,6 @@ class PlayerModel(BaseModel):
         # Convert camelCase attributes to snake_case to match Player class
         for camel, snake in [
             ("primaryPosition", "primary_position"),
-            ("lineupSlot", "lineup_slot"),
             ("eligibleSlots", "eligible_slots"),
             ("proTeam", "pro_team"),
             ("injuryStatus", "injury_status"),

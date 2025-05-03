@@ -2,7 +2,6 @@ from datetime import datetime
 
 import pytest
 
-from espn_api_extractor.baseball.constant import POSITION_MAP
 from espn_api_extractor.baseball.player import Player
 
 
@@ -186,14 +185,6 @@ class TestPlayerEnhanced:
         data3 = {"id": 123, "fullName": "Test Player"}
         player3 = Player(data3)
         assert player3.percent_owned == -1
-
-    def test_acquisition_type_and_lineup_slot(self, player_with_acquisition_data):
-        """Test player with acquisition type and lineup slot data"""
-        player = Player(player_with_acquisition_data)
-
-        # Verify lineup slot
-        expected_lineup_slot = POSITION_MAP.get(10)  # RF
-        assert player.lineup_slot == expected_lineup_slot
 
     def test_player_hydration_with_edge_cases(self):
         """Test player hydration with edge cases and missing fields"""

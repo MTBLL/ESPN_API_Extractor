@@ -43,15 +43,13 @@ def test_player_initialization(player_data):
     assert player.primary_position == expected_primary_position
 
     # Verify eligible slots
-    # Note: there's a condition in Player that filters out slots 16 and 17,
-    # but it's using "or" instead of "and" which means it will never filter anything out
+    # Now correctly filtering out bench (BE) and injured list (IL) slots
     expected_slots = [
         POSITION_MAP.get(9),  # CF
         POSITION_MAP.get(10),  # RF
         POSITION_MAP.get(5),  # OF
         POSITION_MAP.get(12),  # UTIL
-        POSITION_MAP.get(16),  # BE
-        POSITION_MAP.get(17),  # IL
+        # BE and IL are excluded
     ]
     assert set(player.eligible_slots) == set(expected_slots)
 

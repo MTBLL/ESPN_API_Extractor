@@ -1,8 +1,7 @@
 from datetime import datetime
-from typing import Tuple, Optional, Dict, List, Any, Union
 
-from espn_api_extractor.utils.utils import json_parsing
 from espn_api_extractor.models.player_model import PlayerModel
+from espn_api_extractor.utils.utils import json_parsing
 
 from .constant import NOMINAL_POSITION_MAP, POSITION_MAP, PRO_TEAM_MAP, STATS_MAP
 
@@ -22,13 +21,11 @@ class Player(object):
             NOMINAL_POSITION_MAP.get(position_id) if position_id is not None else None
         )
 
-        self.lineup_slot = POSITION_MAP.get(data.get("lineupSlotId"), "")
-
         eligible_slots = json_parsing(data, "eligibleSlots")
         self.eligible_slots = [
             POSITION_MAP.get(pos, pos)
             for pos in (eligible_slots if eligible_slots else [])
-            if pos != 16 or pos != 17
+            if pos != 16 and pos != 17  # Filter out Bench (BE) and Injured List (IL)
         ]  # if position isn't in position map, just use the position id number
 
         pro_team_id = json_parsing(data, "proTeamId")
@@ -96,37 +93,37 @@ class Player(object):
 
     def __repr__(self) -> str:
         return "Player(%s)" % (self.name,)
-        
+
     @classmethod
     def from_model(cls, player_model: PlayerModel):
         """
         Create a Player instance from a PlayerModel.
-        
+
         Args:
             player_model (PlayerModel): The Pydantic model to convert
-            
+
         Returns:
             Player: A new Player instance
         """
         # Convert the model to a dict for initialization
         player_dict = player_model.to_player_dict()
-        
+
         # Create a new Player instance
         player = cls(player_dict)
-        
+
         # Copy fields that might have been missed in initialization
-        if hasattr(player_model, 'name') and player_model.name:
+        if hasattr(player_model, "name") and player_model.name:
             player.name = player_model.name
-            
-        if hasattr(player_model, 'pro_team') and player_model.pro_team:
+
+        if hasattr(player_model, "pro_team") and player_model.pro_team:
             player.pro_team = player_model.pro_team
-            
-        if hasattr(player_model, 'primary_position') and player_model.primary_position:
+
+        if hasattr(player_model, "primary_position") and player_model.primary_position:
             player.primary_position = player_model.primary_position
-            
-        if hasattr(player_model, 'eligible_slots') and player_model.eligible_slots:
+
+        if hasattr(player_model, "eligible_slots") and player_model.eligible_slots:
             player.eligible_slots = player_model.eligible_slots
-        
+
         # Handle special fields not covered by the standard initialization
         if player_model.stats:
             player.stats = {}
@@ -137,13 +134,13 @@ class Player(object):
                     "breakdown": stat.breakdown,
                     "projected_breakdown": stat.projected_breakdown,
                 }
-        
+
         return player
-    
+
     def to_model(self) -> PlayerModel:
         """
         Convert this Player instance to a PlayerModel.
-        
+
         Returns:
             PlayerModel: A new PlayerModel instance
         """
