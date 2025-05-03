@@ -1,4 +1,5 @@
 # ESPN Baseball API Extractor
+[![codecov](https://codecov.io/gh/MTBLL/ESPN_API_Extractor/graph/badge.svg?token=ZfastHrmnz)](https://codecov.io/gh/MTBLL/ESPN_API_Extractor)
 
 A Python library for interacting with ESPN's Fantasy and Core APIs to extract detailed baseball player and league data.
 
