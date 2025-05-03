@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from espn_api_extractor.utils.utils import json_parsing
 
 from .constant import NOMINAL_POSITION_MAP, POSITION_MAP, PRO_TEAM_MAP, STATS_MAP
@@ -63,6 +65,8 @@ class Player(object):
 
             # No player stats available
             player_stats = []
+
+        year = datetime.now().year
         for stats in player_stats:
             stats_split_type = stats.get("statSplitTypeId")
             if stats.get("seasonId") != year or (
@@ -99,7 +103,7 @@ class Player(object):
     def hydrate(self, data: dict) -> None:
         """
         Hydrates the player object with additional data from the player details API.
-        
+
         Args:
             data (dict): The player details data from the ESPN API
         """
@@ -107,42 +111,42 @@ class Player(object):
         self.displayName = data.get("displayName", "")
         self.shortName = data.get("shortName", "")
         self.nickname = data.get("nickname", "")
-        
+
         # Physical attributes
         self.weight = data.get("weight")
         self.displayWeight = data.get("displayWeight", "")
         self.height = data.get("height")
         self.displayHeight = data.get("displayHeight", "")
-        
+
         # Biographical information
         self.age = data.get("age")
         self.dateOfBirth = data.get("dateOfBirth")
         self.birthPlace = data.get("birthPlace", {})
         self.debutYear = data.get("debutYear")
-        
+
         # Jersey and position information
         self.jersey = data.get("jersey", "")
         if data.get("position"):
             self.positionName = data.get("position", {}).get("name")
             self.positionDisplayName = data.get("position", {}).get("displayName")
             self.positionAbbreviation = data.get("position", {}).get("abbreviation")
-        
+
         # Playing characteristics
         if data.get("bats"):
             self.bats = data.get("bats", {}).get("displayValue")
         if data.get("throws"):
             self.throws = data.get("throws", {}).get("displayValue")
-        
+
         # Status information
         self.active = data.get("active", False)
         if data.get("status"):
             self.statusName = data.get("status", {}).get("name")
             self.statusType = data.get("status", {}).get("type")
-        
+
         # Experience
         if data.get("experience"):
             self.experienceYears = data.get("experience", {}).get("years")
-        
+
         # Headshot URL if available
         if data.get("headshot"):
             self.headshot = data.get("headshot", {}).get("href")

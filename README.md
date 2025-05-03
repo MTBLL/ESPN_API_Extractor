@@ -50,10 +50,14 @@ core_requestor = EspnCoreRequests(
     sport="mlb",
     year=2025,
     logger=logger,
+    max_workers=32,  # Optional: Number of threads to use for player hydration (default: min(32, 4 * CPU cores))
 )
 
 # Hydrate player objects with detailed data
-hydrated_players = core_requestor.hydrate_players(player_objects)
+hydrated_players, failed_players = core_requestor.hydrate_players(
+    player_objects,
+    batch_size=100  # Optional: Number of players to process in each batch for progress tracking
+)
 ```
 
 ### Data Models
@@ -86,13 +90,18 @@ The package includes command-line runners for extracting data:
 #### Player Runner
 
 ```bash
-python -m espn_api_extractor.runners.players --year 2025
+python -m espn_api_extractor.runners.players --year 2025 --threads 32 --batch-size 100
 ```
+
+Command-line options:
+- `--year`: League year (default: 2025)
+- `--threads`: Number of threads to use for player hydration (default: 4x CPU cores)
+- `--batch-size`: Number of players to process in each batch for progress tracking (default: 100)
 
 This script:
 1. Fetches all professional baseball players via the Fantasy API
 2. Creates Player objects from the data
-3. Hydrates those objects with detailed player information via the Core API
+3. Hydrates those objects with detailed player information via the Core API using multi-threading
 4. Returns the fully hydrated player objects
 
 ## Usage Examples
@@ -108,14 +117,14 @@ from espn_api_extractor.utils.logger import Logger
 # Setup
 logger = Logger("my-script")
 fantasy_requestor = EspnFantasyRequests(sport="mlb", year=2025, league_id=None, cookies={}, logger=logger)
-core_requestor = EspnCoreRequests(sport="mlb", year=2025, logger=logger)
+core_requestor = EspnCoreRequests(sport="mlb", year=2025, logger=logger, max_workers=32)
 
 # Get basic player data
 players_data = fantasy_requestor.get_pro_players()
 player_objects = [Player(player) for player in players_data]
 
-# Hydrate players with detailed information
-hydrated_players = core_requestor.hydrate_players(player_objects)
+# Hydrate players with detailed information using multi-threading
+hydrated_players, failed_players = core_requestor.hydrate_players(player_objects, batch_size=100)
 
 # Use the fully hydrated player objects
 for player in hydrated_players:

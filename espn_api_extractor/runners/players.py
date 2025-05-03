@@ -15,6 +15,14 @@ def main():
     parser.add_argument(
         "--year", type=int, default=2025, help="League year (default: 2025)"
     )
+    parser.add_argument(
+        "--threads", type=int, default=None, 
+        help="Number of threads to use for player hydration (default: 4x CPU cores)"
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=100,
+        help="Number of players to process in each batch for progress tracking (default: 100)"
+    )
     args = parser.parse_args()
 
     logger = Logger("player-extractor")
@@ -32,18 +40,37 @@ def main():
         player_objs = [Player(player) for player in players]
 
         # Hydrate player objects with additional data
-        logger.logging.info("Hydrating player objects with additional data")
+        logger.logging.info(f"Hydrating player objects with additional data using {'auto-detected' if args.threads is None else args.threads} threads")
         core_requestor = EspnCoreRequests(
             sport="mlb",
             year=args.year,
             logger=logger,
+            max_workers=args.threads,  # Pass the thread count (None will use the default)
         )
         try:
             # Get detailed player data and hydrate the player object
-            hydrated_players = core_requestor.hydrate_players(player_objs)
-            logger.logging.debug(
-                f"Successfully hydrated number of players players: {len(hydrated_players)}"
+            hydrated_players, failed_players = core_requestor.hydrate_players(
+                player_objs,
+                batch_size=args.batch_size,  # Pass the batch size for progress tracking
             )
+
+            # Log summary of hydration process
+            logger.logging.info(
+                f"Successfully hydrated {len(hydrated_players)} players; Failed to hydrate {len(failed_players)} players"
+            )
+
+            # Print a summary for the user
+            if failed_players:
+                print("\n===== HYDRATION SUMMARY =====")
+                print(f"Successfully hydrated: {len(hydrated_players)} players")
+                print(f"Failed to hydrate: {len(failed_players)} players")
+                print("\nFailed players (first 10):")
+                for i, player in enumerate(failed_players[:10]):
+                    player_name = player.name if hasattr(player, "name") else "Unknown"
+                    print(f"  {i + 1}. ID={player.id}, Name={player_name}")
+                if len(failed_players) > 10:
+                    print(f"  ... and {len(failed_players) - 10} more players")
+
             # Return the list of fully hydrated player objects
             return hydrated_players
         except Exception as e:
