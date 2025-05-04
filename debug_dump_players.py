@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
-import json
 import argparse
 from espn_api_extractor.runners.players import main as players_main
-from espn_api_extractor.models.player_model import PlayerModel
 
 def main():
     parser = argparse.ArgumentParser(description="Get player data and save to JSON for debugging")
@@ -39,47 +37,23 @@ def main():
         sys.argv[0], 
         f"--year={args.year}", 
         f"--threads={args.threads}", 
-        f"--batch-size={args.batch_size}"
+        f"--batch-size={args.batch_size}",
+        "--as-models",  # Always use Pydantic models for serialization
+        f"--output={args.output}"  # Pass the output file path
     ]
     
-    print(f"Getting player data with {args.threads} threads...")
-    players = players_main()
+    if args.pretty:
+        sys.argv.append("--pretty")
     
-    if not players:
+    print(f"Getting player data with {args.threads} threads...")
+    # Pass the sample size to limit API calls and get models directly
+    player_models = players_main(sample_size=args.sample)
+    
+    if not player_models:
         print("No players returned. Check the logs for errors.")
         return
     
-    print(f"Got {len(players)} players, saving {min(args.sample, len(players))} to {args.output}")
-    
-    # Take a sample of players to keep the file size reasonable
-    sample_size = min(args.sample, len(players))
-    sample_players = players[:sample_size]
-    
-    # Convert player objects to Pydantic models
-    player_models = [player.to_model() for player in sample_players]
-    
-    # Serialize to JSON
-    if args.pretty:
-        # Pretty print with indentation
-        json_data = "[\n"
-        for i, model in enumerate(player_models):
-            model_json = model.model_dump_json(indent=2)
-            json_data += "  " + model_json.replace("\n", "\n  ")
-            if i < len(player_models) - 1:
-                json_data += ",\n"
-            else:
-                json_data += "\n"
-        json_data += "]\n"
-        
-        with open(args.output, 'w') as f:
-            f.write(json_data)
-    else:
-        # Use standard JSON serialization
-        json_list = [model.model_dump() for model in player_models]
-        with open(args.output, 'w') as f:
-            json.dump(json_list, f, indent=2)
-    
-    print(f"Saved {len(player_models)} players to {args.output}")
+    print(f"Got {len(player_models)} players and saved to {args.output}")
     
     # Print a summary of what attributes are available
     example_model = player_models[0].model_dump() if player_models else {}

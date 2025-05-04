@@ -33,7 +33,7 @@ class TestPlayerEnhanced:
                 "player": {
                     "injuryStatus": "ACTIVE",
                     "injured": False,
-                    "ownership": {"percentStarted": 95.5, "percentOwned": 99.8},
+                    "ownership": {"percentOwned": 99.8},
                     "stats": [
                         {
                             # Current year, regular season stats
@@ -138,7 +138,6 @@ class TestPlayerEnhanced:
         # Verify player info from playerPoolEntry
         assert player.injury_status == "ACTIVE"
         assert player.injured is False
-        assert player.percent_started == 95.5
         assert player.percent_owned == 99.8
 
     def test_empty_eligible_slots(self):

@@ -47,7 +47,6 @@ class PlayerModel(BaseModel):
 
     # Ownership statistics
     percent_owned: float = -1
-    percent_started: float = -1
 
     # Physical attributes
     weight: Optional[float] = None

@@ -23,10 +23,10 @@ class Player(object):
 
         eligible_slots = json_parsing(data, "eligibleSlots")
         self.eligible_slots = [
-            POSITION_MAP.get(pos, pos)
+            str(POSITION_MAP.get(pos, pos))
             for pos in (eligible_slots if eligible_slots else [])
             if pos != 16 and pos != 17  # Filter out Bench (BE) and Injured List (IL)
-        ]  # if position isn't in position map, just use the position id number
+        ]  # if position isn't in position map, just use the position id number as a string
 
         pro_team_id = json_parsing(data, "proTeamId")
         self.pro_team = (
@@ -49,9 +49,6 @@ class Player(object):
             )
             self.injury_status = player.get("injuryStatus", self.injury_status)
             self.injured = player.get("injured", False)
-            self.percent_started = round(
-                player.get("ownership", {}).get("percentStarted", -1), 2
-            )
             player_stats = player.get("stats", [])
 
             # add available stats from player data
@@ -122,7 +119,8 @@ class Player(object):
             player.primary_position = player_model.primary_position
 
         if hasattr(player_model, "eligible_slots") and player_model.eligible_slots:
-            player.eligible_slots = player_model.eligible_slots
+            # Ensure eligible_slots are always strings
+            player.eligible_slots = [str(slot) for slot in player_model.eligible_slots]
 
         # Handle special fields not covered by the standard initialization
         if player_model.stats:
