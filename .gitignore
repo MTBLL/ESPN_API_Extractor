@@ -1,5 +1,6 @@
 **__pycache__**
 .coverage**
+.coverage/**
 .venv
 .pytest_cache
 .ropeproject

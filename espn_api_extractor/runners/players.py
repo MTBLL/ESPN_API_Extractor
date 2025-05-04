@@ -1,29 +1,73 @@
 #!/usr/bin/env python3
 import argparse
+from typing import List, Optional, Union
 
 from espn_api_extractor.baseball.player import Player
+from espn_api_extractor.models.player_model import PlayerModel
 from espn_api_extractor.requests.core_requests import EspnCoreRequests
 
 # Using absolute imports
 from espn_api_extractor.requests.fantasy_requests import EspnFantasyRequests
 from espn_api_extractor.utils.logger import Logger
+from espn_api_extractor.utils.utils import write_models_to_json
 
 
-def main():
+def main(
+    sample_size: Optional[int] = None,
+    output_file: Optional[str] = None,
+    pretty: bool = False,
+) -> Union[List[Player], List[PlayerModel]]:
+    """
+    Main function to extract player data from ESPN Fantasy Baseball API.
+
+    Args:
+        sample_size: Optional maximum number of players to process. If provided,
+                    this will limit API calls to save time when only a sample is needed.
+        output_file: Optional path to write the JSON output. If None, no file is written.
+        pretty: Whether to pretty-print the JSON output with indentation.
+
+    Returns:
+        Either a list of Player objects or PlayerModel objects (if as_models=True)
+    """
     parser = argparse.ArgumentParser(description="Access ESPN Fantasy Baseball API")
 
     parser.add_argument(
         "--year", type=int, default=2025, help="League year (default: 2025)"
     )
     parser.add_argument(
-        "--threads", type=int, default=None, 
-        help="Number of threads to use for player hydration (default: 4x CPU cores)"
+        "--threads",
+        type=int,
+        default=None,
+        help="Number of threads to use for player hydration (default: 4x CPU cores)",
     )
     parser.add_argument(
-        "--batch-size", type=int, default=100,
-        help="Number of players to process in each batch for progress tracking (default: 100)"
+        "--batch-size",
+        type=int,
+        default=100,
+        help="Number of players to process in each batch for progress tracking (default: 100)",
+    )
+    parser.add_argument(
+        "--as-models",
+        action="store_true",
+        help="Return Pydantic models instead of Player objects (default: False)",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        help="Path to write JSON output. If not specified, no file is written.",
+    )
+    parser.add_argument(
+        "--pretty",
+        action="store_true",
+        help="Pretty-print the JSON output with indentation.",
     )
     args = parser.parse_args()
+
+    # Override args with function parameters if provided
+    if output_file is not None:
+        args.output = output_file
+    if pretty:
+        args.pretty = True
 
     logger = Logger("player-extractor")
     try:
@@ -36,11 +80,19 @@ def main():
         )
         players = requestor.get_pro_players()
         logger.logging.info(f"successfully got {len(players)} players")
-        # cast the json response into Player objects
+
+        # If a sample size is specified, limit the number of players to process
+        if sample_size is not None and sample_size < len(players):
+            players = players[:sample_size]
+            logger.logging.info(f"Limited to {sample_size} players as specified")
+
+        # Cast the json response into Player objects
         player_objs = [Player(player) for player in players]
 
         # Hydrate player objects with additional data
-        logger.logging.info(f"Hydrating player objects with additional data using {'auto-detected' if args.threads is None else args.threads} threads")
+        logger.logging.info(
+            f"Hydrating player objects with additional data using {'auto-detected' if args.threads is None else args.threads} threads"
+        )
         core_requestor = EspnCoreRequests(
             sport="mlb",
             year=args.year,
@@ -71,10 +123,26 @@ def main():
                 if len(failed_players) > 10:
                     print(f"  ... and {len(failed_players) - 10} more players")
 
-            # Return the list of fully hydrated player objects
-            return hydrated_players
+            # Convert to Pydantic models for all output operations
+            player_models = [player.to_model() for player in hydrated_players]
+
+            # Write to JSON file if output path is specified
+            if args.output:
+                write_models_to_json(player_models, args.output, args.pretty)
+                logger.logging.info(
+                    f"Wrote {len(player_models)} player models to {args.output}"
+                )
+
+            # Return the requested format (models or player objects)
+            if args.as_models:
+                return player_models
+            else:
+                # Return the list of fully hydrated player objects
+                return hydrated_players
+
         except Exception as e:
             logger.logging.error(f"Error hydrating players: {e}")
+            return []
 
     except Exception as e:
         print(f"Error: {e}")
@@ -84,6 +152,7 @@ def main():
         print(
             "You can find these cookies in your browser after logging into ESPN Fantasy."
         )
+        return []
 
 
 if __name__ == "__main__":
