@@ -1,5 +1,6 @@
 # ESPN Baseball API Extractor
 [![codecov](https://codecov.io/gh/MTBLL/ESPN_API_Extractor/graph/badge.svg?token=ZfastHrmnz)](https://codecov.io/gh/MTBLL/ESPN_API_Extractor)
+[![Mypy Type Check](https://github.com/MTBLL/ESPN_API_Extractor/actions/workflows/mypy.yml/badge.svg)](https://github.com/MTBLL/ESPN_API_Extractor/actions/workflows/mypy.yml)
 
 A Python library for interacting with ESPN's Fantasy and Core APIs to extract detailed baseball player and league data.
 
@@ -92,7 +93,16 @@ The package includes command-line runners for extracting data:
 
 #### Player Runner
 
+There are multiple ways to run the player extractor:
+
 ```bash
+# Option 1: Using the installed command-line script
+espn-players --year 2025 --threads 32 --batch-size 100
+
+# Option 2: Using the Python module directly
+python -m espn_api_extractor.players --year 2025 --threads 32 --batch-size 100
+
+# Option 3: Using the full path to the runner
 python -m espn_api_extractor.runners.players --year 2025 --threads 32 --batch-size 100
 ```
 
@@ -100,6 +110,8 @@ Command-line options:
 - `--year`: League year (default: 2025)
 - `--threads`: Number of threads to use for player hydration (default: 4x CPU cores)
 - `--batch-size`: Number of players to process in each batch for progress tracking (default: 100)
+- `--output_dir`: Directory to write JSON output. If not specified, no file is written
+- `--as-models`: Return Pydantic models instead of Player objects (default: False)
 
 This script:
 1. Fetches all professional baseball players via the Fantasy API
@@ -141,6 +153,7 @@ The Player objects can be easily converted to and from Pydantic models for valid
 ```python
 from espn_api_extractor.models.player_model import PlayerModel
 from espn_api_extractor.baseball.player import Player
+from espn_api_extractor.utils.utils import write_models_to_json
 
 # Convert a Player object to a Pydantic model
 player_model = player.to_model()
@@ -156,6 +169,9 @@ player_object = Player.from_model(player_model)
 
 # Batch convert multiple Player objects
 player_models = [player.to_model() for player in hydrated_players]
+
+# Write models to a JSON file
+write_models_to_json(player_models, "output_directory", "espn_player_universe.json")
 ```
 
 The Pydantic model handles various data validation tasks and provides:
@@ -170,6 +186,22 @@ The Pydantic model handles various data validation tasks and provides:
 ```bash
 pip install espn-api-extractor
 ```
+
+## Development
+
+### Type Checking
+
+This project uses mypy for static type checking to catch potential type-related errors:
+
+```bash
+# Run mypy on the codebase
+poetry run mypy espn_api_extractor
+
+# Run mypy with stricter checking of untyped function bodies
+poetry run mypy --check-untyped-defs espn_api_extractor
+```
+
+Type checking is enforced via GitHub Actions on all pull requests to ensure type consistency. All code must pass mypy checks before it can be merged to the main branch.
 
 ## Credits
 

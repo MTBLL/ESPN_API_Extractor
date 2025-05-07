@@ -4,5 +4,6 @@
 .venv
 .pytest_cache
 .ropeproject
+.mypy_cache/
 
 test.json

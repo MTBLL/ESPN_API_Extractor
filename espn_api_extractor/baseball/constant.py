@@ -1,4 +1,6 @@
-POSITION_MAP = {
+from typing import Dict
+
+POSITION_MAP: Dict[int, str] = {
     0: "C",
     1: "1B",
     2: "2B",

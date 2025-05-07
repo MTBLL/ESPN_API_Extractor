@@ -14,8 +14,7 @@ from espn_api_extractor.utils.utils import write_models_to_json
 
 def main(
     sample_size: Optional[int] = None,
-    output_file: Optional[str] = None,
-    pretty: bool = False,
+    output_dir: str = ".",
 ) -> Union[List[Player], List[PlayerModel]]:
     """
     Main function to extract player data from ESPN Fantasy Baseball API.
@@ -23,8 +22,7 @@ def main(
     Args:
         sample_size: Optional maximum number of players to process. If provided,
                     this will limit API calls to save time when only a sample is needed.
-        output_file: Optional path to write the JSON output. If None, no file is written.
-        pretty: Whether to pretty-print the JSON output with indentation.
+        output_dir: Optional path to write the JSON output. If None, no file is written.
 
     Returns:
         Either a list of Player objects or PlayerModel objects (if as_models=True)
@@ -52,24 +50,18 @@ def main(
         help="Return Pydantic models instead of Player objects (default: False)",
     )
     parser.add_argument(
-        "--output",
+        "--output_dir",
         type=str,
-        help="Path to write JSON output. If not specified, no file is written.",
-    )
-    parser.add_argument(
-        "--pretty",
-        action="store_true",
-        help="Pretty-print the JSON output with indentation.",
+        help="Directory path to write JSON output. If not specified, no file is written.",
     )
     args = parser.parse_args()
 
     # Override args with function parameters if provided
-    if output_file is not None:
-        args.output = output_file
-    if pretty:
-        args.pretty = True
+    if output_dir is not None:
+        args.output = output_dir
 
     logger = Logger("player-extractor")
+    log = logger.logging
     try:
         requestor = EspnFantasyRequests(
             sport="mlb",
@@ -79,18 +71,18 @@ def main(
             logger=logger,
         )
         players = requestor.get_pro_players()
-        logger.logging.info(f"successfully got {len(players)} players")
+        log.info(f"successfully got {len(players)} players")
 
         # If a sample size is specified, limit the number of players to process
         if sample_size is not None and sample_size < len(players):
             players = players[:sample_size]
-            logger.logging.info(f"Limited to {sample_size} players as specified")
+            log.info(f"Limited to {sample_size} players as specified")
 
         # Cast the json response into Player objects
         player_objs = [Player(player) for player in players]
 
         # Hydrate player objects with additional data
-        logger.logging.info(
+        log.info(
             f"Hydrating player objects with additional data using {'auto-detected' if args.threads is None else args.threads} threads"
         )
         core_requestor = EspnCoreRequests(
@@ -107,7 +99,7 @@ def main(
             )
 
             # Log summary of hydration process
-            logger.logging.info(
+            log.info(
                 f"Successfully hydrated {len(hydrated_players)} players; Failed to hydrate {len(failed_players)} players"
             )
 
@@ -127,10 +119,12 @@ def main(
             player_models = [player.to_model() for player in hydrated_players]
 
             # Write to JSON file if output path is specified
-            if args.output:
-                write_models_to_json(player_models, args.output, args.pretty)
+            if args.output_dir:
+                write_models_to_json(
+                    player_models, args.output_dir, "espn_player_universe.json"
+                )
                 logger.logging.info(
-                    f"Wrote {len(player_models)} player models to {args.output}"
+                    f"Wrote {len(player_models)} player models to {args.output_dir}"
                 )
 
             # Return the requested format (models or player objects)
@@ -141,7 +135,7 @@ def main(
                 return hydrated_players
 
         except Exception as e:
-            logger.logging.error(f"Error hydrating players: {e}")
+            log.error(f"Error hydrating players: {e}")
             return []
 
     except Exception as e:

@@ -17,7 +17,9 @@ class Activity(object):
             else:
                 team = get_team_data(msg["to"])
             if msg_id in ACTIVITY_MAP:
-                action = ACTIVITY_MAP[msg_id]
+                action_value = ACTIVITY_MAP[msg_id]
+                if isinstance(action_value, str):
+                    action = action_value
             if msg["targetId"] in player_map:
                 player = player_map[msg["targetId"]]
             self.actions.append((team, action, player))
