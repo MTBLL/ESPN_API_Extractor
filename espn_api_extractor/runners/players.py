@@ -58,7 +58,7 @@ def main(
 
     # Override args with function parameters if provided
     if output_dir is not None:
-        args.output = output_dir
+        args.output_dir = output_dir
 
     logger = Logger("player-extractor")
     log = logger.logging
