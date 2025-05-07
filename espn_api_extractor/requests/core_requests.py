@@ -52,10 +52,10 @@ class EspnCoreRequests:
         extend: str = "",
         params: dict | None = None,
         headers: dict | None = None,
-    ) -> dict | None:
+    ):
         """Handles ESPN API response status codes and endpoint format switching"""
         if status == 200:
-            return None
+            return
 
         # Use thread-safe logging
         with self.logger_lock:

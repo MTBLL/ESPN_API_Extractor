@@ -1,10 +1,13 @@
 from abc import ABC
-from typing import List
+from typing import List, Dict, Any, Optional, Union, TypeVar
 
 from .base_pick import BasePick
 from .base_settings import BaseSettings
 from .requests.fantasy_requests import EspnFantasyRequests
 from .utils.logger import Logger
+
+# Define a generic type variable for the Team class
+T = TypeVar('T')
 
 
 class BaseLeague(ABC):
@@ -22,10 +25,10 @@ class BaseLeague(ABC):
         self.logger = Logger(name=f"{sport} league", debug=debug)
         self.league_id = league_id
         self.year = year
-        self.teams = []
-        self.members = []
-        self.draft = []
-        self.player_map = {}
+        self.teams: List[Any] = []
+        self.members: List[Dict[str, Any]] = []
+        self.draft: List[BasePick] = []
+        self.player_map: Dict[Union[int, str], Union[str, int]] = {}
 
         cookies = {}
         if espn_s2 and swid:
@@ -78,7 +81,9 @@ class BaseLeague(ABC):
             playerId = pick.get("playerId")
             playerName = ""
             if playerId in self.player_map:
-                playerName = self.player_map[playerId]
+                player_name_value = self.player_map[playerId]
+                if isinstance(player_name_value, str):
+                    playerName = player_name_value
             round_num = pick.get("roundId")
             round_pick = pick.get("roundPickNumber")
             bid_amount = pick.get("bidAmount")
@@ -179,7 +184,7 @@ class BaseLeague(ABC):
         )
         return standings
 
-    def get_team_data(self, team_id: int) -> List | None:
+    def get_team_data(self, team_id: int) -> T | None:
         for team in self.teams:
             if team_id == team.team_id:
                 return team

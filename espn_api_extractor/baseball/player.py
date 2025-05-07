@@ -35,7 +35,7 @@ class Player(object):
 
         self.injury_status = json_parsing(data, "injuryStatus")
         self.status = json_parsing(data, "status")
-        self.stats = {}
+        self.stats: dict = {}
         percent_owned_value = json_parsing(data, "percentOwned")
         self.percent_owned = (
             round(percent_owned_value, 2) if percent_owned_value else -1

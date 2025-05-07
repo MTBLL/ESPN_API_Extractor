@@ -112,9 +112,11 @@ class League(BaseLeague):
         if self.year < 2019:
             raise Exception("Cant use recent activity before 2019")
 
-        msg_types = [178, 180, 179, 239, 181, 244]
+        msg_types: List[int] = [178, 180, 179, 239, 181, 244]
         if msg_type in ACTIVITY_MAP:
-            msg_types = [ACTIVITY_MAP[msg_type]]
+            msg_type_value = ACTIVITY_MAP[msg_type]
+            if isinstance(msg_type_value, int):
+                msg_types = [msg_type_value]
         params = {"view": "kona_league_communication"}
 
         filters = {
@@ -154,9 +156,13 @@ class League(BaseLeague):
         if not week:
             week = self.current_week
 
-        slot_filter: List[str | int] = []
-        if position and position in POSITION_MAP:
-            slot_filter = [POSITION_MAP[position]]
+        slot_filter: List[int] = []
+        # Convert position string to position_id
+        if position:
+            # Find the position_id (key) for the given position name (value)
+            position_id_list = [k for k, v in POSITION_MAP.items() if v == position]
+            if position_id_list:
+                slot_filter = [position_id_list[0]]
         if position_id:
             slot_filter.append(position_id)
 
@@ -182,7 +188,7 @@ class League(BaseLeague):
         data = self.espn_request.league_get(params=params, headers=headers)
         players = data["players"]
 
-        return [Player(player, self.year) for player in players]
+        return [Player(player) for player in players]
 
     def box_scores(
         self, matchup_period: int | None = None, scoring_period: int | None = None

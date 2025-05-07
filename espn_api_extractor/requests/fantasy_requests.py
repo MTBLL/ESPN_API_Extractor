@@ -175,7 +175,7 @@ class EspnFantasyRequests(object):
         params = {"view": "kona_league_messageboard"}
         headers = {}
         if msg_types is not None:
-            filters = {"topicsByType": {}}
+            filters: dict = {"topicsByType": {}}
             base_filter = {"sortMessageDate": {"sortPriority": 1, "sortAsc": False}}
             for msg_type in msg_types:
                 filters["topicsByType"][msg_type] = base_filter
