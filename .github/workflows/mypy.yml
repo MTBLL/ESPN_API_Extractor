@@ -26,8 +26,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install poetry
           poetry install
-          poetry run mypy --install-types
 
       - name: Run mypy type checking
         run: |
-          poetry run mypy espn_api_extractor
+          poetry run mypy --install-types espn_api_extractor
