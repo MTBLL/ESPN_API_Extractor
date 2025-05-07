@@ -25,8 +25,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install poetry
+          python3 -m pip install types-requests
+          python3 -m pip install types-tqdm
           poetry install
 
       - name: Run mypy type checking
         run: |
-          poetry run mypy --install-types espn_api_extractor
+          poetry run mypy espn_api_extractor
