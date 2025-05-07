@@ -25,8 +25,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install poetry
-          python3 -m pip install types-requests
-          python3 -m pip install types-tqdm
           poetry install
 
       - name: Run mypy type checking
