@@ -208,9 +208,10 @@ Type checking is enforced via GitHub Actions on all pull requests to ensure type
 This project builds upon the work of:
 - https://github.com/cwendt94/espn-api
 - https://github.com/EnderLocke/pyespn/blob/dev/pyespn/sports/sports.py
+- https://stmorse.github.io/journal/espn-fantasy-v3.html
 ### Resources
 - https://lm-api-reads.fantasy.espn.com/apis/v3/games/flb/seasons/2025/segments/0/leagues/10998/?view=kona_player_info
-- https://stmorse.github.io/journal/espn-fantasy-v3.html
 - http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/athletes?lang=en&region=us
 - http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/athletes/39832
 - http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/athletes/39832?lang=en&region=us
+- https://appac.github.io/mlb-data-api-docs/
