@@ -6,4 +6,13 @@
 .ropeproject
 .mypy_cache/
 
+# Output files
 test.json
+debug_output/
+test_run_output/
+test_with_stats_output/
+
+# Configuration files with secrets
+hasura_config.json
+graphql_config.json
+.env.local

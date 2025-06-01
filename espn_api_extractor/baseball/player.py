@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any, Dict
 
 from espn_api_extractor.models.player_model import PlayerModel
 from espn_api_extractor.utils.utils import json_parsing
@@ -125,13 +126,51 @@ class Player(object):
         # Handle special fields not covered by the standard initialization
         if player_model.stats:
             player.stats = {}
-            for period, stat in player_model.stats.items():
+            for period, stat_period in player_model.stats.items():
                 player.stats[period] = {
-                    "points": stat.points,
-                    "projected_points": stat.projected_points,
-                    "breakdown": stat.breakdown,
-                    "projected_breakdown": stat.projected_breakdown,
+                    "points": stat_period.points,
+                    "projected_points": stat_period.projected_points,
+                    "breakdown": stat_period.breakdown,
+                    "projected_breakdown": stat_period.projected_breakdown,
                 }
+
+        # Handle season statistics
+        if player_model.season_stats:
+            player.season_stats = {}
+            player.season_stats["split_id"] = player_model.season_stats.split_id
+            player.season_stats["split_name"] = player_model.season_stats.split_name
+            player.season_stats["split_abbreviation"] = (
+                player_model.season_stats.split_abbreviation
+            )
+            player.season_stats["split_type"] = player_model.season_stats.split_type
+            player.season_stats["categories"] = {}
+
+            # Process each category
+            for cat_name, category in player_model.season_stats.categories.items():
+                cat_dict: Dict[str, Any] = {
+                    "display_name": category.display_name,
+                    "short_display_name": category.short_display_name,
+                    "abbreviation": category.abbreviation,
+                    "summary": category.summary,
+                    "stats": {},
+                }
+
+                # Process stats in the category
+                for stat_name, stat_detail in category.stats.items():
+                    # Convert StatDetail to a dictionary for storage
+                    stat_dict = {
+                        "display_name": stat_detail.display_name,
+                        "short_display_name": stat_detail.short_display_name,
+                        "description": stat_detail.description,
+                        "abbreviation": stat_detail.abbreviation,
+                        "value": stat_detail.value,
+                        "display_value": stat_detail.display_value,
+                        "rank": stat_detail.rank,
+                        "rank_display_value": stat_detail.rank_display_value,
+                    }
+                    cat_dict["stats"][stat_name] = stat_dict
+
+                player.season_stats["categories"][cat_name] = cat_dict
 
         return player
 
@@ -193,3 +232,75 @@ class Player(object):
         # Headshot URL if available
         if data.get("headshot"):
             self.headshot = data.get("headshot", {}).get("href")
+
+    def hydrate_statistics(self, data: Dict[str, Any]) -> None:
+        """
+        Hydrates the player object with statistics data from the statistics API.
+
+        Args:
+            data (dict): The statistics data from the ESPN API
+        """
+        # Initialize the statistics dictionary if it doesn't exist
+        if not hasattr(self, "season_stats"):
+            self.season_stats = {}
+
+        # Get the splits data which contains all the statistics
+        splits = data.get("splits", {})
+        if not splits:
+            return
+
+        # Get the split id and name
+        split_id = splits.get("id")
+        split_name = splits.get("name")
+        split_abbreviation = splits.get("abbreviation")
+        split_type = splits.get("type")
+
+        # Store basic split information
+        self.season_stats["split_id"] = split_id
+        self.season_stats["split_name"] = split_name
+        self.season_stats["split_abbreviation"] = split_abbreviation
+        self.season_stats["split_type"] = split_type
+
+        # Initialize categories dictionary
+        self.season_stats["categories"] = {}
+
+        # Process each category (e.g., batting, pitching, fielding)
+        categories = splits.get("categories", [])
+        for category in categories:
+            category_name = category.get("name")
+            if not category_name:
+                continue
+
+            # Get the category display name and summary
+            category_display_name = category.get("displayName", category_name)
+            category_summary = category.get("summary", "")
+
+            # Initialize the category dictionary
+            self.season_stats["categories"][category_name] = {
+                "display_name": category_display_name,
+                "short_display_name": category.get(
+                    "shortDisplayName", category_display_name
+                ),
+                "abbreviation": category.get("abbreviation", ""),
+                "summary": category_summary,
+                "stats": {},
+            }
+
+            # Process each stat in the category
+            stats = category.get("stats", [])
+            for stat in stats:
+                stat_name = stat.get("name")
+                if not stat_name:
+                    continue
+
+                # Store the stat with all its attributes
+                self.season_stats["categories"][category_name]["stats"][stat_name] = {
+                    "display_name": stat.get("displayName", stat_name),
+                    "short_display_name": stat.get("shortDisplayName", stat_name),
+                    "description": stat.get("description", ""),
+                    "abbreviation": stat.get("abbreviation", ""),
+                    "value": stat.get("value"),
+                    "display_value": stat.get("displayValue", ""),
+                    "rank": stat.get("rank"),
+                    "rank_display_value": stat.get("rankDisplayValue", ""),
+                }

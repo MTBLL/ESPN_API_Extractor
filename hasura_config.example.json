@@ -1,0 +1,9 @@
+{
+  "endpoint": "https://your-hasura-endpoint.ddn.hasura.app/graphql",
+  "headers": {
+    "x-hasura-ddn-token": "your_jwt_token_here"
+  },
+  "timeout": 30,
+  "retry_attempts": 3,
+  "retry_delay": 1
+}

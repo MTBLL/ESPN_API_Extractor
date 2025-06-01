@@ -4,7 +4,7 @@ from typing import List
 import requests
 
 from ..utils.logger import Logger
-from .constant import FANTASY_BASE_ENDPOINT, FANTASY_SPORTS, NEWS_BASE_ENDPOINT
+from .constants import FANTASY_BASE_ENDPOINT, FANTASY_SPORTS, NEWS_BASE_ENDPOINT
 from .exceptions import ESPNAccessDenied, ESPNInvalidLeague, ESPNUnknownError
 
 
@@ -13,9 +13,9 @@ class EspnFantasyRequests(object):
         self,
         sport: str,
         year: int,
-        league_id: int | None,
-        cookies: dict,
         logger: Logger,
+        league_id: int | None = None,
+        cookies: dict = {},
     ):
         if sport not in FANTASY_SPORTS:
             raise Exception(

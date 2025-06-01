@@ -55,10 +55,17 @@ core_requestor = EspnCoreRequests(
     max_workers=32,  # Optional: Number of threads to use for player hydration (default: min(32, 4 * CPU cores))
 )
 
-# Hydrate player objects with detailed data
+# Option 1: Hydrate player objects with biographical data only (default)
 hydrated_players, failed_players = core_requestor.hydrate_players(
     player_objects,
     batch_size=100  # Optional: Number of players to process in each batch for progress tracking
+)
+
+# Option 2: Hydrate player objects with both biographical data AND statistics (recommended)
+complete_players, failed_players = core_requestor.hydrate_players(
+    player_objects,
+    batch_size=100,  # Optional: Number of players to process in each batch for progress tracking
+    include_stats=True  # Include both biographical data and statistics in a single efficient pass
 )
 ```
 
@@ -77,14 +84,26 @@ player = Player(player_data)
 # Hydrate with additional detailed data
 player.hydrate(detailed_data)
 
+# Hydrate with statistics data
+player.hydrate_statistics(statistics_data)
+
 # Access player attributes
 player.name               # Player name
 player.id                 # ESPN player ID
 player.pro_team           # MLB team (now uses snake_case naming)
 player.primary_position   # Position
 player.date_of_birth      # Birth date (YYYY-MM-DD format)
-player.stats              # Player statistics
+player.stats              # Basic player statistics
+player.season_stats       # Detailed player statistics from ESPN Core API
 # ... and many more attributes after hydration
+
+# Access detailed statistics
+batting_stats = player.season_stats["categories"]["batting"]
+batting_summary = batting_stats["summary"]  # "55-197, 14 HR, 5 3B, 9 2B, 32 RBI, 38 R, 18 BB, 9 SB, 53 K"
+avg = batting_stats["stats"]["avg"]["value"]  # 0.2791878
+avg_display = batting_stats["stats"]["avg"]["display_value"]  # ".279"
+hr = batting_stats["stats"]["homeRuns"]["value"]  # 14.0
+rank = batting_stats["stats"]["homeRuns"]["rank_display_value"]  # "Tied-5th"
 ```
 
 ### Runners
@@ -138,13 +157,63 @@ core_requestor = EspnCoreRequests(sport="mlb", year=2025, logger=logger, max_wor
 players_data = fantasy_requestor.get_pro_players()
 player_objects = [Player(player) for player in players_data]
 
-# Hydrate players with detailed information using multi-threading
+# Hydrate players with biographical data only
 hydrated_players, failed_players = core_requestor.hydrate_players(player_objects, batch_size=100)
 
+# Or hydrate with both biographical data and statistics (more efficient for complete data)
+complete_players, failed_players = core_requestor.hydrate_players(player_objects, batch_size=100, include_stats=True)
+
 # Use the fully hydrated player objects
-for player in hydrated_players:
+for player in complete_players:
     print(f"{player.name} ({player.pro_team}) - Bats: {player.bats}, Throws: {player.throws}")
+    
+    # Access player statistics (if available)
+    if hasattr(player, 'season_stats') and player.season_stats:
+        batting = player.season_stats.get('categories', {}).get('batting')
+        if batting and 'stats' in batting:
+            avg = batting['stats'].get('avg', {}).get('display_value', 'N/A')
+            hr = batting['stats'].get('homeRuns', {}).get('display_value', 'N/A')
+            rbi = batting['stats'].get('RBIs', {}).get('display_value', 'N/A')
+            print(f"Stats: AVG: {avg}, HR: {hr}, RBI: {rbi}")
 ```
+
+## Hydration Options
+
+The `hydrate_players` method provides flexible options for data collection:
+
+### Biographical Data Only (Default)
+```python
+# Fast hydration with basic player information
+hydrated_players, failed_players = core_requestor.hydrate_players(player_objects)
+
+# Available data: name, team, position, physical stats, etc.
+for player in hydrated_players:
+    print(f"{player.display_name} - {player.pro_team} ({player.position})")
+```
+
+### Complete Data (Biographical + Statistics)
+```python
+# Comprehensive hydration with both bio and stats in a single efficient pass
+complete_players, failed_players = core_requestor.hydrate_players(
+    player_objects, 
+    include_stats=True
+)
+
+# Available data: everything above PLUS season statistics
+for player in complete_players:
+    print(f"{player.display_name} - {player.pro_team}")
+    if hasattr(player, 'season_stats'):
+        batting = player.season_stats.get('categories', {}).get('batting', {})
+        if batting:
+            avg = batting.get('stats', {}).get('avg', {}).get('display_value', 'N/A')
+            hrs = batting.get('stats', {}).get('homeRuns', {}).get('value', 'N/A')
+            print(f"  Stats: {avg} AVG, {hrs} HR")
+```
+
+### Performance Considerations
+- **Biographical only**: ~1-2 API calls per player, faster execution
+- **Complete data**: ~2-3 API calls per player, single-pass threading for efficiency
+- **Multi-threading**: Automatically uses optimal thread count (4x CPU cores, max 32)
 
 ### Using with Pydantic Models
 
@@ -178,8 +247,34 @@ The Pydantic model handles various data validation tasks and provides:
 - Clean date format handling (YYYY-MM-DD)
 - Proper type validation for all fields
 - Standardized snake_case property naming
-- Support for nested models (e.g., BirthPlace)
+- Support for nested models (e.g., BirthPlace, StatCategory, StatDetail)
+- Structured statistics data with dedicated models (SeasonStats)
 - Serialization/deserialization for database storage
+
+#### Statistics Models
+
+```python
+from espn_api_extractor.models.player_model import PlayerModel, SeasonStats, StatCategory, StatDetail
+
+# Access statistics through the Pydantic model
+player_model = player.to_model()
+
+# Check if statistics are available
+if player_model.season_stats:
+    # Access batting statistics
+    if "batting" in player_model.season_stats.categories:
+        batting = player_model.season_stats.categories["batting"]
+        
+        # Summary of batting performance
+        batting_summary = batting.summary  # "55-197, 14 HR, 5 3B, 9 2B, 32 RBI, 38 R, 18 BB, 9 SB, 53 K"
+        
+        # Access specific statistics
+        if "avg" in batting.stats:
+            avg_stat = batting.stats["avg"]
+            avg_value = avg_stat.value  # 0.2791878
+            avg_display = avg_stat.display_value  # ".279"
+            avg_rank = avg_stat.rank_display_value  # "Tied-49th"
+```
 
 ## Installation
 
@@ -188,6 +283,22 @@ pip install espn-api-extractor
 ```
 
 ## Development
+
+### Debug Tools
+
+The repository includes debug scripts to help test functionality:
+
+```bash
+# Test player statistics fetching
+poetry run python debug_stats_fetch.py
+```
+
+This script:
+1. Fetches a small number of players from the Fantasy API
+2. Hydrates them with basic information using the Core API
+3. Hydrates them with statistics using the new statistics endpoint
+4. Prints out key statistics for each player
+5. Saves the player models to JSON files in a debug_output directory
 
 ### Type Checking
 

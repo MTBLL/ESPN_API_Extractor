@@ -1,0 +1,9 @@
+{
+  "endpoint": "https://test-graphql.example.com/graphql",
+  "headers": {
+    "x-test-token": "test_token_value"
+  },
+  "timeout": 5,
+  "retry_attempts": 2,
+  "retry_delay": 1
+}

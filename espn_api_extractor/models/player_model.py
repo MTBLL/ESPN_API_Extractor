@@ -15,6 +15,39 @@ class StatPeriod(BaseModel):
     projected_breakdown: Dict[str, Any] = {}
 
 
+class StatDetail(BaseModel):
+    """Model for a single statistic"""
+
+    display_name: Optional[str] = None
+    short_display_name: Optional[str] = None
+    description: Optional[str] = None
+    abbreviation: Optional[str] = None
+    value: Optional[float] = None
+    display_value: Optional[str] = None
+    rank: Optional[int] = None
+    rank_display_value: Optional[str] = None
+
+
+class StatCategory(BaseModel):
+    """Model for a category of statistics (e.g., batting, pitching)"""
+
+    display_name: Optional[str] = None
+    short_display_name: Optional[str] = None
+    abbreviation: Optional[str] = None
+    summary: Optional[str] = None
+    stats: Dict[str, StatDetail] = Field(default_factory=dict)
+
+
+class SeasonStats(BaseModel):
+    """Model for player season statistics"""
+
+    split_id: Optional[str] = None
+    split_name: Optional[str] = None
+    split_abbreviation: Optional[str] = None
+    split_type: Optional[str] = None
+    categories: Dict[str, StatCategory] = Field(default_factory=dict)
+
+
 class PlayerModel(BaseModel):
     """Pydantic model for baseball player data"""
 
@@ -72,6 +105,9 @@ class PlayerModel(BaseModel):
     # Statistics
     stats: Dict[Union[int, str], StatPeriod] = Field(default_factory=dict)
 
+    # Season statistics from the statistics endpoint
+    season_stats: Optional[SeasonStats] = None
+
     model_config = ConfigDict(
         populate_by_name=True, arbitrary_types_allowed=True, str_strip_whitespace=True
     )
@@ -101,6 +137,38 @@ class PlayerModel(BaseModel):
                 )
                 processed_stats[period] = stat_period
             data["stats"] = processed_stats
+
+        # Convert season_stats dictionary to use SeasonStats model
+        if hasattr(player, "season_stats") and player.season_stats:
+            season_stats_data = player.season_stats
+
+            # Process categories and their stats
+            categories = {}
+            for cat_name, cat_data in season_stats_data.get("categories", {}).items():
+                # Process stats in this category
+                stats = {}
+                for stat_name, stat_data in cat_data.get("stats", {}).items():
+                    stats[stat_name] = StatDetail(**stat_data)
+
+                # Create the category with its stats
+                cat_dict = {
+                    "display_name": cat_data.get("display_name"),
+                    "short_display_name": cat_data.get("short_display_name"),
+                    "abbreviation": cat_data.get("abbreviation"),
+                    "summary": cat_data.get("summary"),
+                    "stats": stats,
+                }
+                categories[cat_name] = StatCategory(**cat_dict)
+
+            # Create the SeasonStats object
+            season_stats = SeasonStats(
+                split_id=season_stats_data.get("split_id"),
+                split_name=season_stats_data.get("split_name"),
+                split_abbreviation=season_stats_data.get("split_abbreviation"),
+                split_type=season_stats_data.get("split_type"),
+                categories=categories,
+            )
+            data["season_stats"] = season_stats
 
         # Convert camelCase attributes to snake_case to match Player class
         for camel, snake in [
@@ -143,5 +211,53 @@ class PlayerModel(BaseModel):
                         period_stats[key] = value
                 processed_stats[period] = period_stats
             data["stats"] = processed_stats
+
+        # Process season_stats into the format expected by Player
+        if "season_stats" in data and data["season_stats"]:
+            season_stats = data["season_stats"]
+            processed_season_stats: Dict[str, Any] = {
+                "split_id": season_stats["split_id"]
+                if "split_id" in season_stats
+                else None,
+                "split_name": season_stats["split_name"]
+                if "split_name" in season_stats
+                else None,
+                "split_abbreviation": season_stats["split_abbreviation"]
+                if "split_abbreviation" in season_stats
+                else None,
+                "split_type": season_stats["split_type"]
+                if "split_type" in season_stats
+                else None,
+                "categories": {},
+            }
+
+            # Process each category
+            if "categories" in season_stats:
+                for cat_name, category in season_stats["categories"].items():
+                    cat_dict = {
+                        "display_name": category.get("display_name"),
+                        "short_display_name": category.get("short_display_name"),
+                        "abbreviation": category.get("abbreviation"),
+                        "summary": category.get("summary"),
+                        "stats": {},
+                    }
+
+                    # Process each stat in the category
+                    if "stats" in category:
+                        for stat_name, stat in category["stats"].items():
+                            cat_dict["stats"][stat_name] = {
+                                "display_name": stat.get("display_name"),
+                                "short_display_name": stat.get("short_display_name"),
+                                "description": stat.get("description"),
+                                "abbreviation": stat.get("abbreviation"),
+                                "value": stat.get("value"),
+                                "display_value": stat.get("display_value"),
+                                "rank": stat.get("rank"),
+                                "rank_display_value": stat.get("rank_display_value"),
+                            }
+
+                    processed_season_stats["categories"][cat_name] = cat_dict
+
+            data["season_stats"] = processed_season_stats
 
         return data

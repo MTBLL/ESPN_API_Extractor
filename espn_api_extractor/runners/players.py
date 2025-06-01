@@ -8,6 +8,7 @@ from espn_api_extractor.requests.core_requests import EspnCoreRequests
 
 # Using absolute imports
 from espn_api_extractor.requests.fantasy_requests import EspnFantasyRequests
+from espn_api_extractor.utils.graphql_client import GraphQLClient
 from espn_api_extractor.utils.logger import Logger
 from espn_api_extractor.utils.utils import write_models_to_json
 
@@ -17,7 +18,13 @@ def main(
     output_dir: str = ".",
 ) -> Union[List[Player], List[PlayerModel]]:
     """
-    Main function to extract player data from ESPN Fantasy Baseball API.
+    Main function to extract player data from ESPN Fantasy Baseball API with GraphQL optimization.
+
+    Implements User Stories 1-6 for iterative ETL pipeline:
+    - GraphQL-first player population check for resource optimization
+    - HITL validation for GraphQL connection failures
+    - Always extracts bio+stats data (User Story 2)
+    - Extract-only functionality (outputs saved locally for next ETL stage)
 
     Args:
         sample_size: Optional maximum number of players to process. If provided,
@@ -26,6 +33,16 @@ def main(
 
     Returns:
         Either a list of Player objects or PlayerModel objects (if as_models=True)
+
+    CLI Usage:
+        # Standard execution with GraphQL optimization
+        poetry run espn-players --output_dir ./output
+
+        # Force full extraction (bypass GraphQL)
+        poetry run espn-players --output_dir ./output --force-full-extraction
+
+        # Custom GraphQL config
+        poetry run espn-players --output_dir ./output --graphql-config ./custom_config.json
     """
     parser = argparse.ArgumentParser(description="Access ESPN Fantasy Baseball API")
 
@@ -54,48 +71,104 @@ def main(
         type=str,
         help="Directory path to write JSON output. If not specified, no file is written.",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--force-full-extraction",
+        action="store_true",
+        help="Force full ESPN extraction, bypassing GraphQL optimization (default: False)",
+    )
+    parser.add_argument(
+        "--graphql-config",
+        type=str,
+        default="hasura_config.json",
+        help="Path to GraphQL configuration file (default: hasura_config.json)",
+    )
+    args: argparse.Namespace = parser.parse_args()
 
     # Override args with function parameters if provided
     if output_dir is not None:
-        args.output_dir = output_dir
+        setattr(args, "output_dir", output_dir)
+
+    year = args.year  # type: ignore
+    assert year is not None
+    threads = args.threads  # type: ignore
+    batch_size = args.batch_size  # type: ignore
+    force_full_extraction = args.force_full_extraction  # type: ignore
+    graphql_config_path = args.graphql_config  # type: ignore
+
+    # Stats are always included (hardcoded per User Story 2)
+    include_stats = True
 
     logger = Logger("player-extractor")
     log = logger.logging
+
     try:
+        # Initialize GraphQL client for extraction optimization (User Story 1 & 4)
+        graphql_client = GraphQLClient(config_path=graphql_config_path, logger=logger)
+        use_graphql = graphql_client.initialize_with_hitl(
+            force_full_extraction=force_full_extraction
+        )
+
+        # Get ESPN player universe
         requestor = EspnFantasyRequests(
             sport="mlb",
-            year=args.year,
+            year=year,
             league_id=None,
             cookies={},
             logger=logger,
         )
-        players = requestor.get_pro_players()
-        log.info(f"successfully got {len(players)} players")
+        espn_players = requestor.get_pro_players()
+        log.info(f"Retrieved {len(espn_players)} players from ESPN API")
 
-        # If a sample size is specified, limit the number of players to process
-        if sample_size is not None and sample_size < len(players):
-            players = players[:sample_size]
+        # Apply GraphQL optimization if available (User Story 1)
+        if use_graphql:
+            existing_player_ids = graphql_client.get_existing_player_ids()
+            if existing_player_ids:
+                # Filter to only missing players to minimize ESPN API calls
+                missing_players = [
+                    p for p in espn_players if p.get("id") not in existing_player_ids
+                ]
+                players_to_process = missing_players
+                log.info(
+                    f"GraphQL optimization: {len(existing_player_ids)} existing players found"
+                )
+                log.info(
+                    f"Processing {len(players_to_process)} missing players (saved {len(existing_player_ids)} ESPN API calls)"
+                )
+            else:
+                # No existing players found, process all
+                players_to_process = espn_players
+                log.info(
+                    "No existing players found in GraphQL, processing all ESPN players"
+                )
+        else:
+            # Full extraction mode
+            players_to_process = espn_players
+            log.info("Full extraction mode: processing all ESPN players")
+
+        # Apply sample size limit if specified
+        if sample_size is not None and sample_size < len(players_to_process):
+            players_to_process = players_to_process[:sample_size]
             log.info(f"Limited to {sample_size} players as specified")
 
         # Cast the json response into Player objects
-        player_objs = [Player(player) for player in players]
+        player_objs = [Player(player) for player in players_to_process]
 
         # Hydrate player objects with additional data
         log.info(
-            f"Hydrating player objects with additional data using {'auto-detected' if args.threads is None else args.threads} threads"
+            f"Hydrating player objects with additional data using {'auto-detected' if threads is None else threads} threads"
         )
         core_requestor = EspnCoreRequests(
             sport="mlb",
-            year=args.year,
+            year=year,
             logger=logger,
-            max_workers=args.threads,  # Pass the thread count (None will use the default)
+            max_workers=threads,  # Pass the thread count (None will use the default)
         )
         try:
             # Get detailed player data and hydrate the player object
             hydrated_players, failed_players = core_requestor.hydrate_players(
                 player_objs,
-                batch_size=args.batch_size,  # Pass the batch size for progress tracking
+                batch_size=batch_size,  # Pass the batch size for progress tracking
+                include_stats=include_stats,
             )
 
             # Log summary of hydration process
@@ -119,16 +192,17 @@ def main(
             player_models = [player.to_model() for player in hydrated_players]
 
             # Write to JSON file if output path is specified
-            if args.output_dir:
+            output_dir_val = args.output_dir  # type: ignore
+            if output_dir_val:
                 write_models_to_json(
-                    player_models, args.output_dir, "espn_player_universe.json"
+                    player_models, output_dir_val, "espn_player_universe.json"
                 )
                 logger.logging.info(
-                    f"Wrote {len(player_models)} player models to {args.output_dir}"
+                    f"Wrote {len(player_models)} player models to {output_dir_val}"
                 )
 
             # Return the requested format (models or player objects)
-            if args.as_models:
+            if args.as_models:  # type: ignore
                 return player_models
             else:
                 # Return the list of fully hydrated player objects
