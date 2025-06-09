@@ -153,6 +153,38 @@ def main(
         # Cast the json response into Player objects
         player_objs = [Player(player) for player in players_to_process]
 
+        # Fetch player card data (projections, seasonal stats, outlook) for all players before bio hydration
+        log.info("Fetching player cards with projections and seasonal data for all players")
+        player_ids = [player.id for player in player_objs if player.id is not None]
+        
+        if player_ids:
+            try:
+                player_cards_data = requestor.get_player_cards(player_ids)
+                # Create a lookup dictionary for player card data by player ID
+                player_cards_lookup = {}
+                top_level_lookup = {}
+                for player_data in player_cards_data.get("players", []):
+                    player_id = player_data.get("id")
+                    if player_id:
+                        player_cards_lookup[player_id] = player_data.get("player", {})
+                        # Store top-level data separately
+                        top_level_lookup[player_id] = {
+                            "draftAuctionValue": player_data.get("draftAuctionValue"),
+                            "onTeamId": player_data.get("onTeamId")
+                        }
+                
+                # Hydrate each player with their player card data (projections, seasonal stats, outlook, fantasy data)
+                for player in player_objs:
+                    if player.id in player_cards_lookup:
+                        player.hydrate_kona_playercard(
+                            player_cards_lookup[player.id],
+                            top_level_lookup.get(player.id, {})
+                        )
+                
+                log.info(f"Successfully fetched player cards for {len(player_cards_lookup)} players")
+            except Exception as e:
+                log.warning(f"Failed to fetch player cards data: {e}")
+
         # Hydrate player objects with additional data
         log.info(
             f"Hydrating player objects with additional data using {'auto-detected' if threads is None else threads} threads"

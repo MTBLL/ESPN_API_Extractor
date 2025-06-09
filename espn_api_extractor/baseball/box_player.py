@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from .constant import POSITION_MAP, PRO_TEAM_MAP
+from .constants import POSITION_MAP, PRO_TEAM_MAP
 from .player import Player
 
 

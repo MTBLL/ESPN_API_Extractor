@@ -108,7 +108,7 @@ def test_player_model_from_player_object(player_data, player_details_data):
     """Test converting a Player object to a PlayerModel and back"""
     # Create and hydrate a Player object
     player = Player(player_data)
-    player.hydrate(player_details_data)
+    player.hydrate_bio(player_details_data)
 
     # Add some stats for testing
     player.stats = {
@@ -149,7 +149,7 @@ def test_player_model_json_serialization(player_data, player_details_data):
     """Test JSON serialization and deserialization of PlayerModel"""
     # Create and hydrate a Player object
     player = Player(player_data)
-    player.hydrate(player_details_data)
+    player.hydrate_bio(player_details_data)
 
     # Convert to PlayerModel
     model = PlayerModel.from_player(player)

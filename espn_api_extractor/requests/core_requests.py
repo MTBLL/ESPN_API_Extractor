@@ -242,7 +242,7 @@ class EspnCoreRequests:
         Thread-safe implementation.
         """
         assert player.id is not None, "Player ID is required"
-        
+
         data = self._get_player_data(player.id)
         if data is None:
             return player, False
@@ -250,7 +250,7 @@ class EspnCoreRequests:
         try:
             # Hydrate with basic biographical data
             hydrated_player = player
-            hydrated_player.hydrate(data)
+            hydrated_player.hydrate_bio(data)
             return hydrated_player, True
         except Exception as e:
             with self.logger_lock:
@@ -267,7 +267,7 @@ class EspnCoreRequests:
         """
         assert player.id is not None, "Player ID is required"
         stats_data = self._fetch_player_stats(player.id)
-        
+
         if stats_data is None:
             return player, False
 
@@ -282,24 +282,27 @@ class EspnCoreRequests:
                 )
             return player, False
 
-    def _hydrate_player_worker(self, player: Player, include_stats: bool) -> Tuple[Player, bool]:
+    def _hydrate_player_worker(
+        self, player: Player, include_stats: bool
+    ) -> Tuple[Player, bool]:
         """
         Worker function for ThreadPoolExecutor that handles the hydration logic.
         Calls appropriate hydration methods based on include_stats parameter.
         """
         # First, hydrate with biographical data
         hydrated_player, bio_success = self._hydrate_player_with_bio(player)
-        
+
         if not bio_success:
             return hydrated_player, False
-        
+
         # If stats are requested and bio hydration succeeded, also get stats
         if include_stats:
-            hydrated_player, stats_success = self._hydrate_player_with_stats(hydrated_player)
+            hydrated_player, stats_success = self._hydrate_player_with_stats(
+                hydrated_player
+            )
             return hydrated_player, stats_success
-        
-        return hydrated_player, bio_success
 
+        return hydrated_player, bio_success
 
     def hydrate_players(
         self, players: list[Player], batch_size: int = 100, include_stats: bool = False
@@ -345,7 +348,9 @@ class EspnCoreRequests:
                     with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                         # Submit all player hydration tasks to thread pool
                         futures_to_players = {
-                            executor.submit(self._hydrate_player_worker, player, include_stats): player
+                            executor.submit(
+                                self._hydrate_player_worker, player, include_stats
+                            ): player
                             for player in batch
                         }
 

@@ -190,7 +190,7 @@ class TestPlayerEnhanced:
         player = Player({"id": 123, "fullName": "Test Player"})
 
         # Hydrate with minimal data
-        player.hydrate(
+        player.hydrate_bio(
             {
                 "displayName": "Test Player"
                 # Missing many fields
@@ -211,7 +211,7 @@ class TestPlayerEnhanced:
         assert player.active is False
 
         # Hydrate with partial nested data
-        player.hydrate(
+        player.hydrate_bio(
             {
                 "position": {
                     "name": "Pitcher"

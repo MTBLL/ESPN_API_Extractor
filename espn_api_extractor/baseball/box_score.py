@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 from .box_player import BoxPlayer
-from .constant import STATS_MAP
+from .constants import STATS_MAP
 
 
 class BoxScore(ABC):

@@ -237,8 +237,8 @@ class TestCoreRequests:
         core_requests._get_player_data = mock.MagicMock(return_value={"id": "123"})
 
         # Mock player.hydrate to raise an exception
-        original_hydrate = Player.hydrate
-        Player.hydrate = mock.MagicMock(side_effect=ValueError("Test error"))
+        original_hydrate = Player.hydrate_bio
+        Player.hydrate_bio = mock.MagicMock(side_effect=ValueError("Test error"))
 
         try:
             # Call _hydrate_player_with_bio
@@ -252,7 +252,7 @@ class TestCoreRequests:
             )
         finally:
             # Restore original method
-            Player.hydrate = original_hydrate
+            Player.hydrate_bio = original_hydrate
 
     def test_hydrate_player_worker_bio_only(self, core_requests):
         """Test _hydrate_player_worker with include_stats=False (bio only)"""

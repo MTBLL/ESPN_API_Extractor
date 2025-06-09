@@ -1,0 +1,1532 @@
+{
+  "filters": [
+    {
+      "displayName": "Season",
+      "name": "season",
+      "value": "2025",
+      "options": [
+        {
+          "value": "2025",
+          "displayValue": "2025"
+        },
+        {
+          "value": "2024",
+          "displayValue": "2024"
+        },
+        {
+          "value": "2023",
+          "displayValue": "2023"
+        },
+        {
+          "value": "2022",
+          "displayValue": "2022"
+        }
+      ]
+    },
+    {
+      "displayName": "Category",
+      "name": "category",
+      "value": "batting",
+      "options": [
+        {
+          "value": "batting",
+          "displayValue": "Batting",
+          "shortDisplayName": "batting"
+        }
+      ]
+    }
+  ],
+  "displayName": "2025 Splits",
+  "labels": [
+    "AB",
+    "R",
+    "H",
+    "2B",
+    "3B",
+    "HR",
+    "RBI",
+    "BB",
+    "HBP",
+    "SO",
+    "SB",
+    "CS",
+    "AVG",
+    "OBP",
+    "SLG",
+    "OPS"
+  ],
+  "names": [
+    "atBats",
+    "runs",
+    "hits",
+    "doubles",
+    "triples",
+    "homeRuns",
+    "RBIs",
+    "walks",
+    "hitByPitch",
+    "strikeouts",
+    "stolenBases",
+    "caughtStealing",
+    "avg",
+    "onBasePct",
+    "slugAvg",
+    "OPS"
+  ],
+  "displayNames": [
+    "At Bats",
+    "Runs",
+    "Hits",
+    "Doubles",
+    "Triples",
+    "Home Runs",
+    "Runs Batted In",
+    "Walks",
+    "Hit By Pitch",
+    "Strikeouts",
+    "Stolen Bases",
+    "Caught Stealing",
+    "Batting Average",
+    "On Base Percentage",
+    "Slugging Percentage",
+    "OBP Pct + SLG Pct"
+  ],
+  "descriptions": [
+    "The number of times a batter comes up to bat not counting walks and sacrifices.",
+    "The number of runs scored.",
+    "The number of hits.",
+    "The number of times that a batter reaches second base as the result of a hit without an error being committed.",
+    "The number of hits that result in the batter reaching 3rd base without the aid of an error.",
+    "The number of hits that allowed the batter to round the bases and score without the aid of an error of the defense.",
+    "The number of runs scored by a batter's play.",
+    "The number of times a batter reaches base on four balls",
+    "The number of times a player has been by a pitch.",
+    "The number of times a player strikes out.",
+    "The number of bases stolen.",
+    "The number of times that a baserunner attempts to steal a base but is thrown out.",
+    "The average number of times the batter reached successfully on base due to a hit: hits / atBats",
+    "The ratio of the number of times the batter reached base per plate appearnce: (hits + walks + hbp / plateAppearances)",
+    "Slugging percentage is a metric that is meant to measuring how many bases the hitter safely advances to after making contact with the ball: (totalBases / atBats)",
+    "The average calculated by adding up on-base percentage and slugging percentage."
+  ],
+  "splitCategories": [
+    {
+      "name": "split",
+      "displayName": "Overall",
+      "splits": [
+        {
+          "displayName": "All Splits",
+          "stats": [
+            "252",
+            "49",
+            "65",
+            "12",
+            "6",
+            "18",
+            "39",
+            "24",
+            "6",
+            "67",
+            "10",
+            "4",
+            ".258",
+            ".337",
+            ".567",
+            ".904"
+          ],
+          "abbreviation": "Total"
+        }
+      ]
+    },
+    {
+      "name": "byBreakdown",
+      "displayName": "Breakdown",
+      "splits": [
+        {
+          "displayName": "vs. Left",
+          "stats": [
+            "80",
+            "9",
+            "19",
+            "1",
+            "2",
+            "3",
+            "8",
+            "5",
+            "2",
+            "20",
+            "1",
+            "0",
+            ".238",
+            ".299",
+            ".413",
+            ".711"
+          ],
+          "abbreviation": "vs. Left"
+        },
+        {
+          "displayName": "vs. Right",
+          "stats": [
+            "171",
+            "40",
+            "46",
+            "11",
+            "4",
+            "15",
+            "31",
+            "19",
+            "4",
+            "47",
+            "9",
+            "4",
+            ".269",
+            ".356",
+            ".643",
+            ".999"
+          ],
+          "abbreviation": "vs. Right"
+        },
+        {
+          "displayName": "Home",
+          "stats": [
+            "125",
+            "25",
+            "33",
+            "9",
+            "4",
+            "7",
+            "13",
+            "13",
+            "4",
+            "29",
+            "6",
+            "2",
+            ".264",
+            ".352",
+            ".568",
+            ".920"
+          ],
+          "abbreviation": "Home"
+        },
+        {
+          "displayName": "Away",
+          "stats": [
+            "126",
+            "24",
+            "32",
+            "3",
+            "2",
+            "11",
+            "26",
+            "11",
+            "2",
+            "38",
+            "4",
+            "2",
+            ".254",
+            ".324",
+            ".571",
+            ".895"
+          ],
+          "abbreviation": "Away"
+        },
+        {
+          "displayName": "Day",
+          "stats": [
+            "79",
+            "15",
+            "24",
+            "5",
+            "3",
+            "3",
+            "9",
+            "10",
+            "0",
+            "21",
+            "5",
+            "3",
+            ".304",
+            ".382",
+            ".557",
+            ".939"
+          ],
+          "abbreviation": "Day"
+        },
+        {
+          "displayName": "Night",
+          "stats": [
+            "172",
+            "34",
+            "41",
+            "7",
+            "3",
+            "15",
+            "30",
+            "14",
+            "6",
+            "46",
+            "5",
+            "1",
+            ".238",
+            ".318",
+            ".576",
+            ".893"
+          ],
+          "abbreviation": "Night"
+        }
+      ]
+    },
+    {
+      "name": "byDayMonth",
+      "displayName": "Day / Month",
+      "splits": [
+        {
+          "displayName": "March",
+          "stats": [
+            "14",
+            "1",
+            "4",
+            "2",
+            "0",
+            "0",
+            "1",
+            "2",
+            "2",
+            "3",
+            "0",
+            "0",
+            ".286",
+            ".444",
+            ".429",
+            ".873"
+          ],
+          "abbreviation": "March"
+        },
+        {
+          "displayName": "April",
+          "stats": [
+            "114",
+            "24",
+            "33",
+            "6",
+            "4",
+            "9",
+            "22",
+            "8",
+            "1",
+            "31",
+            "5",
+            "0",
+            ".289",
+            ".341",
+            ".649",
+            ".991"
+          ],
+          "abbreviation": "April"
+        },
+        {
+          "displayName": "May",
+          "stats": [
+            "112",
+            "19",
+            "24",
+            "3",
+            "2",
+            "7",
+            "12",
+            "11",
+            "2",
+            "32",
+            "5",
+            "3",
+            ".214",
+            ".296",
+            ".464",
+            ".760"
+          ],
+          "abbreviation": "May"
+        },
+        {
+          "displayName": "June",
+          "stats": [
+            "11",
+            "5",
+            "4",
+            "1",
+            "0",
+            "2",
+            "4",
+            "3",
+            "1",
+            "1",
+            "0",
+            "1",
+            ".364",
+            ".533",
+            "1.000",
+            "1.533"
+          ],
+          "abbreviation": "June"
+        },
+        {
+          "displayName": "Last 7 Days",
+          "stats": [
+            "15",
+            "5",
+            "4",
+            "1",
+            "0",
+            "2",
+            "4",
+            "4",
+            "1",
+            "1",
+            "0",
+            "1",
+            ".267",
+            ".450",
+            ".733",
+            "1.183"
+          ],
+          "abbreviation": "Last seven days"
+        },
+        {
+          "displayName": "Last 15 Days",
+          "stats": [
+            "42",
+            "9",
+            "7",
+            "3",
+            "0",
+            "3",
+            "5",
+            "4",
+            "2",
+            "9",
+            "1",
+            "1",
+            ".167",
+            ".271",
+            ".452",
+            ".723"
+          ],
+          "abbreviation": "Last 15 Days"
+        },
+        {
+          "displayName": "Last 30 Days",
+          "stats": [
+            "96",
+            "19",
+            "19",
+            "4",
+            "2",
+            "7",
+            "11",
+            "10",
+            "2",
+            "22",
+            "5",
+            "2",
+            ".198",
+            ".287",
+            ".500",
+            ".787"
+          ],
+          "abbreviation": "Last 30 Days"
+        }
+      ]
+    },
+    {
+      "name": "byOpponent",
+      "displayName": "Opponent",
+      "splits": [
+        {
+          "displayName": "Atlanta Braves",
+          "stats": [
+            "25",
+            "6",
+            "7",
+            "1",
+            "3",
+            "2",
+            "4",
+            "3",
+            "1",
+            "7",
+            "0",
+            "1",
+            ".280",
+            ".379",
+            ".800",
+            "1.179"
+          ],
+          "abbreviation": "vs. ATL"
+        },
+        {
+          "displayName": "Baltimore Orioles",
+          "stats": [
+            "11",
+            "4",
+            "5",
+            "1",
+            "0",
+            "2",
+            "2",
+            "1",
+            "1",
+            "2",
+            "0",
+            "0",
+            ".455",
+            ".538",
+            "1.091",
+            "1.629"
+          ],
+          "abbreviation": "vs. BAL"
+        },
+        {
+          "displayName": "Chicago Cubs",
+          "stats": [
+            "29",
+            "2",
+            "9",
+            "2",
+            "0",
+            "1",
+            "3",
+            "3",
+            "2",
+            "8",
+            "0",
+            "0",
+            ".310",
+            ".412",
+            ".483",
+            ".895"
+          ],
+          "abbreviation": "vs. CHC"
+        },
+        {
+          "displayName": "Colorado Rockies",
+          "stats": [
+            "14",
+            "2",
+            "3",
+            "1",
+            "0",
+            "0",
+            "1",
+            "1",
+            "0",
+            "4",
+            "3",
+            "0",
+            ".214",
+            ".267",
+            ".286",
+            ".552"
+          ],
+          "abbreviation": "vs. COL"
+        },
+        {
+          "displayName": "Los Angeles Dodgers",
+          "stats": [
+            "28",
+            "3",
+            "4",
+            "0",
+            "2",
+            "1",
+            "2",
+            "3",
+            "0",
+            "7",
+            "0",
+            "1",
+            ".143",
+            ".226",
+            ".393",
+            ".619"
+          ],
+          "abbreviation": "vs. LAD"
+        },
+        {
+          "displayName": "Miami Marlins",
+          "stats": [
+            "15",
+            "4",
+            "4",
+            "1",
+            "0",
+            "1",
+            "7",
+            "0",
+            "0",
+            "5",
+            "3",
+            "0",
+            ".267",
+            ".267",
+            ".533",
+            ".800"
+          ],
+          "abbreviation": "vs. MIA"
+        },
+        {
+          "displayName": "Milwaukee Brewers",
+          "stats": [
+            "13",
+            "3",
+            "5",
+            "2",
+            "0",
+            "0",
+            "2",
+            "1",
+            "0",
+            "4",
+            "1",
+            "0",
+            ".385",
+            ".429",
+            ".538",
+            ".967"
+          ],
+          "abbreviation": "vs. MIL"
+        },
+        {
+          "displayName": "New York Mets",
+          "stats": [
+            "22",
+            "4",
+            "6",
+            "0",
+            "0",
+            "2",
+            "2",
+            "4",
+            "0",
+            "6",
+            "0",
+            "2",
+            ".273",
+            ".385",
+            ".545",
+            ".930"
+          ],
+          "abbreviation": "vs. NYM"
+        },
+        {
+          "displayName": "New York Yankees",
+          "stats": [
+            "13",
+            "3",
+            "2",
+            "0",
+            "0",
+            "1",
+            "2",
+            "1",
+            "0",
+            "5",
+            "0",
+            "0",
+            ".154",
+            ".214",
+            ".385",
+            ".599"
+          ],
+          "abbreviation": "vs. NYY"
+        },
+        {
+          "displayName": "Philadelphia Phillies",
+          "stats": [
+            "13",
+            "1",
+            "3",
+            "0",
+            "0",
+            "0",
+            "3",
+            "0",
+            "1",
+            "6",
+            "0",
+            "0",
+            ".231",
+            ".286",
+            ".231",
+            ".516"
+          ],
+          "abbreviation": "vs. PHI"
+        },
+        {
+          "displayName": "Pittsburgh Pirates",
+          "stats": [
+            "13",
+            "2",
+            "2",
+            "1",
+            "0",
+            "1",
+            "1",
+            "0",
+            "0",
+            "4",
+            "0",
+            "0",
+            ".154",
+            ".154",
+            ".462",
+            ".615"
+          ],
+          "abbreviation": "vs. PIT"
+        },
+        {
+          "displayName": "San Francisco Giants",
+          "stats": [
+            "12",
+            "5",
+            "5",
+            "0",
+            "0",
+            "3",
+            "3",
+            "2",
+            "0",
+            "2",
+            "1",
+            "0",
+            ".417",
+            ".500",
+            "1.167",
+            "1.667"
+          ],
+          "abbreviation": "vs. SF"
+        },
+        {
+          "displayName": "St. Louis Cardinals",
+          "stats": [
+            "10",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "3",
+            "0",
+            "0",
+            ".000",
+            ".000",
+            ".000",
+            ".000"
+          ],
+          "abbreviation": "vs. STL"
+        },
+        {
+          "displayName": "Tampa Bay Rays",
+          "stats": [
+            "13",
+            "5",
+            "4",
+            "1",
+            "0",
+            "2",
+            "4",
+            "2",
+            "0",
+            "1",
+            "1",
+            "0",
+            ".308",
+            ".400",
+            ".846",
+            "1.246"
+          ],
+          "abbreviation": "vs. TB"
+        },
+        {
+          "displayName": "Washington Nationals",
+          "stats": [
+            "20",
+            "5",
+            "6",
+            "2",
+            "1",
+            "2",
+            "3",
+            "3",
+            "1",
+            "3",
+            "1",
+            "0",
+            ".300",
+            ".417",
+            ".800",
+            "1.217"
+          ],
+          "abbreviation": "vs. WSH"
+        }
+      ]
+    },
+    {
+      "name": "byArena",
+      "displayName": "Stadium",
+      "splits": [
+        {
+          "displayName": "AT&T Park",
+          "stats": [
+            "12",
+            "5",
+            "5",
+            "0",
+            "0",
+            "3",
+            "3",
+            "2",
+            "0",
+            "2",
+            "1",
+            "0",
+            ".417",
+            ".500",
+            "1.167",
+            "1.667"
+          ],
+          "abbreviation": "AT&T Park"
+        },
+        {
+          "displayName": "Busch Stadium II",
+          "stats": [
+            "10",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "3",
+            "0",
+            "0",
+            ".000",
+            ".000",
+            ".000",
+            ".000"
+          ],
+          "abbreviation": "Busch Stadium II"
+        },
+        {
+          "displayName": "Chase Field",
+          "stats": [
+            "125",
+            "25",
+            "33",
+            "9",
+            "4",
+            "7",
+            "13",
+            "13",
+            "4",
+            "29",
+            "6",
+            "2",
+            ".264",
+            ".352",
+            ".568",
+            ".920"
+          ],
+          "abbreviation": "Chase Field"
+        },
+        {
+          "displayName": "Citi Field",
+          "stats": [
+            "13",
+            "0",
+            "1",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "4",
+            "0",
+            "1",
+            ".077",
+            ".077",
+            ".077",
+            ".154"
+          ],
+          "abbreviation": "Citi Field"
+        },
+        {
+          "displayName": "Citizens Bank Park",
+          "stats": [
+            "13",
+            "1",
+            "3",
+            "0",
+            "0",
+            "0",
+            "3",
+            "0",
+            "1",
+            "6",
+            "0",
+            "0",
+            ".231",
+            ".286",
+            ".231",
+            ".516"
+          ],
+          "abbreviation": "Citizens Bank Park"
+        },
+        {
+          "displayName": "Dodger Stadium",
+          "stats": [
+            "12",
+            "2",
+            "3",
+            "0",
+            "1",
+            "1",
+            "2",
+            "2",
+            "0",
+            "5",
+            "0",
+            "0",
+            ".250",
+            ".357",
+            ".667",
+            "1.024"
+          ],
+          "abbreviation": "Dodger Stadium"
+        },
+        {
+          "displayName": "Marlins Park",
+          "stats": [
+            "15",
+            "4",
+            "4",
+            "1",
+            "0",
+            "1",
+            "7",
+            "0",
+            "0",
+            "5",
+            "3",
+            "0",
+            ".267",
+            ".267",
+            ".533",
+            ".800"
+          ],
+          "abbreviation": "Marlins Park"
+        },
+        {
+          "displayName": "Nationals Park",
+          "stats": [
+            "12",
+            "3",
+            "5",
+            "1",
+            "1",
+            "2",
+            "3",
+            "2",
+            "0",
+            "2",
+            "0",
+            "0",
+            ".417",
+            ".500",
+            "1.167",
+            "1.667"
+          ],
+          "abbreviation": "Nationals Park"
+        },
+        {
+          "displayName": "Wrigley Field",
+          "stats": [
+            "15",
+            "1",
+            "5",
+            "0",
+            "0",
+            "1",
+            "2",
+            "1",
+            "0",
+            "5",
+            "0",
+            "0",
+            ".333",
+            ".375",
+            ".533",
+            ".908"
+          ],
+          "abbreviation": "Wrigley Field"
+        },
+        {
+          "displayName": "Yankee Stadium",
+          "stats": [
+            "13",
+            "3",
+            "2",
+            "0",
+            "0",
+            "1",
+            "2",
+            "1",
+            "0",
+            "5",
+            "0",
+            "0",
+            ".154",
+            ".214",
+            ".385",
+            ".599"
+          ],
+          "abbreviation": "Yankee Stadium"
+        }
+      ]
+    },
+    {
+      "name": "byPosition",
+      "displayName": "Position",
+      "splits": [
+        {
+          "displayName": "As RF",
+          "stats": [
+            "250",
+            "48",
+            "65",
+            "12",
+            "6",
+            "18",
+            "39",
+            "24",
+            "6",
+            "67",
+            "0",
+            "0",
+            ".260",
+            ".339",
+            ".572",
+            ".911"
+          ],
+          "abbreviation": "As RF"
+        },
+        {
+          "displayName": "As PH",
+          "stats": [
+            "1",
+            "1",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            ".000",
+            ".000",
+            ".000",
+            ".000"
+          ],
+          "abbreviation": "As PH"
+        }
+      ]
+    },
+    {
+      "name": "byCount",
+      "displayName": "Count",
+      "splits": [
+        {
+          "displayName": "Count 0-0",
+          "stats": [
+            "40",
+            "0",
+            "13",
+            "2",
+            "3",
+            "2",
+            "5",
+            "0",
+            "1",
+            "0",
+            "3",
+            "1",
+            ".325",
+            ".341",
+            ".675",
+            "1.016"
+          ],
+          "abbreviation": "0-0 count"
+        },
+        {
+          "displayName": "Count 0-1",
+          "stats": [
+            "19",
+            "0",
+            "5",
+            "0",
+            "0",
+            "2",
+            "6",
+            "0",
+            "2",
+            "0",
+            "1",
+            "0",
+            ".263",
+            ".333",
+            ".579",
+            ".912"
+          ],
+          "abbreviation": "0-1 Count"
+        },
+        {
+          "displayName": "Count 0-2",
+          "stats": [
+            "26",
+            "0",
+            "5",
+            "2",
+            "0",
+            "0",
+            "0",
+            "0",
+            "1",
+            "14",
+            "1",
+            "1",
+            ".192",
+            ".222",
+            ".269",
+            ".491"
+          ],
+          "abbreviation": "0-2 Count"
+        },
+        {
+          "displayName": "Count 1-0",
+          "stats": [
+            "13",
+            "0",
+            "6",
+            "2",
+            "1",
+            "3",
+            "6",
+            "0",
+            "0",
+            "0",
+            "1",
+            "0",
+            ".462",
+            ".462",
+            "1.462",
+            "1.923"
+          ],
+          "abbreviation": "1-0 Count"
+        },
+        {
+          "displayName": "Count 1-1",
+          "stats": [
+            "24",
+            "0",
+            "11",
+            "1",
+            "0",
+            "4",
+            "10",
+            "0",
+            "0",
+            "0",
+            "1",
+            "0",
+            ".458",
+            ".458",
+            "1.000",
+            "1.458"
+          ],
+          "abbreviation": "1-1 Count"
+        },
+        {
+          "displayName": "Count 1-2",
+          "stats": [
+            "35",
+            "0",
+            "4",
+            "0",
+            "1",
+            "0",
+            "0",
+            "0",
+            "2",
+            "14",
+            "0",
+            "0",
+            ".114",
+            ".162",
+            ".171",
+            ".334"
+          ],
+          "abbreviation": "1-2 Count"
+        },
+        {
+          "displayName": "Count 2-0",
+          "stats": [
+            "5",
+            "0",
+            "3",
+            "1",
+            "0",
+            "2",
+            "2",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            ".600",
+            ".600",
+            "2.000",
+            "2.600"
+          ],
+          "abbreviation": "2-0 Count"
+        },
+        {
+          "displayName": "Count 2-1",
+          "stats": [
+            "11",
+            "0",
+            "7",
+            "2",
+            "0",
+            "3",
+            "4",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            ".636",
+            ".636",
+            "1.636",
+            "2.273"
+          ],
+          "abbreviation": "2-1 Count"
+        },
+        {
+          "displayName": "Count 2-2",
+          "stats": [
+            "39",
+            "0",
+            "4",
+            "2",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "22",
+            "2",
+            "2",
+            ".103",
+            ".103",
+            ".154",
+            ".256"
+          ],
+          "abbreviation": "2-2 Count"
+        },
+        {
+          "displayName": "Count 3-0",
+          "stats": [
+            "1",
+            "0",
+            "1",
+            "0",
+            "0",
+            "0",
+            "1",
+            "4",
+            "0",
+            "0",
+            "0",
+            "0",
+            "1.000",
+            "1.000",
+            "1.000",
+            "2.000"
+          ],
+          "abbreviation": "3-0 Count"
+        },
+        {
+          "displayName": "Count 3-1",
+          "stats": [
+            "2",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "8",
+            "0",
+            "0",
+            "1",
+            "0",
+            ".000",
+            ".800",
+            ".000",
+            ".800"
+          ],
+          "abbreviation": "3-1 Count"
+        },
+        {
+          "displayName": "Count 3-2",
+          "stats": [
+            "36",
+            "0",
+            "6",
+            "0",
+            "1",
+            "2",
+            "5",
+            "12",
+            "0",
+            "17",
+            "0",
+            "0",
+            ".167",
+            ".375",
+            ".389",
+            ".764"
+          ],
+          "abbreviation": "3-2 Count"
+        }
+      ]
+    },
+    {
+      "name": "byBattingOrder",
+      "displayName": "Batting Order",
+      "splits": [
+        {
+          "displayName": "Batting #1",
+          "stats": [
+            "184",
+            "42",
+            "50",
+            "9",
+            "4",
+            "17",
+            "34",
+            "17",
+            "4",
+            "48",
+            "9",
+            "4",
+            ".272",
+            ".346",
+            ".641",
+            ".988"
+          ],
+          "abbreviation": "Batting #1"
+        },
+        {
+          "displayName": "Batting #2",
+          "stats": [
+            "65",
+            "6",
+            "14",
+            "2",
+            "2",
+            "1",
+            "4",
+            "6",
+            "2",
+            "19",
+            "1",
+            "0",
+            ".215",
+            ".301",
+            ".354",
+            ".655"
+          ],
+          "abbreviation": "Batting #2"
+        },
+        {
+          "displayName": "Batting #9",
+          "stats": [
+            "2",
+            "1",
+            "1",
+            "1",
+            "0",
+            "0",
+            "1",
+            "1",
+            "0",
+            "0",
+            "0",
+            "0",
+            ".500",
+            ".667",
+            "1.000",
+            "1.667"
+          ],
+          "abbreviation": "Batting #9"
+        }
+      ]
+    },
+    {
+      "name": "bySituation",
+      "displayName": "Situation",
+      "splits": [
+        {
+          "displayName": "None On",
+          "stats": [
+            "150",
+            "12",
+            "40",
+            "7",
+            "6",
+            "12",
+            "12",
+            "14",
+            "4",
+            "37",
+            "0",
+            "0",
+            ".267",
+            ".345",
+            ".633",
+            ".979"
+          ],
+          "abbreviation": "None on"
+        },
+        {
+          "displayName": "Runners On",
+          "stats": [
+            "101",
+            "37",
+            "25",
+            "5",
+            "0",
+            "6",
+            "27",
+            "9",
+            "2",
+            "30",
+            "10",
+            "4",
+            ".248",
+            ".321",
+            ".475",
+            ".797"
+          ],
+          "abbreviation": "Runners on"
+        },
+        {
+          "displayName": "Scoring Position",
+          "stats": [
+            "61",
+            "31",
+            "15",
+            "2",
+            "0",
+            "4",
+            "22",
+            "4",
+            "2",
+            "19",
+            "3",
+            "0",
+            ".246",
+            ".313",
+            ".475",
+            ".789"
+          ],
+          "abbreviation": "Scoring Posn"
+        },
+        {
+          "displayName": "Bases Loaded",
+          "stats": [
+            "4",
+            "6",
+            "1",
+            "0",
+            "0",
+            "1",
+            "4",
+            "0",
+            "0",
+            "1",
+            "0",
+            "0",
+            ".250",
+            ".250",
+            "1.000",
+            "1.250"
+          ],
+          "abbreviation": "Bases Loaded"
+        },
+        {
+          "displayName": "Lead Off Inning",
+          "stats": [
+            "88",
+            "11",
+            "25",
+            "2",
+            "4",
+            "11",
+            "11",
+            "9",
+            "3",
+            "19",
+            "0",
+            "0",
+            ".284",
+            ".370",
+            ".773",
+            "1.143"
+          ],
+          "abbreviation": "Leading Off Inning"
+        },
+        {
+          "displayName": "Scoring Position, 2 out",
+          "stats": [
+            "28",
+            "7",
+            "7",
+            "1",
+            "0",
+            "1",
+            "8",
+            "2",
+            "2",
+            "6",
+            "1",
+            "0",
+            ".250",
+            ".344",
+            ".393",
+            ".737"
+          ],
+          "abbreviation": "ScPos/2 Out"
+        }
+      ]
+    }
+  ]
+}

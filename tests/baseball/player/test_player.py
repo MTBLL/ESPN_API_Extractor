@@ -1,6 +1,6 @@
 import pytest
 
-from espn_api_extractor.baseball.constant import (
+from espn_api_extractor.baseball.constants import (
     NOMINAL_POSITION_MAP,
     POSITION_MAP,
     PRO_TEAM_MAP,
@@ -140,7 +140,7 @@ def test_player_hydration(player_data, player_details_data):
     assert not hasattr(player, "date_of_birth")
 
     # Hydrate the player
-    player.hydrate(player_details_data)
+    player.hydrate_bio(player_details_data)
 
     # Verify basic attributes are now set
     assert player.display_name == "Corbin Carroll"
@@ -184,7 +184,7 @@ def test_player_model_conversion(player_data, player_details_data):
     """
     # Initialize and hydrate a player
     player = Player(player_data)
-    player.hydrate(player_details_data)
+    player.hydrate_bio(player_details_data)
 
     # Add some stats for testing
     player.stats = {

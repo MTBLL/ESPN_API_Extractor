@@ -32,12 +32,14 @@ requestor = EspnFantasyRequests(
 # Get all professional players
 players = requestor.get_pro_players()
 
+# Get comprehensive kona_playercard data (projections, seasonal stats, fantasy info, outlook)
+player_cards = requestor.get_player_cards([42404, 39832])  # Pass list of player IDs
+
 # Get league data
 league_data = requestor.get_league()
 
 # Other available methods
 pro_schedule = requestor.get_pro_schedule()
-pro_projections = requestor.get_pro_projections(filters)
 ```
 
 #### EspnCoreRequests
@@ -87,14 +89,31 @@ player.hydrate(detailed_data)
 # Hydrate with statistics data
 player.hydrate_statistics(statistics_data)
 
+# Hydrate with comprehensive kona_playercard data (projections, seasonal stats, fantasy info)
+player.hydrate_kona_playercard(player_card_data)
+
 # Access player attributes
-player.name               # Player name
-player.id                 # ESPN player ID
-player.pro_team           # MLB team (now uses snake_case naming)
-player.primary_position   # Position
-player.date_of_birth      # Birth date (YYYY-MM-DD format)
-player.stats              # Basic player statistics
-player.season_stats       # Detailed player statistics from ESPN Core API
+player.name                  # Player name
+player.id                    # ESPN player ID
+player.pro_team              # MLB team (now uses snake_case naming)
+player.primary_position      # Position
+player.date_of_birth         # Birth date (YYYY-MM-DD format)
+player.stats                 # Basic player statistics
+player.season_stats          # Detailed player statistics from ESPN Core API
+
+# Comprehensive kona_playercard data attributes
+player.season_outlook        # Season outlook narrative text
+player.projections           # 2025 projected statistics (mapped to readable names)
+player.preseason_stats       # 2025 preseason statistics
+player.regular_season_stats  # 2025 regular season statistics  
+player.previous_season_stats # 2024 season statistics
+
+# Fantasy-specific kona_playercard attributes
+player.draft_auction_value   # Draft auction value
+player.on_team_id           # Fantasy team ID
+player.draft_ranks          # Draft rankings by type (ROTO, STANDARD)
+player.games_played_by_position  # Games played by position (mapped to readable names)
+player.auction_value_average     # Ownership auction value average
 # ... and many more attributes after hydration
 
 # Access detailed statistics
@@ -135,8 +154,9 @@ Command-line options:
 This script:
 1. Fetches all professional baseball players via the Fantasy API
 2. Creates Player objects from the data
-3. Hydrates those objects with detailed player information via the Core API using multi-threading
-4. Returns the fully hydrated player objects
+3. Fetches comprehensive kona_playercard data (projections, seasonal stats, fantasy info, outlook) for all players
+4. Hydrates those objects with detailed player information via the Core API using multi-threading
+5. Returns the fully hydrated player objects with complete data
 
 ## Usage Examples
 
@@ -157,7 +177,32 @@ core_requestor = EspnCoreRequests(sport="mlb", year=2025, logger=logger, max_wor
 players_data = fantasy_requestor.get_pro_players()
 player_objects = [Player(player) for player in players_data]
 
-# Hydrate players with biographical data only
+# Fetch comprehensive kona_playercard data
+player_ids = [player.id for player in player_objects if player.id is not None]
+player_cards_data = fantasy_requestor.get_player_cards(player_ids)
+
+# Create lookup for player card data and top-level data
+player_cards_lookup = {}
+top_level_lookup = {}
+for player_data in player_cards_data.get("players", []):
+    player_id = player_data.get("id")
+    if player_id:
+        player_cards_lookup[player_id] = player_data.get("player", {})
+        # Store top-level fantasy data separately
+        top_level_lookup[player_id] = {
+            "draftAuctionValue": player_data.get("draftAuctionValue"),
+            "onTeamId": player_data.get("onTeamId")
+        }
+
+# Hydrate each player with comprehensive kona_playercard data
+for player in player_objects:
+    if player.id in player_cards_lookup:
+        player.hydrate_kona_playercard(
+            player_cards_lookup[player.id],
+            top_level_lookup.get(player.id, {})
+        )
+
+# Then hydrate players with biographical data only
 hydrated_players, failed_players = core_requestor.hydrate_players(player_objects, batch_size=100)
 
 # Or hydrate with both biographical data and statistics (more efficient for complete data)
@@ -167,6 +212,34 @@ complete_players, failed_players = core_requestor.hydrate_players(player_objects
 for player in complete_players:
     print(f"{player.name} ({player.pro_team}) - Bats: {player.bats}, Throws: {player.throws}")
     
+    # Access comprehensive kona_playercard data
+    if hasattr(player, 'season_outlook') and player.season_outlook:
+        print(f"Season Outlook: {player.season_outlook[:100]}...")  # First 100 chars
+    
+    if hasattr(player, 'projections') and player.projections:
+        proj_hr = player.projections.get('HR', 'N/A')
+        proj_ab = player.projections.get('AB', 'N/A') 
+        proj_sb = player.projections.get('SB', 'N/A')
+        print(f"2025 Projections: {proj_ab} AB, {proj_hr} HR, {proj_sb} SB")
+    
+    if hasattr(player, 'previous_season_stats') and player.previous_season_stats:
+        prev_hr = player.previous_season_stats.get('HR', 'N/A')
+        prev_ab = player.previous_season_stats.get('AB', 'N/A')
+        print(f"2024 Stats: {prev_ab} AB, {prev_hr} HR")
+    
+    # Access fantasy-specific kona_playercard data
+    if hasattr(player, 'draft_auction_value') and player.draft_auction_value is not None:
+        print(f"Draft Auction Value: ${player.draft_auction_value}")
+    
+    if hasattr(player, 'draft_ranks') and player.draft_ranks:
+        roto_rank = player.draft_ranks.get('ROTO', {}).get('rank', 'N/A')
+        standard_rank = player.draft_ranks.get('STANDARD', {}).get('rank', 'N/A')
+        print(f"Draft Rankings - ROTO: {roto_rank}, STANDARD: {standard_rank}")
+    
+    if hasattr(player, 'games_played_by_position') and player.games_played_by_position:
+        pos_games = ", ".join([f"{pos}: {games}" for pos, games in player.games_played_by_position.items()])
+        print(f"Games by Position: {pos_games}")
+    
     # Access player statistics (if available)
     if hasattr(player, 'season_stats') and player.season_stats:
         batting = player.season_stats.get('categories', {}).get('batting')
@@ -174,7 +247,89 @@ for player in complete_players:
             avg = batting['stats'].get('avg', {}).get('display_value', 'N/A')
             hr = batting['stats'].get('homeRuns', {}).get('display_value', 'N/A')
             rbi = batting['stats'].get('RBIs', {}).get('display_value', 'N/A')
-            print(f"Stats: AVG: {avg}, HR: {hr}, RBI: {rbi}")
+            print(f"Detailed Stats: AVG: {avg}, HR: {hr}, RBI: {rbi}")
+```
+
+## Comprehensive Kona PlayerCard Data
+
+The ESPN API Extractor supports fetching comprehensive player card data from ESPN's `kona_playercard` endpoint, which includes projections, seasonal statistics, fantasy information, and expert analysis. This data is fetched before the standard biographical hydration.
+
+### Kona PlayerCard Data Includes:
+
+**Statistical Data:**
+- **Season Outlook**: Expert analysis and narrative text about the player's upcoming season
+- **2025 Projections**: Projected statistics for the current season (mapped to readable names)
+- **2025 Preseason Stats**: Spring training statistics 
+- **2025 Regular Season Stats**: Current regular season statistics
+- **2024 Previous Season Stats**: Complete previous season statistics
+
+**Fantasy-Specific Data:**
+- **Draft Auction Value**: Player's draft auction value
+- **On Team ID**: Fantasy team assignment (0 if not on a team)
+- **Draft Rankings**: Rankings by type (ROTO and STANDARD) with auction values and ranks
+- **Games Played by Position**: Games played at each position (mapped to readable position names)
+- **Auction Value Average**: Ownership data including auction value average
+- **Updated Injury Status**: Current injury status and injured flag
+
+### Usage Example:
+
+```python
+from espn_api_extractor.requests.fantasy_requests import EspnFantasyRequests
+
+# Initialize requestor
+requestor = EspnFantasyRequests(sport="mlb", year=2025, logger=logger)
+
+# Get player cards for specific players
+player_ids = [42404, 39832]  # Corbin Carroll, Shohei Ohtani
+player_cards_data = requestor.get_player_cards(player_ids)
+
+# Process the data
+for player_data in player_cards_data["players"]:
+    player_info = player_data["player"]
+    
+    # Access season outlook
+    outlook = player_info.get("seasonOutlook", "")
+    print(f"Season Outlook: {outlook[:200]}...")
+    
+    # Access different stat types
+    for stat_entry in player_info.get("stats", []):
+        stat_id = stat_entry.get("id", "")
+        
+        if stat_id == "102025":  # Projections
+            projections = stat_entry.get("stats", {})
+            print(f"Projected HR: {projections.get('5', 'N/A')}")  # '5' maps to HR
+            
+        elif stat_id == "002024":  # Previous season
+            prev_stats = stat_entry.get("stats", {})
+            print(f"2024 HR: {prev_stats.get('5', 'N/A')}")
+```
+
+### Automatic Integration in Player Runner
+
+The player runner automatically fetches comprehensive kona_playercard data for all players before biographical hydration, so you get all statistical, fantasy, and outlook data automatically when using the command-line runner or the main extraction workflow.
+
+### Stat Key Mapping and Unknown Key Filtering
+
+All numeric stat keys are automatically mapped to readable names using the `STATS_MAP` constants. Unknown numeric keys (like "22") are automatically filtered out to ensure only clean, readable stat names are stored:
+
+```python
+from espn_api_extractor.baseball.constants import STATS_MAP
+
+# Examples of stat key mappings:
+# 0 -> "AB" (At Bats)
+# 1 -> "H" (Hits) 
+# 5 -> "HR" (Home Runs)
+# 23 -> "SB" (Stolen Bases)
+# Unknown keys like "22" are automatically ignored
+
+# Access mapped stats from player objects - only readable names, no numeric keys
+if player.projections:
+    projected_hrs = player.projections.get("HR", 0)  # Readable key
+    projected_abs = player.projections.get("AB", 0)
+    
+    # All stat dictionaries contain only known, readable stat names
+    for stat_name, value in player.projections.items():
+        print(f"{stat_name}: {value}")  # e.g., "HR: 25", "AB: 450"
 ```
 
 ## Hydration Options
@@ -249,6 +404,8 @@ The Pydantic model handles various data validation tasks and provides:
 - Standardized snake_case property naming
 - Support for nested models (e.g., BirthPlace, StatCategory, StatDetail)
 - Structured statistics data with dedicated models (SeasonStats)
+- **Comprehensive kona_playercard data**: season_outlook, projections, preseason_stats, regular_season_stats, previous_season_stats
+- **Fantasy-specific fields**: draft_auction_value, on_team_id, draft_ranks, games_played_by_position, auction_value_average
 - Serialization/deserialization for database storage
 
 #### Statistics Models
@@ -274,6 +431,36 @@ if player_model.season_stats:
             avg_value = avg_stat.value  # 0.2791878
             avg_display = avg_stat.display_value  # ".279"
             avg_rank = avg_stat.rank_display_value  # "Tied-49th"
+
+# Access comprehensive kona_playercard data through the model
+if player_model.season_outlook:
+    print(f"Season Outlook: {player_model.season_outlook[:100]}...")
+
+if player_model.projections:
+    projected_hrs = player_model.projections.get("HR", 0)
+    projected_abs = player_model.projections.get("AB", 0)
+    print(f"2025 Projections: {projected_abs} AB, {projected_hrs} HR")
+
+if player_model.previous_season_stats:
+    prev_hrs = player_model.previous_season_stats.get("HR", 0)  
+    prev_abs = player_model.previous_season_stats.get("AB", 0)
+    print(f"2024 Stats: {prev_abs} AB, {prev_hrs} HR")
+
+# Access fantasy-specific kona_playercard data through the model
+if player_model.draft_auction_value is not None:
+    print(f"Draft Auction Value: ${player_model.draft_auction_value}")
+
+if player_model.draft_ranks:
+    roto_rank = player_model.draft_ranks.get("ROTO", {}).get("rank", "N/A")
+    roto_value = player_model.draft_ranks.get("ROTO", {}).get("auctionValue", "N/A")
+    print(f"ROTO Ranking: #{roto_rank} (${roto_value})")
+
+if player_model.games_played_by_position:
+    for position, games in player_model.games_played_by_position.items():
+        print(f"{position}: {games} games")
+
+if player_model.auction_value_average is not None:
+    print(f"Auction Value Average: ${player_model.auction_value_average:.2f}")
 ```
 
 ## Installation

@@ -1,4 +1,4 @@
-from .constant import ACTIVITY_MAP
+from .constants import ACTIVITY_MAP
 
 
 class Activity(object):

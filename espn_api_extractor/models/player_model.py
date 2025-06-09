@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class BirthPlace(BaseModel):
     city: Optional[str] = None
+    state: Optional[str] = None
     country: Optional[str] = None
 
 
@@ -102,8 +103,18 @@ class PlayerModel(BaseModel):
     # Media information
     headshot: Optional[str] = None
 
-    # Statistics
-    stats: Dict[Union[int, str], StatPeriod] = Field(default_factory=dict)
+    # Projections and outlook
+    season_outlook: Optional[str] = Field(None, alias="seasonOutlook")
+    
+    # Fantasy and draft information from kona_playercard
+    draft_auction_value: Optional[float] = Field(None, alias="draftAuctionValue")
+    on_team_id: Optional[int] = Field(None, alias="onTeamId")
+    draft_ranks: Dict[str, Any] = Field(default_factory=dict, alias="draftRanks")
+    games_played_by_position: Dict[str, int] = Field(default_factory=dict, alias="gamesPlayedByPosition")
+    auction_value_average: Optional[float] = Field(None, alias="auctionValueAverage")
+
+    # Statistics - kona stats with 4 specific keys: projections, preseason, regular_season, previous_season
+    stats: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
 
     # Season statistics from the statistics endpoint
     season_stats: Optional[SeasonStats] = None
@@ -125,18 +136,9 @@ class PlayerModel(BaseModel):
             else:
                 data[key] = value
 
-        # Convert stats dictionary to use StatPeriod model
+        # Convert stats dictionary - now only contains kona stats with 4 specific keys
         if hasattr(player, "stats") and player.stats:
-            processed_stats = {}
-            for period, stats in player.stats.items():
-                stat_period = StatPeriod(
-                    points=stats.get("points", 0.0),
-                    projected_points=stats.get("projected_points", 0.0),
-                    breakdown=stats.get("breakdown", {}),
-                    projected_breakdown=stats.get("projected_breakdown", {}),
-                )
-                processed_stats[period] = stat_period
-            data["stats"] = processed_stats
+            data["stats"] = player.stats
 
         # Convert season_stats dictionary to use SeasonStats model
         if hasattr(player, "season_stats") and player.season_stats:
@@ -199,18 +201,8 @@ class PlayerModel(BaseModel):
         if self.name:
             data["fullName"] = self.name
 
-        # Process stats into the format expected by Player
-        if "stats" in data:
-            processed_stats = {}
-            for period, stats in data["stats"].items():
-                period_stats = {}
-                for key, value in stats.items():
-                    if isinstance(value, dict):
-                        period_stats[key] = value
-                    else:
-                        period_stats[key] = value
-                processed_stats[period] = period_stats
-            data["stats"] = processed_stats
+        # Stats are already in the correct format for Player - just pass through
+        # No processing needed since stats now only contains the 4 kona stat dictionaries
 
         # Process season_stats into the format expected by Player
         if "season_stats" in data and data["season_stats"]:
