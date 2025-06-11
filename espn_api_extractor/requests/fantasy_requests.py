@@ -153,12 +153,14 @@ class EspnFantasyRequests(object):
         filters = {"filterActive": {"value": True}}
         headers = {"x-fantasy-filter": json.dumps(filters)}
         data = self._get(extend="/players", params=params, headers=headers)
+        self.logger.logging.info(f"Retrieved {len(data)} players from ESPN API")
+
         return data
 
     def get_player_cards(self, player_ids: List[int]):
         """Gets player cards with projections, seasonal stats, and outlook data"""
         params = {"view": "kona_playercard", "scoringPeriodId": 0}
-        
+
         # Build filters for projections with preseason and regular season stats
         additional_value = [
             f"00{self.year}",  # current year stats
@@ -167,7 +169,7 @@ class EspnFantasyRequests(object):
             f"01{self.year}",  # preseason stats
             f"02{self.year}",  # regular season stats
         ]
-        
+
         filters = {
             "players": {
                 "filterIds": {"value": player_ids},
@@ -177,7 +179,7 @@ class EspnFantasyRequests(object):
                 },
             }
         }
-        
+
         headers = {"x-fantasy-filter": json.dumps(filters)}
         data = self._get(params=params, headers=headers)
         return data

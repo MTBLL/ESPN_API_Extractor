@@ -5,12 +5,11 @@ from typing import List, Optional, Union
 from espn_api_extractor.baseball.player import Player
 from espn_api_extractor.models.player_model import PlayerModel
 from espn_api_extractor.requests.core_requests import EspnCoreRequests
-
-# Using absolute imports
-from espn_api_extractor.requests.fantasy_requests import EspnFantasyRequests
+from espn_api_extractor.runners.handlers import ProPlayersHandler
 from espn_api_extractor.utils.graphql_client import GraphQLClient
-from espn_api_extractor.utils.logger import Logger
 from espn_api_extractor.utils.utils import write_models_to_json
+
+from . import CoreRunner
 
 
 def main(
@@ -84,42 +83,22 @@ def main(
     )
     args: argparse.Namespace = parser.parse_args()
 
-    # Override args with function parameters if provided
-    if output_dir is not None:
-        setattr(args, "output_dir", output_dir)
-
-    year = args.year  # type: ignore
-    assert year is not None
-    threads = args.threads  # type: ignore
-    batch_size = args.batch_size  # type: ignore
-    force_full_extraction = args.force_full_extraction  # type: ignore
-    graphql_config_path = args.graphql_config  # type: ignore
-
-    # Stats are always included (hardcoded per User Story 2)
-    include_stats = True
-
-    logger = Logger("player-extractor")
-    log = logger.logging
+    runner = CoreRunner(parser, "player-runner", output_dir)
+    log = runner.logger.logging
 
     try:
-        # Initialize GraphQL client for extraction optimization (User Story 1 & 4)
-        graphql_client = GraphQLClient(config_path=graphql_config_path, logger=logger)
-        use_graphql = graphql_client.initialize_with_hitl(
-            force_full_extraction=force_full_extraction
-        )
-
         # Get ESPN player universe
-        requestor = EspnFantasyRequests(
-            sport="mlb",
-            year=year,
-            league_id=None,
-            cookies={},
-            logger=logger,
-        )
-        espn_players = requestor.get_pro_players()
-        log.info(f"Retrieved {len(espn_players)} players from ESPN API")
+        espn_players = ProPlayersHandler(runner).fetch()
 
-        # Apply GraphQL optimization if available (User Story 1)
+        # Initialize GraphQL client for extraction optimization (User Story 1 & 4)
+        graphql_client = GraphQLClient(
+            config_path=runner.graphql_config_path, logger=runner.logger
+        )
+        use_graphql = graphql_client.initialize_with_hitl(
+            force_full_extraction=runner.force_full_extraction
+        )
+
+        # Apply GraphQL optimization if available
         if use_graphql:
             existing_player_ids = graphql_client.get_existing_player_ids()
             if existing_player_ids:
@@ -154,12 +133,14 @@ def main(
         player_objs = [Player(player) for player in players_to_process]
 
         # Fetch player card data (projections, seasonal stats, outlook) for all players before bio hydration
-        log.info("Fetching player cards with projections and seasonal data for all players")
+        log.info(
+            "Fetching player cards with projections and seasonal data for all players"
+        )
         player_ids = [player.id for player in player_objs if player.id is not None]
-        
+
         if player_ids:
             try:
-                player_cards_data = requestor.get_player_cards(player_ids)
+                player_cards_data = fantasy_requestor.get_player_cards(player_ids)
                 # Create a lookup dictionary for player card data by player ID
                 player_cards_lookup = {}
                 top_level_lookup = {}
@@ -170,18 +151,20 @@ def main(
                         # Store top-level data separately
                         top_level_lookup[player_id] = {
                             "draftAuctionValue": player_data.get("draftAuctionValue"),
-                            "onTeamId": player_data.get("onTeamId")
+                            "onTeamId": player_data.get("onTeamId"),
                         }
-                
+
                 # Hydrate each player with their player card data (projections, seasonal stats, outlook, fantasy data)
                 for player in player_objs:
                     if player.id in player_cards_lookup:
                         player.hydrate_kona_playercard(
                             player_cards_lookup[player.id],
-                            top_level_lookup.get(player.id, {})
+                            top_level_lookup.get(player.id, {}),
                         )
-                
-                log.info(f"Successfully fetched player cards for {len(player_cards_lookup)} players")
+
+                log.info(
+                    f"Successfully fetched player cards for {len(player_cards_lookup)} players"
+                )
             except Exception as e:
                 log.warning(f"Failed to fetch player cards data: {e}")
 
