@@ -186,14 +186,12 @@ def test_player_model_conversion(player_data, player_details_data):
     player = Player(player_data)
     player.hydrate_bio(player_details_data)
 
-    # Add some stats for testing
+    # Add some stats for testing (using string keys as expected by PlayerModel)
     player.stats = {
-        0: {
-            "points": 250.5,
-            "projected_points": 300.0,
-            "breakdown": {"AB": 550, "H": 175, "HR": 25},
-            "projected_breakdown": {"AB": 600, "H": 190, "HR": 30},
-        }
+        "projections": {"AB": 600, "H": 190, "HR": 30},
+        "preseason": {"AB": 550, "H": 175, "HR": 25},
+        "regular_season": {"AB": 500, "H": 160, "HR": 22},
+        "previous_season": {"AB": 580, "H": 180, "HR": 28}
     }
 
     # Convert to a PlayerModel
@@ -206,16 +204,81 @@ def test_player_model_conversion(player_data, player_details_data):
     assert model.primary_position == player.primary_position
 
     # Verify stats conversion
-    assert model.stats[0].points == 250.5
-    assert model.stats[0].breakdown["HR"] == 25
+    assert model.stats["projections"]["HR"] == 30
+    assert model.stats["preseason"]["AB"] == 550
 
-    # Convert back to a Player
-    player2 = Player.from_model(model)
 
-    # Verify the round-trip conversion preserved the data
-    assert player2.id == player.id
-    assert player2.name == player.name
-    assert player2.pro_team == player.pro_team
-    assert player2.primary_position == player.primary_position
-    assert player2.stats[0]["points"] == player.stats[0]["points"]
-    assert player2.stats[0]["breakdown"]["HR"] == player.stats[0]["breakdown"]["HR"]
+def test_player_from_model():
+    """
+    Test converting PlayerModel back to Player instance using Player.from_model().
+    
+    This tests the basic conversion functionality for the primary use case:
+    converting validated PlayerModel objects from GraphQL back to Player objects.
+    """
+    # Create a PlayerModel directly (simulating what comes from GraphQL)
+    player_model_data = {
+        "id": 42404,
+        "name": "Corbin Carroll",
+        "first_name": "Corbin", 
+        "last_name": "Carroll",
+        "injured": False,
+        "active": True,
+        "percent_owned": 99.87,
+        "stats": {
+            "projections": {"AB": 600, "H": 190, "HR": 30, "RBI": 95},
+            "preseason": {"AB": 550, "H": 175, "HR": 25, "RBI": 90},
+            "regular_season": {"AB": 500, "H": 160, "HR": 22, "RBI": 80}, 
+            "previous_season": {"AB": 580, "H": 180, "HR": 28, "RBI": 85}
+        }
+    }
+    
+    from espn_api_extractor.models.player_model import PlayerModel
+    player_model = PlayerModel(**player_model_data)
+
+    # Convert to Player using from_model
+    player = Player.from_model(player_model)
+
+    # Verify core attributes that Player constructor handles
+    assert player.id == 42404
+    assert player.name == "Corbin Carroll"
+    assert player.first_name == "Corbin"
+    assert player.last_name == "Carroll"
+    assert player.injured is False
+    assert player.percent_owned == 99.87
+
+    # Verify stats are preserved
+    assert player.stats == player_model_data["stats"]
+    assert player.stats["projections"]["HR"] == 30
+    assert player.stats["preseason"]["AB"] == 550
+
+    # Verify the converted player is a proper Player instance with all methods
+    assert hasattr(player, 'hydrate_bio')
+    assert hasattr(player, 'hydrate_statistics') 
+    assert hasattr(player, 'to_model')
+    assert isinstance(player, Player)
+
+    # Test that we can convert back to PlayerModel (the key round-trip functionality)
+    round_trip_model = player.to_model()
+    assert round_trip_model.id == player_model.id
+    assert round_trip_model.name == player_model.name
+    assert round_trip_model.first_name == player_model.first_name
+    
+    # Most importantly, verify that the from_model method creates a functional Player
+    # that can be used in the existing codebase workflows
+    assert callable(getattr(player, 'to_model'))
+    
+    # Verify the Player can be used for hydration (the main use case)
+    # This simulates the workflow: GraphQL PlayerModel -> Player -> hydration -> processing
+    sample_bio_data = {
+        "displayName": "Corbin Carroll",
+        "weight": 165,
+        "height": 69
+    }
+    
+    # Should not raise an exception
+    player.hydrate_bio(sample_bio_data)
+    
+    # After hydration, these attributes should be set
+    assert hasattr(player, 'display_name')
+    assert player.display_name == "Corbin Carroll"
+    assert player.weight == 165

@@ -160,6 +160,33 @@ class Player(object):
         """
         return PlayerModel.from_player(self)
 
+    @classmethod
+    def from_model(cls, player_model: PlayerModel) -> "Player":
+        """
+        Create a Player instance from a PlayerModel.
+        
+        This enables conversion from validated Pydantic models back to Player objects
+        which contain all the business logic and hydration methods.
+
+        Args:
+            player_model: PlayerModel instance from GraphQL/database
+
+        Returns:
+            Player: A new Player instance with data from the model
+        """
+        # Use the existing to_player_dict method to get properly formatted data
+        player_data = player_model.to_player_dict()
+        
+        # Create a new Player instance using the converted data
+        player = cls(player_data)
+        
+        # The Player constructor doesn't handle stats, so we need to set them manually
+        # from the PlayerModel data
+        if player_model.stats:
+            player.stats = player_model.stats
+            
+        return player
+
     def hydrate_bio(self, data: dict) -> None:
         """
         Hydrates the player object with additional data from the player details API.
