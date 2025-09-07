@@ -327,18 +327,29 @@ class TestGraphQLClient:
         with pytest.raises(SystemExit):
             client.initialize_with_hitl()
 
+    @pytest.fixture
+    def sample_graphql_players_response(self):
+        """Load realistic GraphQL player data from fixture file"""
+        import json
+        import os
+        
+        fixture_path = os.path.join(
+            os.path.dirname(__file__), 
+            "..", 
+            "fixtures", 
+            "graphql_players_response.json"
+        )
+        with open(fixture_path, 'r') as f:
+            return json.load(f)
+
     @patch("requests.Session.post")
     def test_get_existing_player_ids_success(
-        self, mock_post, mock_logger, temp_config_file
+        self, mock_post, mock_logger, temp_config_file, sample_graphql_players_response
     ):
         """Test successful retrieval of existing player IDs"""
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "data": {
-                "players": [{"espn_id": 12345}, {"espn_id": 67890}, {"espn_id": 11111}]
-            }
-        }
+        mock_response.json.return_value = sample_graphql_players_response
         mock_post.return_value = mock_response
 
         client = GraphQLClient(config_path=temp_config_file, logger=mock_logger)
@@ -349,7 +360,7 @@ class TestGraphQLClient:
 
         assert player_ids == {12345, 67890, 11111}
         mock_logger.logging.info.assert_called_with(
-            "Retrieved 3 existing player IDs from GraphQL"
+            "Retrieved and deserialized 3 existing players from GraphQL"
         )
 
     @patch("requests.Session.post")
@@ -437,8 +448,8 @@ class TestGraphQLClientIntegration:
         config_loaded = client._load_config()
         assert config_loaded is True
 
-        # Verify we loaded the expected endpoint
-        assert "communal-stork-9800.ddn.hasura.app" in client.endpoint
+        # Verify we loaded a hasura endpoint (URL may change)
+        assert "ddn.hasura.app" in client.endpoint
         assert "x-hasura-ddn-token" in client.headers
 
         # Test connection to real endpoint

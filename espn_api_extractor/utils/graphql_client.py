@@ -10,12 +10,13 @@ Output is saved locally for the next ETL pipeline stage.
 
 import json
 import os
-from typing import Dict, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from espn_api_extractor.models.player_model import PlayerModel
 from espn_api_extractor.utils.logger import Logger
 
 
@@ -239,14 +240,49 @@ class GraphQLClient:
         Returns:
             Set of ESPN player IDs that exist in the database
         """
-        if not self.is_available or not self.endpoint:
-            return set()
+        players = self.get_existing_players()
+        return {player.id for player in players if player.id is not None}
 
-        # Example query - adjust based on your actual schema
+    def get_existing_players(self) -> List[PlayerModel]:
+        """
+        Query existing players from GraphQL API with full deserialization.
+
+        Returns fully deserialized Pydantic PlayerModel objects which guarantees
+        field validation and type safety.
+
+        Returns:
+            List[PlayerModel]: Fully deserialized player objects from Hasura
+        """
+        # Comprehensive query for all player fields needed by PlayerModel
+        # Note: Field names must match the actual Hasura GraphQL schema
         query = """
         query GetExistingPlayers {
             players {
-                espn_id
+                idEspn
+                name
+                firstName
+                lastName
+                displayName
+                shortName
+                nickname
+                slugEspn
+                primaryPosition
+                eligibleSlots
+                proTeam
+                injuryStatus
+                injured
+                active
+                weight
+                displayWeight
+                height
+                displayHeight
+                bats
+                throws
+                dateOfBirth
+                birthPlace
+                debutYear
+                jersey
+                headshot
             }
         }
         """
@@ -259,21 +295,51 @@ class GraphQLClient:
             if response.status_code == 200:
                 data = response.json()
                 if "data" in data and "players" in data["data"]:
-                    player_ids = {
-                        player["espn_id"] for player in data["data"]["players"]
-                    }
+                    players_data = data["data"]["players"]
+
+                    # Deserialize each player into PlayerModel with proper validation
+                    players = []
+                    for player_data in players_data:
+                        try:
+                            # Map GraphQL field names to PlayerModel field names
+                            if "idEspn" in player_data:
+                                player_data["id"] = player_data.pop("idEspn")
+                            if "slugEspn" in player_data:
+                                player_data["slug"] = player_data.pop("slugEspn")
+                            
+                            # Convert jersey number to string
+                            if isinstance(player_data.get("jersey"), int):
+                                player_data["jersey"] = str(player_data["jersey"])
+                            
+                            # Parse eligibleSlots JSON string if present
+                            if isinstance(player_data.get("eligibleSlots"), str):
+                                import json
+                                try:
+                                    player_data["eligibleSlots"] = json.loads(player_data["eligibleSlots"])
+                                except:
+                                    player_data["eligibleSlots"] = []
+                            
+                            player_model = PlayerModel(**player_data)
+                            players.append(player_model)
+                        except Exception as e:
+                            self._log(
+                                "warning",
+                                f"Failed to deserialize player {player_data.get('idEspn', player_data.get('id', 'unknown'))}: {str(e)}",
+                            )
+                            continue
+
                     self._log(
                         "info",
-                        f"Retrieved {len(player_ids)} existing player IDs from GraphQL",
+                        f"Retrieved and deserialized {len(players)} existing players from GraphQL",
                     )
-                    return player_ids
+                    return players
                 else:
                     self._log("error", f"Unexpected GraphQL response: {data}")
-                    return set()
+                    return []
             else:
                 self._log("error", f"GraphQL query failed: HTTP {response.status_code}")
-                return set()
+                return []
 
         except Exception as e:
             self._log("error", f"Failed to query existing players: {str(e)}")
-            return set()
+            return []
