@@ -287,6 +287,9 @@ class GraphQLClient:
         }
         """
 
+        if not self.endpoint:
+            raise ValueError("GraphQL endpoint not configured")
+
         try:
             response = self.session.post(
                 self.endpoint, json={"query": query}, timeout=self.timeout
