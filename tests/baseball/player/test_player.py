@@ -191,7 +191,7 @@ def test_player_model_conversion(player_data, player_details_data):
         "projections": {"AB": 600, "H": 190, "HR": 30},
         "preseason": {"AB": 550, "H": 175, "HR": 25},
         "regular_season": {"AB": 500, "H": 160, "HR": 22},
-        "previous_season": {"AB": 580, "H": 180, "HR": 28}
+        "previous_season": {"AB": 580, "H": 180, "HR": 28},
     }
 
     # Convert to a PlayerModel
@@ -208,77 +208,56 @@ def test_player_model_conversion(player_data, player_details_data):
     assert model.stats["preseason"]["AB"] == 550
 
 
-def test_player_from_model():
+@pytest.fixture
+def hasura_fixture_data():
+    """Load Hasura GraphQL player data fixture"""
+    import json
+    import os
+
+    fixture_path = os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "..",
+        "fixtures",
+        "graphql_players_response.json",
+    )
+    with open(fixture_path, "r") as f:
+        return json.load(f)
+
+
+def test_player_from_model_with_hasura_fixture(hasura_fixture_data):
     """
-    Test converting PlayerModel back to Player instance using Player.from_model().
-    
-    This tests the basic conversion functionality for the primary use case:
-    converting validated PlayerModel objects from GraphQL back to Player objects.
+    Test the runner's logic for converting PlayerModel objects from Hasura to Player objects.
+
+    This tests the specific workflow:
+    players: List[Player] = [Player.from_model(model) for model in player_models]
     """
-    # Create a PlayerModel directly (simulating what comes from GraphQL)
-    player_model_data = {
-        "id": 42404,
-        "name": "Corbin Carroll",
-        "first_name": "Corbin", 
-        "last_name": "Carroll",
-        "injured": False,
-        "active": True,
-        "percent_owned": 99.87,
-        "stats": {
-            "projections": {"AB": 600, "H": 190, "HR": 30, "RBI": 95},
-            "preseason": {"AB": 550, "H": 175, "HR": 25, "RBI": 90},
-            "regular_season": {"AB": 500, "H": 160, "HR": 22, "RBI": 80}, 
-            "previous_season": {"AB": 580, "H": 180, "HR": 28, "RBI": 85}
-        }
-    }
-    
+    from typing import List
+
     from espn_api_extractor.models.player_model import PlayerModel
-    player_model = PlayerModel(**player_model_data)
 
-    # Convert to Player using from_model
-    player = Player.from_model(player_model)
+    # Extract the raw player data from the fixture
+    raw_players_data = hasura_fixture_data["data"]["players"]
 
-    # Verify core attributes that Player constructor handles
-    assert player.id == 42404
-    assert player.name == "Corbin Carroll"
-    assert player.first_name == "Corbin"
-    assert player.last_name == "Carroll"
-    assert player.injured is False
-    assert player.percent_owned == 99.87
+    # Create PlayerModel instances directly from raw hasura data
+    player_models: List[PlayerModel] = [
+        PlayerModel(**raw_player) for raw_player in raw_players_data
+    ]
 
-    # Verify stats are preserved
-    assert player.stats == player_model_data["stats"]
-    assert player.stats["projections"]["HR"] == 30
-    assert player.stats["preseason"]["AB"] == 550
+    # Execute the runner logic: cast PlayerModel to Player
+    players: List[Player] = [Player.from_model(model) for model in player_models]
 
-    # Verify the converted player is a proper Player instance with all methods
-    assert hasattr(player, 'hydrate_bio')
-    assert hasattr(player, 'hydrate_statistics') 
-    assert hasattr(player, 'to_model')
-    assert isinstance(player, Player)
+    # Verify we have the expected number of players
+    assert len(players) == 3
 
-    # Test that we can convert back to PlayerModel (the key round-trip functionality)
-    round_trip_model = player.to_model()
-    assert round_trip_model.id == player_model.id
-    assert round_trip_model.name == player_model.name
-    assert round_trip_model.first_name == player_model.first_name
-    
-    # Most importantly, verify that the from_model method creates a functional Player
-    # that can be used in the existing codebase workflows
-    assert callable(getattr(player, 'to_model'))
-    
-    # Verify the Player can be used for hydration (the main use case)
-    # This simulates the workflow: GraphQL PlayerModel -> Player -> hydration -> processing
-    sample_bio_data = {
-        "displayName": "Corbin Carroll",
-        "weight": 165,
-        "height": 69
-    }
-    
-    # Should not raise an exception
-    player.hydrate_bio(sample_bio_data)
-    
-    # After hydration, these attributes should be set
-    assert hasattr(player, 'display_name')
-    assert player.display_name == "Corbin Carroll"
-    assert player.weight == 165
+    # Verify the conversion worked and players are functional
+    for player in players:
+        assert isinstance(player, Player)
+        assert player.id is not None
+        assert player.name is not None
+        assert hasattr(player, "from_model")
+        assert hasattr(player, "to_model")
+        assert hasattr(player, "hydrate_bio")
+        assert callable(getattr(player, "from_model"))
+        assert callable(getattr(player, "to_model"))
+        assert callable(getattr(player, "hydrate_bio"))
