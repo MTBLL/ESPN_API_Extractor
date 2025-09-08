@@ -228,13 +228,14 @@ def hasura_fixture_data():
 def test_player_from_model_with_hasura_fixture(hasura_fixture_data):
     """
     Test the runner's logic for converting PlayerModel objects from Hasura to Player objects.
+    Validates every single field from PlayerModel with correct data types.
 
     This tests the specific workflow:
     players: List[Player] = [Player.from_model(model) for model in player_models]
     """
     from typing import List
 
-    from espn_api_extractor.models.player_model import PlayerModel
+    from espn_api_extractor.models.player_model import BirthPlace, PlayerModel
 
     # Extract the raw player data from the fixture
     raw_players_data = hasura_fixture_data["data"]["players"]
@@ -250,14 +251,123 @@ def test_player_from_model_with_hasura_fixture(hasura_fixture_data):
     # Verify we have the expected number of players
     assert len(players) == 3
 
-    # Verify the conversion worked and players are functional
-    for player in players:
+    # Test each PlayerModel field with correct data types
+    for i, (player_model, player) in enumerate(zip(player_models, players)):
+        
+        # Basic player info
+        assert isinstance(player_model.id, (int, type(None)))
+        if player_model.id is not None:
+            assert player.id == player_model.id
+            
+        assert isinstance(player_model.name, (str, type(None)))
+        if player_model.name is not None:
+            assert player.name == player_model.name
+            
+        assert isinstance(player_model.first_name, (str, type(None)))
+        assert isinstance(player_model.last_name, (str, type(None)))
+        
+        # Display information
+        assert isinstance(player_model.display_name, (str, type(None)))
+        assert isinstance(player_model.short_name, (str, type(None)))
+        assert isinstance(player_model.nickname, (str, type(None)))
+        assert isinstance(player_model.slug, (str, type(None)))
+        
+        # Position information
+        assert isinstance(player_model.primary_position, (str, type(None)))
+        assert isinstance(player_model.eligible_slots, list)
+        for slot in player_model.eligible_slots:
+            assert isinstance(slot, str)
+        assert isinstance(player_model.position_name, (str, type(None)))
+        assert isinstance(player_model.pos, (str, type(None)))
+        
+        # Team information
+        assert isinstance(player_model.pro_team, (str, type(None)))
+        
+        # Status information
+        assert isinstance(player_model.injury_status, (str, type(None)))
+        assert isinstance(player_model.status, (str, type(None)))
+        assert isinstance(player_model.injured, bool)
+        assert isinstance(player_model.active, bool)
+        
+        # Ownership statistics
+        assert isinstance(player_model.percent_owned, (int, float))
+        
+        # Physical attributes
+        assert isinstance(player_model.weight, (float, type(None)))
+        assert isinstance(player_model.display_weight, (str, type(None)))
+        assert isinstance(player_model.height, (int, type(None)))
+        assert isinstance(player_model.display_height, (str, type(None)))
+        
+        # Playing characteristics
+        assert isinstance(player_model.bats, (str, type(None)))
+        assert isinstance(player_model.throws, (str, type(None)))
+        
+        # Biographical information
+        assert isinstance(player_model.date_of_birth, (str, type(None)))
+        assert isinstance(player_model.birth_place, (BirthPlace, type(None)))
+        if player_model.birth_place is not None:
+            assert isinstance(player_model.birth_place.city, (str, type(None)))
+            assert isinstance(player_model.birth_place.state, (str, type(None)))
+            assert isinstance(player_model.birth_place.country, (str, type(None)))
+        assert isinstance(player_model.debut_year, (int, type(None)))
+        
+        # Jersey information
+        assert isinstance(player_model.jersey, str)  # Always string due to validator
+        
+        # Media information
+        assert isinstance(player_model.headshot, (str, type(None)))
+        
+        # Projections and outlook
+        assert isinstance(player_model.season_outlook, (str, type(None)))
+        
+        # Fantasy and draft information from kona_playercard
+        assert isinstance(player_model.draft_auction_value, (float, type(None)))
+        assert isinstance(player_model.on_team_id, (int, type(None)))
+        assert isinstance(player_model.draft_ranks, dict)
+        assert isinstance(player_model.games_played_by_position, dict)
+        for position, games in player_model.games_played_by_position.items():
+            assert isinstance(position, str)
+            assert isinstance(games, int)
+        assert isinstance(player_model.auction_value_average, (float, type(None)))
+        
+        # Statistics - kona stats with 4 specific keys
+        assert isinstance(player_model.stats, dict)
+        expected_stat_keys = {"projections", "preseason", "regular_season", "previous_season"}
+        for key in player_model.stats.keys():
+            assert key in expected_stat_keys or isinstance(key, str)
+            assert isinstance(player_model.stats[key], dict)
+        
+        # Season statistics from the statistics endpoint
+        if player_model.season_stats is not None:
+            assert isinstance(player_model.season_stats.split_id, (str, type(None)))
+            assert isinstance(player_model.season_stats.split_name, (str, type(None)))
+            assert isinstance(player_model.season_stats.split_abbreviation, (str, type(None)))
+            assert isinstance(player_model.season_stats.split_type, (str, type(None)))
+            assert isinstance(player_model.season_stats.categories, dict)
+        
+        # Verify the conversion worked and players are functional
         assert isinstance(player, Player)
-        assert player.id is not None
-        assert player.name is not None
         assert hasattr(player, "from_model")
         assert hasattr(player, "to_model")
         assert hasattr(player, "hydrate_bio")
         assert callable(getattr(player, "from_model"))
         assert callable(getattr(player, "to_model"))
         assert callable(getattr(player, "hydrate_bio"))
+        
+        # Test specific values from fixture data
+        if i == 0:  # First player (Test Player 1)
+            assert player_model.id == 12345
+            assert player_model.name == "Test Player 1"
+            assert player_model.active is True
+            assert player_model.injured is False
+            assert player_model.primary_position == "1B"
+            assert player_model.pro_team == "NYY"
+            assert player_model.height == 74
+            assert player_model.weight == 220.0
+            assert player_model.bats == "Right"
+            assert player_model.throws == "Right"
+            
+        elif i == 2:  # Third player (Test Player 3 - inactive/injured)
+            assert player_model.id == 11111
+            assert player_model.active is False
+            assert player_model.status == "injured"

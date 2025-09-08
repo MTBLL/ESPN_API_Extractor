@@ -257,33 +257,39 @@ class GraphQLClient:
         # Note: Field names must match the actual Hasura GraphQL schema
         query = """
         query GetExistingPlayers {
-            players {
-                idEspn
-                name
-                firstName
-                lastName
-                displayName
-                shortName
-                nickname
-                slugEspn
-                primaryPosition
-                eligibleSlots
-                proTeam
-                injuryStatus
-                injured
-                active
-                weight
-                displayWeight
-                height
-                displayHeight
-                bats
-                throws
-                dateOfBirth
-                birthPlace
-                debutYear
-                jersey
-                headshot
-            }
+            active
+            bats
+            birthPlace
+            dateOfBirth
+            debutYear
+            displayHeight
+            displayName
+            displayWeight
+            eligibleSlots
+            fangraphsApiRoute
+            firstName
+            headshot
+            height
+            idEspn
+            idFangraphs
+            idXmlbam
+            injured
+            injuryStatus
+            jersey
+            lastName
+            name
+            nameAscii
+            nameNonascii
+            nickname
+            primaryPosition
+            proTeam
+            shortName
+            slugEspn
+            slugFangraphs
+            status
+            throws
+            weight
+          }
         }
         """
 
@@ -309,19 +315,22 @@ class GraphQLClient:
                                 player_data["id"] = player_data.pop("idEspn")
                             if "slugEspn" in player_data:
                                 player_data["slug"] = player_data.pop("slugEspn")
-                            
+
                             # Convert jersey number to string
                             if isinstance(player_data.get("jersey"), int):
                                 player_data["jersey"] = str(player_data["jersey"])
-                            
+
                             # Parse eligibleSlots JSON string if present
                             if isinstance(player_data.get("eligibleSlots"), str):
                                 import json
+
                                 try:
-                                    player_data["eligibleSlots"] = json.loads(player_data["eligibleSlots"])
+                                    player_data["eligibleSlots"] = json.loads(
+                                        player_data["eligibleSlots"]
+                                    )
                                 except:
                                     player_data["eligibleSlots"] = []
-                            
+
                             player_model = PlayerModel(**player_data)
                             players.append(player_model)
                         except Exception as e:

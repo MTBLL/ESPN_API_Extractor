@@ -70,86 +70,6 @@ class Player(object):
         if eligible_slots:
             player.eligible_slots = [str(slot) for slot in eligible_slots]
 
-    @classmethod
-    def from_model(cls, player_model: PlayerModel):
-        """
-        Create a Player instance from a PlayerModel.
-
-        Args:
-            player_model (PlayerModel): The Pydantic model to convert
-
-        Returns:
-            Player: A new Player instance
-        """
-        # Convert the model to a dict for initialization
-        player_dict = player_model.to_player_dict()
-        player = cls(player_dict)
-
-        standard_field_mappings = [
-            ("name", lambda m: getattr(m, "name", None)),
-            ("pro_team", lambda m: getattr(m, "pro_team", None)),
-            ("primary_position", lambda m: getattr(m, "primary_position", None)),
-            ("season_outlook", lambda m: getattr(m, "season_outlook", None)),
-            ("draft_ranks", lambda m: getattr(m, "draft_ranks", None)),
-            ("games_played_by_position", lambda m: getattr(m, "games_played_by_position", None)),
-            ("draft_auction_value", lambda m: getattr(m, "draft_auction_value", None)),
-            ("on_team_id", lambda m: getattr(m, "on_team_id", None)),
-            ("auction_value_average", lambda m: getattr(m, "auction_value_average", None)),
-            ("injured", lambda m: getattr(m, "injured", None)),
-            ("injury_status", lambda m: getattr(m, "injury_status", None)),
-        ]
-
-        for attr_name, getter_func in standard_field_mappings:
-            value = getter_func(player_model)
-            if value is not None:
-                setattr(player, attr_name, value)
-
-        cls._handle_eligible_slots(player, player_model)
-
-        # Handle stats - now only contains kona stats with 4 specific keys
-        if player_model.stats:
-            player.stats = player_model.stats
-
-        # Handle season statistics
-        if player_model.season_stats:
-            player.season_stats = {}
-            player.season_stats["split_id"] = player_model.season_stats.split_id
-            player.season_stats["split_name"] = player_model.season_stats.split_name
-            player.season_stats["split_abbreviation"] = (
-                player_model.season_stats.split_abbreviation
-            )
-            player.season_stats["split_type"] = player_model.season_stats.split_type
-            player.season_stats["categories"] = {}
-
-            # Process each category
-            for cat_name, category in player_model.season_stats.categories.items():
-                cat_dict: Dict[str, Any] = {
-                    "display_name": category.display_name,
-                    "short_display_name": category.short_display_name,
-                    "abbreviation": category.abbreviation,
-                    "summary": category.summary,
-                    "stats": {},
-                }
-
-                # Process stats in the category
-                for stat_name, stat_detail in category.stats.items():
-                    # Convert StatDetail to a dictionary for storage
-                    stat_dict = {
-                        "display_name": stat_detail.display_name,
-                        "short_display_name": stat_detail.short_display_name,
-                        "description": stat_detail.description,
-                        "abbreviation": stat_detail.abbreviation,
-                        "value": stat_detail.value,
-                        "display_value": stat_detail.display_value,
-                        "rank": stat_detail.rank,
-                        "rank_display_value": stat_detail.rank_display_value,
-                    }
-                    cat_dict["stats"][stat_name] = stat_dict
-
-                player.season_stats["categories"][cat_name] = cat_dict
-
-
-        return player
 
     def to_model(self) -> PlayerModel:
         """
@@ -166,7 +86,8 @@ class Player(object):
         Create a Player instance from a PlayerModel.
         
         This enables conversion from validated Pydantic models back to Player objects
-        which contain all the business logic and hydration methods.
+        which contain all the business logic and hydration methods. This is the primary
+        method used by the runner to convert GraphQL PlayerModel objects to Player objects.
 
         Args:
             player_model: PlayerModel instance from GraphQL/database
@@ -180,8 +101,23 @@ class Player(object):
         # Create a new Player instance using the converted data
         player = cls(player_data)
         
-        # The Player constructor doesn't handle stats, so we need to set them manually
-        # from the PlayerModel data
+        # Handle additional fields that the constructor doesn't set automatically
+        # These are fields that come from PlayerModel but aren't in the basic player_data
+        additional_fields = [
+            'injured', 'injury_status', 'pro_team', 'primary_position',
+            'season_outlook', 'draft_ranks', 'games_played_by_position',
+            'draft_auction_value', 'on_team_id', 'auction_value_average',
+            'display_name', 'short_name', 'nickname', 'weight', 'height',
+            'date_of_birth', 'birth_place', 'debut_year', 'jersey', 'headshot',
+            'bats', 'throws', 'active', 'eligible_slots'
+        ]
+        
+        for field in additional_fields:
+            value = getattr(player_model, field, None)
+            if value is not None:
+                setattr(player, field, value)
+        
+        # Handle stats - PlayerModel stats should be preserved
         if player_model.stats:
             player.stats = player_model.stats
             
