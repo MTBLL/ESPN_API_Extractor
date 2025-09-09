@@ -52,38 +52,38 @@ class TestCoreRequests:
         # Test with 200 status code
         result = core_requests._check_request_status(200, extend="test/endpoint")
         assert result is None
-        core_requests.logger.logging.warn.assert_not_called()
+        core_requests.logger.logging.warning.assert_not_called()
 
         # Test with 404 status code
         result = core_requests._check_request_status(404, extend="test/endpoint")
         assert result is None
-        core_requests.logger.logging.warn.assert_called_with(
+        core_requests.logger.logging.warning.assert_called_with(
             "Endpoint not found: test/endpoint"
         )
 
         # Test with 429 status code
-        core_requests.logger.logging.warn.reset_mock()
+        core_requests.logger.logging.warning.reset_mock()
         result = core_requests._check_request_status(429, extend="test/endpoint")
         assert result is None
-        core_requests.logger.logging.warn.assert_called_with("Rate limit exceeded")
+        core_requests.logger.logging.warning.assert_called_with("Rate limit exceeded")
 
         # Test with 500 status code
-        core_requests.logger.logging.warn.reset_mock()
+        core_requests.logger.logging.warning.reset_mock()
         result = core_requests._check_request_status(500, extend="test/endpoint")
         assert result is None
-        core_requests.logger.logging.warn.assert_called_with("Internal server error")
+        core_requests.logger.logging.warning.assert_called_with("Internal server error")
 
         # Test with 503 status code
-        core_requests.logger.logging.warn.reset_mock()
+        core_requests.logger.logging.warning.reset_mock()
         result = core_requests._check_request_status(503, extend="test/endpoint")
         assert result is None
-        core_requests.logger.logging.warn.assert_called_with("Service unavailable")
+        core_requests.logger.logging.warning.assert_called_with("Service unavailable")
 
         # Test with other status code
-        core_requests.logger.logging.warn.reset_mock()
+        core_requests.logger.logging.warning.reset_mock()
         result = core_requests._check_request_status(418, extend="test/endpoint")
         assert result is None
-        core_requests.logger.logging.warn.assert_called_with("Unknown error: 418")
+        core_requests.logger.logging.warning.assert_called_with("Unknown error: 418")
 
     @mock.patch("requests.get")
     def test_get_method(self, mock_get, core_requests):

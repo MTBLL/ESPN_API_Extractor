@@ -2,6 +2,7 @@ import datetime
 import pytest
 
 from espn_api_extractor.requests.fantasy_requests import EspnFantasyRequests
+from espn_api_extractor.utils.logger import Logger
 
 
 @pytest.fixture
@@ -17,7 +18,7 @@ def espn_request():
         year=current_year,  # Use the current year
         league_id=None,  # Not needed for get_pro_players
         cookies=cookies,
-        logger=None,  # Set to None for testing
+        logger=Logger("test", debug=False),
     )
 
 
