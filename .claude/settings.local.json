@@ -1,8 +1,10 @@
 {
-  "enableAllProjectMcpServers": false,
   "permissions": {
     "allow": [
-      "Bash(poetry run pytest:*)"
+      "Bash(poetry run pytest:*)",
+      "Bash(poetry run mypy:*)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": false,
+  "outputStyle": "default"
 }
