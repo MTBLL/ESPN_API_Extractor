@@ -253,6 +253,11 @@ class GraphQLClient:
         Returns:
             List[PlayerModel]: Fully deserialized player objects from Hasura
         """
+        # Check if GraphQL is available
+        if not self.is_available or not self.endpoint:
+            self._log("info", "GraphQL not available, returning empty player list")
+            return []
+
         # Comprehensive query for all player fields needed by PlayerModel
         # Note: Field names must match the actual Hasura GraphQL schema
         query = """
@@ -292,9 +297,6 @@ class GraphQLClient:
           }
         }
         """
-
-        if not self.endpoint:
-            raise ValueError("GraphQL endpoint not configured")
 
         try:
             response = self.session.post(
