@@ -50,7 +50,11 @@ class Player(object):
             self.injury_status = player.get("injuryStatus", self.injury_status)
             self.injured = player.get("injured", False)
 
-            # add available stats from player data
+            # TODO: add available stats from player data
+            # Need to process player["stats"] array and populate self.stats dict
+            # Filter by current year and statSplitTypeId 0 or 5
+            # Map statSourceId to keys (0 for actual, 1 for projected)
+            # Extract appliedTotal -> points, stats -> breakdown, appliedStats -> projected_breakdown
         except (KeyError, TypeError):
             # If we can't get player data, set defaults
             self.injured = False
@@ -70,7 +74,6 @@ class Player(object):
         if eligible_slots:
             player.eligible_slots = [str(slot) for slot in eligible_slots]
 
-
     def to_model(self) -> PlayerModel:
         """
         Convert this Player instance to a PlayerModel.
@@ -84,7 +87,7 @@ class Player(object):
     def from_model(cls, player_model: PlayerModel) -> "Player":
         """
         Create a Player instance from a PlayerModel.
-        
+
         This enables conversion from validated Pydantic models back to Player objects
         which contain all the business logic and hydration methods. This is the primary
         method used by the runner to convert GraphQL PlayerModel objects to Player objects.
@@ -97,30 +100,73 @@ class Player(object):
         """
         # Use the existing to_player_dict method to get properly formatted data
         player_data = player_model.to_player_dict()
-        
+
         # Create a new Player instance using the converted data
         player = cls(player_data)
-        
+
+        # Initialize kona fields to ensure they exist
+        player._initialize_kona_fields()
+
         # Handle additional fields that the constructor doesn't set automatically
         # These are fields that come from PlayerModel but aren't in the basic player_data
         additional_fields = [
-            'injured', 'injury_status', 'pro_team', 'primary_position',
-            'season_outlook', 'draft_ranks', 'games_played_by_position',
-            'draft_auction_value', 'on_team_id', 'auction_value_average',
-            'display_name', 'short_name', 'nickname', 'weight', 'height',
-            'date_of_birth', 'birth_place', 'debut_year', 'jersey', 'headshot',
-            'bats', 'throws', 'active', 'eligible_slots'
+            "injured",
+            "injury_status",
+            "pro_team",
+            "primary_position",
+            "season_outlook",
+            "draft_ranks",
+            "games_played_by_position",
+            "draft_auction_value",
+            "on_team_id",
+            "auction_value_average",
+            "display_name",
+            "short_name",
+            "nickname",
+            "weight",
+            "height",
+            "date_of_birth",
+            "birth_place",
+            "debut_year",
+            "jersey",
+            "headshot",
+            "bats",
+            "throws",
+            "active",
+            "eligible_slots",
+            "season_stats",
         ]
-        
+
         for field in additional_fields:
             value = getattr(player_model, field, None)
             if value is not None:
                 setattr(player, field, value)
-        
+
         # Handle stats - PlayerModel stats should be preserved
         if player_model.stats:
             player.stats = player_model.stats
-            
+
+        # Also handle projection fields stored directly in PlayerModel
+        projection_fields = [
+            "projections",
+            "preseason_stats",
+            "regular_season_stats",
+            "previous_season_stats",
+        ]
+        for field in projection_fields:
+            value = getattr(player_model, field, None)
+            if value:
+                # Convert field name for stats dictionary
+                stats_key = field.replace("_stats", "").replace("_", "_")
+                if field == "projections":
+                    player.stats["projections"] = value
+                elif field == "preseason_stats":
+                    player.stats["preseason"] = value
+                elif field == "regular_season_stats":
+                    player.stats["regular_season"] = value
+                elif field == "previous_season_stats":
+                    player.stats["previous_season"] = value
+
         return player
 
     def hydrate_bio(self, data: dict) -> None:
@@ -259,13 +305,18 @@ class Player(object):
         for field, default in field_defaults.items():
             if not hasattr(self, field):
                 setattr(self, field, default)
-        
+
         # Initialize stats structure with kona stat keys
-        if not hasattr(self, 'stats') or not isinstance(self.stats, dict):
+        if not hasattr(self, "stats") or not isinstance(self.stats, dict):
             self.stats = {}
-        
+
         # Ensure kona stat keys exist
-        kona_stat_keys = ['projections', 'preseason', 'regular_season', 'previous_season']
+        kona_stat_keys = [
+            "projections",
+            "preseason",
+            "regular_season",
+            "previous_season",
+        ]
         for key in kona_stat_keys:
             if key not in self.stats:
                 self.stats[key] = {}
@@ -312,7 +363,7 @@ class Player(object):
 
         Args:
             player_dict (dict): The complete player dictionary from kona_playercard API response
-                              containing top-level fields (draftAuctionValue, onTeamId) and 
+                              containing top-level fields (draftAuctionValue, onTeamId) and
                               nested 'player' object with seasonOutlook, stats array, etc.
         """
         # Initialize all fields first
@@ -323,10 +374,20 @@ class Player(object):
 
         # Define field mappings: (attribute_name, json_key, data_source, default_value)
         field_mappings: List[tuple[str, str, Dict[str, Any], Any]] = [
-            ("draft_auction_value", "draftAuctionValue", player_dict, None),  # top-level
+            (
+                "draft_auction_value",
+                "draftAuctionValue",
+                player_dict,
+                None,
+            ),  # top-level
             ("on_team_id", "onTeamId", player_dict, None),  # top-level
             ("season_outlook", "seasonOutlook", player_data, None),  # nested in player
-            ("draft_ranks", "draftRanksByRankType", player_data, {}),  # nested in player
+            (
+                "draft_ranks",
+                "draftRanksByRankType",
+                player_data,
+                {},
+            ),  # nested in player
             ("injured", "injured", player_data, None),  # nested in player
             ("injury_status", "injuryStatus", player_data, None),  # nested in player
         ]
