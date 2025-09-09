@@ -1,9 +1,0 @@
-{
-  "language_overrides": {
-    "Python": {
-      "language_server_path": "/Users/Shared/BaseballHQ/tools/_extract/ESPN_API_Extractor/.venv/bin/python",
-      "language_server_arguments": ["-m", "pylsp"],
-      "enable_language_server": true
-    }
-  }
-}
