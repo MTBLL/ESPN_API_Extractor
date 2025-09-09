@@ -3,7 +3,7 @@ from typing import List
 
 import requests
 
-from ..utils.logger import Logger
+from espn_api_extractor.utils.logger import Logger
 from .constants import FANTASY_BASE_ENDPOINT, FANTASY_SPORTS, NEWS_BASE_ENDPOINT
 from .exceptions import ESPNAccessDenied, ESPNInvalidLeague, ESPNUnknownError
 

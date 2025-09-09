@@ -61,15 +61,15 @@ class EspnCoreRequests:
         # Use thread-safe logging
         with self.logger_lock:
             if status == 404:
-                self.logger.logging.warn(f"Endpoint not found: {extend}")
+                self.logger.logging.warning(f"Endpoint not found: {extend}")
             elif status == 429:
-                self.logger.logging.warn("Rate limit exceeded")
+                self.logger.logging.warning("Rate limit exceeded")
             elif status == 500:
-                self.logger.logging.warn("Internal server error")
+                self.logger.logging.warning("Internal server error")
             elif status == 503:
-                self.logger.logging.warn("Service unavailable")
+                self.logger.logging.warning("Service unavailable")
             else:
-                self.logger.logging.warn(f"Unknown error: {status}")
+                self.logger.logging.warning(f"Unknown error: {status}")
 
     def _get(self, params: dict = {}, headers: dict = {}, extend: str = ""):
         endpoint = self.sport_endpoint + extend
@@ -367,7 +367,7 @@ class EspnCoreRequests:
                                 else:
                                     failed_players.append(hydrated_player)
                                     with self.logger_lock:
-                                        self.logger.logging.warn(
+                                        self.logger.logging.warning(
                                             f"Failed to hydrate player: {player.id} - "
                                             f"{player.display_name if hasattr(player, 'display_name') else 'Unknown'}"
                                         )
