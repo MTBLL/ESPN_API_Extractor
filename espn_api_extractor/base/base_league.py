@@ -39,7 +39,6 @@ class BaseLeague(ABC):
             year=year,
             league_id=league_id,
             cookies=cookies,
-            logger=self.logger,
         )
 
     def __repr__(self):
