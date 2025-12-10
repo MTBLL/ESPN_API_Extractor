@@ -30,8 +30,8 @@ def main():
     """Main function to test the statistics fetching functionality."""
     # Initialize request objects
     year = 2025  # Current season
-    fantasy_requests = EspnFantasyRequests(sport="mlb", year=year, logger=logger)
-    core_requests = EspnCoreRequests(sport="mlb", year=year, logger=logger)
+    fantasy_requests = EspnFantasyRequests(sport="mlb", year=year)
+    core_requests = EspnCoreRequests(sport="mlb", year=year)
 
     # Fetch a small number of players
     print("Fetching players...")
