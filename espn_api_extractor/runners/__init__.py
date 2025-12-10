@@ -1,3 +1,3 @@
-__all__ = ["CoreRunner"]
+__all__ = ["PlayerExtractRunner"]
 
-from .core_runner import CoreRunner
+from .player_extract_runner import PlayerExtractRunner
