@@ -57,7 +57,7 @@ class TestMultiThreading:
     ):
         """Test that _hydrate_player_with_bio works correctly with mocked data"""
         # Create core requests with mocked _get_player_data
-        core_requests = EspnCoreRequests(sport="mlb", year=2025, logger=mock_logger)
+        core_requests = EspnCoreRequests(sport="mlb", year=2025)
 
         # Mock the _get_player_data method to return our mock_response
         core_requests._get_player_data = mock.MagicMock(return_value=mock_response)
@@ -81,7 +81,6 @@ class TestMultiThreading:
         core_requests = EspnCoreRequests(
             sport="mlb",
             year=2025,
-            logger=mock_logger,
             max_workers=4,  # Use 4 threads for testing
         )
 
@@ -111,9 +110,7 @@ class TestMultiThreading:
     def test_hydrate_players_with_404_player(self, mock_players, mock_logger):
         """Test that 404 errors are handled correctly without retries"""
         # Create a core requests object
-        core_requests = EspnCoreRequests(
-            sport="mlb", year=2025, logger=mock_logger, max_workers=4
-        )
+        core_requests = EspnCoreRequests(sport="mlb", year=2025, max_workers=4)
 
         # Function to simulate API calls - returns None for player ID 5 (404 error)
         def mock_get_player_data(player_id):
@@ -175,7 +172,6 @@ class TestMultiThreading:
         core_requests_single = EspnCoreRequests(
             sport="mlb",
             year=2025,
-            logger=mock_logger,
             max_workers=1,  # Single thread
         )
         core_requests_single._get_player_data = mock.MagicMock(
@@ -193,7 +189,6 @@ class TestMultiThreading:
         core_requests_multi = EspnCoreRequests(
             sport="mlb",
             year=2025,
-            logger=mock_logger,
             max_workers=4,  # Four threads
         )
         core_requests_multi._get_player_data = mock.MagicMock(
@@ -239,12 +234,10 @@ class TestMultiThreading:
             )
 
             # Create core requests with different max_workers values
-            core_requests_default = EspnCoreRequests(
-                sport="mlb", year=2025, logger=mock_logger
-            )
+            core_requests_default = EspnCoreRequests(sport="mlb", year=2025)
 
             core_requests_custom = EspnCoreRequests(
-                sport="mlb", year=2025, logger=mock_logger, max_workers=10
+                sport="mlb", year=2025, max_workers=10
             )
 
             # Mock the _get_player_data method

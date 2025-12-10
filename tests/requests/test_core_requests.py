@@ -22,30 +22,32 @@ class TestCoreRequests:
 
     @pytest.fixture
     def core_requests(self, mock_logger):
-        """Create an EspnCoreRequests instance for testing"""
-        return EspnCoreRequests(sport="mlb", year=2025, logger=mock_logger)
+        """Create an EspnCoreRequests instance for testing with mocked logger"""
+        requests = EspnCoreRequests(sport="mlb", year=2025)
+        requests.logger = mock_logger
+        return requests
 
-    def test_init_with_valid_sport(self, mock_logger):
+    def test_init_with_valid_sport(self):
         """Test initialization with valid sport"""
         # Test with MLB (only MLB is currently supported according to constant.py)
-        mlb_requests = EspnCoreRequests(sport="mlb", year=2025, logger=mock_logger)
+        mlb_requests = EspnCoreRequests(sport="mlb", year=2025)
         cpu_count = os.cpu_count() or 1
         assert mlb_requests.sport == "mlb"
         assert mlb_requests.year == 2025
-        assert mlb_requests.logger == mock_logger
+        assert mlb_requests.logger is not None
         assert os.cpu_count() is not None
         assert mlb_requests.max_workers == min(32, cpu_count * 4)
 
         # Test with custom max_workers
         custom_requests = EspnCoreRequests(
-            sport="mlb", year=2025, logger=mock_logger, max_workers=10
+            sport="mlb", year=2025, max_workers=10
         )
         assert custom_requests.max_workers == 10
 
-    def test_init_with_invalid_sport(self, mock_logger):
+    def test_init_with_invalid_sport(self):
         """Test initialization with invalid sport"""
         with pytest.raises(SystemExit):
-            EspnCoreRequests(sport="invalid", year=2025, logger=mock_logger)
+            EspnCoreRequests(sport="invalid", year=2025)
 
     def test_check_request_status(self, core_requests):
         """Test _check_request_status method with different status codes"""
@@ -444,10 +446,10 @@ class TestCoreRequestsIntegration:
         return Logger("integration-test")
 
     @pytest.fixture
-    def real_core_requests(self, real_logger):
+    def real_core_requests(self):
         """Create an EspnCoreRequests instance with real configuration"""
         return EspnCoreRequests(
-            sport="mlb", year=2025, logger=real_logger, max_workers=2
+            sport="mlb", year=2025, max_workers=2
         )
 
     @pytest.mark.integration

@@ -14,13 +14,12 @@ class TestProjectionsExtraction:
         return Mock()
 
     @pytest.fixture
-    def fantasy_requests(self, mock_logger):
+    def fantasy_requests(self):
         return EspnFantasyRequests(
             sport="mlb",
             year=2025,
             league_id=None,
             cookies={},
-            logger=mock_logger,
         )
 
     @pytest.fixture
