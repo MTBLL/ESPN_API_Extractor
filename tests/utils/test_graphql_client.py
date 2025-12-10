@@ -62,8 +62,9 @@ class TestGraphQLClient:
 
     def test_init_default(self, mock_logger):
         """Test GraphQLClient initialization with defaults"""
-        client = GraphQLClient(logger=mock_logger)
-        assert client.logger == mock_logger
+        client = GraphQLClient()
+        assert client.logger is not None
+        assert hasattr(client.logger, 'logging')
         assert client.config_path == "hasura_config.json"
         assert client.endpoint is None
         assert client.headers == {}
@@ -75,12 +76,12 @@ class TestGraphQLClient:
     def test_init_custom_config_path(self, mock_logger):
         """Test GraphQLClient initialization with custom config path"""
         custom_path = "custom_config.json"
-        client = GraphQLClient(config_path=custom_path, logger=mock_logger)
+        client = GraphQLClient(config_path=custom_path)
         assert client.config_path == custom_path
 
     def test_load_config_success(self, mock_logger, temp_config_file):
         """Test successful config loading"""
-        client = GraphQLClient(config_path=temp_config_file, logger=mock_logger)
+        client = GraphQLClient(config_path=temp_config_file)
         result = client._load_config()
 
         assert result is True
@@ -92,13 +93,16 @@ class TestGraphQLClient:
 
     def test_load_config_file_not_found(self, mock_logger):
         """Test config loading when file doesn't exist"""
-        client = GraphQLClient(config_path="nonexistent.json", logger=mock_logger)
-        result = client._load_config()
+        client = GraphQLClient(config_path="nonexistent.json")
 
-        assert result is False
-        mock_logger.logging.warning.assert_called_with(
-            "GraphQL config file not found: nonexistent.json"
-        )
+        # Mock the client's logger
+        with patch.object(client.logger, 'logging') as mock_client_logger:
+            result = client._load_config()
+
+            assert result is False
+            mock_client_logger.warning.assert_called_with(
+                "GraphQL config file not found: nonexistent.json"
+            )
 
     def test_load_config_invalid_json(self, mock_logger):
         """Test config loading with invalid JSON"""
@@ -107,23 +111,29 @@ class TestGraphQLClient:
             temp_file = f.name
 
         try:
-            client = GraphQLClient(config_path=temp_file, logger=mock_logger)
-            result = client._load_config()
+            client = GraphQLClient(config_path=temp_file)
 
-            assert result is False
-            mock_logger.logging.error.assert_called()
+            # Mock the client's logger
+            with patch.object(client.logger, 'logging') as mock_client_logger:
+                result = client._load_config()
+
+                assert result is False
+                mock_client_logger.error.assert_called()
         finally:
             os.unlink(temp_file)
 
     def test_load_config_missing_endpoint(self, mock_logger, invalid_config_file):
         """Test config loading with missing endpoint"""
-        client = GraphQLClient(config_path=invalid_config_file, logger=mock_logger)
-        result = client._load_config()
+        client = GraphQLClient(config_path=invalid_config_file)
 
-        assert result is False
-        mock_logger.logging.error.assert_called_with(
-            "GraphQL endpoint not specified in config"
-        )
+        # Mock the client's logger
+        with patch.object(client.logger, 'logging') as mock_client_logger:
+            result = client._load_config()
+
+            assert result is False
+            mock_client_logger.error.assert_called_with(
+                "GraphQL endpoint not specified in config"
+            )
 
     @patch("requests.Session.post")
     def test_connection_success(self, mock_post, mock_logger, temp_config_file):
@@ -136,16 +146,18 @@ class TestGraphQLClient:
         }
         mock_post.return_value = mock_response
 
-        client = GraphQLClient(config_path=temp_config_file, logger=mock_logger)
-        client._load_config()
+        client = GraphQLClient(config_path=temp_config_file)
 
-        success, error = client._test_connection()
+        # Mock the client's logger
+        with patch.object(client.logger, 'logging') as mock_client_logger:
+            client._load_config()
+            success, error = client._test_connection()
 
-        assert success is True
-        assert error is None
-        mock_logger.logging.info.assert_called_with(
-            "GraphQL connection test successful"
-        )
+            assert success is True
+            assert error is None
+            mock_client_logger.info.assert_called_with(
+                "GraphQL connection test successful"
+            )
 
     @patch("requests.Session.post")
     def test_connection_http_error(self, mock_post, mock_logger, temp_config_file):
@@ -155,7 +167,7 @@ class TestGraphQLClient:
         mock_response.text = "Internal Server Error"
         mock_post.return_value = mock_response
 
-        client = GraphQLClient(config_path=temp_config_file, logger=mock_logger)
+        client = GraphQLClient(config_path=temp_config_file)
         client._load_config()
 
         success, error = client._test_connection()
@@ -173,7 +185,7 @@ class TestGraphQLClient:
         }
         mock_post.return_value = mock_response
 
-        client = GraphQLClient(config_path=temp_config_file, logger=mock_logger)
+        client = GraphQLClient(config_path=temp_config_file)
         client._load_config()
 
         success, error = client._test_connection()
@@ -186,7 +198,7 @@ class TestGraphQLClient:
         """Test GraphQL connection with timeout"""
         mock_post.side_effect = ConnectTimeout("Connection timeout")
 
-        client = GraphQLClient(config_path=temp_config_file, logger=mock_logger)
+        client = GraphQLClient(config_path=temp_config_file)
         client._load_config()
 
         success, error = client._test_connection()
@@ -201,7 +213,7 @@ class TestGraphQLClient:
         """Test GraphQL connection with connection error"""
         mock_post.side_effect = ConnectionError("Connection failed")
 
-        client = GraphQLClient(config_path=temp_config_file, logger=mock_logger)
+        client = GraphQLClient(config_path=temp_config_file)
         client._load_config()
 
         success, error = client._test_connection()
@@ -211,7 +223,7 @@ class TestGraphQLClient:
 
     def test_connection_no_endpoint(self, mock_logger):
         """Test connection test with no endpoint configured"""
-        client = GraphQLClient(logger=mock_logger)
+        client = GraphQLClient()
 
         success, error = client._test_connection()
 
@@ -223,7 +235,7 @@ class TestGraphQLClient:
         """Test user prompt returning abort (default)"""
         mock_input.return_value = ""  # Default input (empty)
 
-        client = GraphQLClient(logger=mock_logger)
+        client = GraphQLClient()
         client.endpoint = "https://test.com/graphql"
 
         result = client._prompt_user_for_fallback("Connection failed")
@@ -235,7 +247,7 @@ class TestGraphQLClient:
         """Test user prompt returning continue"""
         mock_input.return_value = "y"
 
-        client = GraphQLClient(logger=mock_logger)
+        client = GraphQLClient()
         client.endpoint = "https://test.com/graphql"
 
         result = client._prompt_user_for_fallback("Connection failed")
@@ -247,7 +259,7 @@ class TestGraphQLClient:
         """Test user prompt with invalid input then valid"""
         mock_input.side_effect = ["invalid", "n"]
 
-        client = GraphQLClient(logger=mock_logger)
+        client = GraphQLClient()
         client.endpoint = "https://test.com/graphql"
 
         result = client._prompt_user_for_fallback("Connection failed")
@@ -257,19 +269,21 @@ class TestGraphQLClient:
 
     def test_initialize_force_full_extraction(self, mock_logger):
         """Test initialization with force_full_extraction=True"""
-        client = GraphQLClient(logger=mock_logger)
+        client = GraphQLClient()
 
-        result = client.initialize_with_hitl(force_full_extraction=True)
+        # Mock the client's own logger
+        with patch.object(client.logger, 'logging') as mock_client_logger:
+            result = client.initialize_with_hitl(force_full_extraction=True)
 
-        assert result is client
-        assert client.is_available is False
-        mock_logger.logging.info.assert_called_with(
-            "Forcing full ESPN extraction (GraphQL bypassed)"
-        )
+            assert result is client
+            assert client.is_available is False
+            mock_client_logger.info.assert_called_with(
+                "Forcing full ESPN extraction (GraphQL bypassed)"
+            )
 
     def test_initialize_no_config(self, mock_logger):
         """Test initialization when no config is available"""
-        client = GraphQLClient(config_path="nonexistent.json", logger=mock_logger)
+        client = GraphQLClient(config_path="nonexistent.json")
 
         result = client.initialize_with_hitl()
 
@@ -285,7 +299,7 @@ class TestGraphQLClient:
         mock_load_config.return_value = True
         mock_test_connection.return_value = (True, None)
 
-        client = GraphQLClient(logger=mock_logger)
+        client = GraphQLClient()
 
         result = client.initialize_with_hitl()
 
@@ -303,7 +317,7 @@ class TestGraphQLClient:
         mock_test_connection.return_value = (False, "Connection timeout")
         mock_prompt.return_value = True
 
-        client = GraphQLClient(logger=mock_logger)
+        client = GraphQLClient()
 
         result = client.initialize_with_hitl()
 
@@ -322,7 +336,7 @@ class TestGraphQLClient:
         mock_test_connection.return_value = (False, "Connection timeout")
         mock_prompt.return_value = False
 
-        client = GraphQLClient(logger=mock_logger)
+        client = GraphQLClient()
 
         with pytest.raises(SystemExit):
             client.initialize_with_hitl()
@@ -352,16 +366,18 @@ class TestGraphQLClient:
         mock_response.json.return_value = sample_graphql_players_response
         mock_post.return_value = mock_response
 
-        client = GraphQLClient(config_path=temp_config_file, logger=mock_logger)
+        client = GraphQLClient(config_path=temp_config_file)
         client._load_config()
         client.is_available = True
 
-        player_ids = client.get_existing_player_ids()
+        # Mock the client's logger
+        with patch.object(client.logger, 'logging') as mock_client_logger:
+            player_ids = client.get_existing_player_ids()
 
-        assert player_ids == {12345, 67890, 11111}
-        mock_logger.logging.info.assert_called_with(
-            "Retrieved and deserialized 3 existing players from GraphQL"
-        )
+            assert player_ids == {12345, 67890, 11111}
+            mock_client_logger.info.assert_called_with(
+                "Retrieved and deserialized 3 existing players from GraphQL"
+            )
 
     @patch("requests.Session.post")
     def test_get_existing_player_ids_http_error(
@@ -372,14 +388,16 @@ class TestGraphQLClient:
         mock_response.status_code = 500
         mock_post.return_value = mock_response
 
-        client = GraphQLClient(config_path=temp_config_file, logger=mock_logger)
+        client = GraphQLClient(config_path=temp_config_file)
         client._load_config()
         client.is_available = True
 
-        player_ids = client.get_existing_player_ids()
+        # Mock the client's logger
+        with patch.object(client.logger, 'logging') as mock_client_logger:
+            player_ids = client.get_existing_player_ids()
 
-        assert player_ids == set()
-        mock_logger.logging.error.assert_called_with("GraphQL query failed: HTTP 500")
+            assert player_ids == set()
+            mock_client_logger.error.assert_called_with("GraphQL query failed: HTTP 500")
 
     @patch("requests.Session.post")
     def test_get_existing_player_ids_graphql_error(
@@ -391,7 +409,7 @@ class TestGraphQLClient:
         mock_response.json.return_value = {"errors": [{"message": "Query failed"}]}
         mock_post.return_value = mock_response
 
-        client = GraphQLClient(config_path=temp_config_file, logger=mock_logger)
+        client = GraphQLClient(config_path=temp_config_file)
         client._load_config()
         client.is_available = True
 
@@ -401,7 +419,7 @@ class TestGraphQLClient:
 
     def test_get_existing_player_ids_not_available(self, mock_logger):
         """Test player ID retrieval when GraphQL not available"""
-        client = GraphQLClient(logger=mock_logger)
+        client = GraphQLClient()
         client.is_available = False
 
         player_ids = client.get_existing_player_ids()
@@ -415,16 +433,18 @@ class TestGraphQLClient:
         """Test player ID retrieval with exception"""
         mock_post.side_effect = Exception("Network error")
 
-        client = GraphQLClient(config_path=temp_config_file, logger=mock_logger)
+        client = GraphQLClient(config_path=temp_config_file)
         client._load_config()
         client.is_available = True
 
-        player_ids = client.get_existing_player_ids()
+        # Mock the client's logger
+        with patch.object(client.logger, 'logging') as mock_client_logger:
+            player_ids = client.get_existing_player_ids()
 
-        assert player_ids == set()
-        mock_logger.logging.error.assert_called_with(
-            "Failed to query existing players: Network error"
-        )
+            assert player_ids == set()
+            mock_client_logger.error.assert_called_with(
+                "Failed to query existing players: Network error"
+            )
 
 
 class TestGraphQLClientIntegration:
@@ -441,8 +461,7 @@ class TestGraphQLClientIntegration:
     @pytest.mark.integration
     def test_real_hasura_connection(self, hasura_config_path):
         """Integration test with real Hasura DDN endpoint"""
-        logger = Logger("integration-test")
-        client = GraphQLClient(config_path=hasura_config_path, logger=logger)
+        client = GraphQLClient(config_path=hasura_config_path)
 
         # Load the actual config
         config_loaded = client._load_config()
@@ -469,8 +488,7 @@ class TestGraphQLClientIntegration:
     @pytest.mark.integration
     def test_real_player_query(self, hasura_config_path):
         """Integration test that attempts to query real player data"""
-        logger = Logger("integration-test")
-        client = GraphQLClient(config_path=hasura_config_path, logger=logger)
+        client = GraphQLClient(config_path=hasura_config_path)
 
         # Initialize client
         client._load_config()
@@ -494,8 +512,7 @@ class TestGraphQLClientIntegration:
     @pytest.mark.integration
     def test_full_initialization_flow(self, hasura_config_path):
         """Test the complete initialization flow with real config"""
-        logger = Logger("integration-test")
-        client = GraphQLClient(config_path=hasura_config_path, logger=logger)
+        client = GraphQLClient(config_path=hasura_config_path)
 
         # Mock user input to avoid interactive prompts in tests
         with patch.object(client, "_prompt_user_for_fallback", return_value=True):
@@ -512,8 +529,7 @@ class TestGraphQLClientIntegration:
     @pytest.mark.integration
     def test_schema_introspection(self, hasura_config_path):
         """Test that we can introspect the Hasura schema"""
-        logger = Logger("integration-test")
-        client = GraphQLClient(config_path=hasura_config_path, logger=logger)
+        client = GraphQLClient(config_path=hasura_config_path)
 
         if not client._load_config():
             pytest.skip("Could not load Hasura config")
