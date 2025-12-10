@@ -11,7 +11,7 @@ def create_player_parser(subparsers):
     )
 
     player_parser.add_argument(
-        "--year", type=int, default=2026, help="League year (default: 2025)"
+        "--year", type=int, default=2025, help="League year (default: 2025)"
     )
     player_parser.add_argument(
         "--league_id",
@@ -87,5 +87,11 @@ async def main():
         return None
 
 
-if __name__ == "__main__":
+def cli_main():
+    """Synchronous entry point for console script."""
     result = asyncio.run(main())
+    return result
+
+
+if __name__ == "__main__":
+    cli_main()

@@ -50,11 +50,43 @@ class Player(object):
             self.injury_status = player.get("injuryStatus", self.injury_status)
             self.injured = player.get("injured", False)
 
-            # TODO: add available stats from player data
-            # Need to process player["stats"] array and populate self.stats dict
-            # Filter by current year and statSplitTypeId 0 or 5
-            # Map statSourceId to keys (0 for actual, 1 for projected)
-            # Extract appliedTotal -> points, stats -> breakdown, appliedStats -> projected_breakdown
+            # Process stats from player data if available
+            if "stats" in player and isinstance(player["stats"], list):
+                current_year = datetime.now().year
+
+                for stat_entry in player["stats"]:
+                    # Filter by current year and season stats (statSplitTypeId 0 or 5)
+                    if (
+                        stat_entry.get("seasonId") == current_year
+                        and stat_entry.get("statSplitTypeId") in [0, 5]
+                    ):
+                        # Use statSplitTypeId as key (0 = season, 5 = projected season)
+                        stat_key = stat_entry.get("statSplitTypeId", 0)
+
+                        if stat_key not in self.stats:
+                            self.stats[stat_key] = {}
+
+                        # Map statSourceId: 0 = actual, 1 = projected
+                        stat_source = stat_entry.get("statSourceId", 0)
+
+                        if stat_source == 0:
+                            # Actual stats
+                            self.stats[stat_key]["points"] = stat_entry.get("appliedTotal", 0)
+                            # Map numeric stat keys to readable names
+                            raw_stats = stat_entry.get("stats", {})
+                            self.stats[stat_key]["breakdown"] = {
+                                STATS_MAP.get(int(k), str(k)): v
+                                for k, v in raw_stats.items()
+                            }
+                        elif stat_source == 1:
+                            # Projected stats
+                            self.stats[stat_key]["projected_points"] = stat_entry.get("appliedTotal", 0)
+                            # Map numeric stat keys to readable names
+                            raw_projected = stat_entry.get("appliedStats", {})
+                            self.stats[stat_key]["projected_breakdown"] = {
+                                STATS_MAP.get(int(k), str(k)): v
+                                for k, v in raw_projected.items()
+                            }
         except (KeyError, TypeError):
             # If we can't get player data, set defaults
             self.injured = False
@@ -140,6 +172,9 @@ class Player(object):
         for field in additional_fields:
             value = getattr(player_model, field, None)
             if value is not None:
+                # Special handling for season_stats - convert Pydantic model to dict
+                if field == "season_stats" and hasattr(value, "model_dump"):
+                    value = value.model_dump()
                 setattr(player, field, value)
 
         # Handle stats - PlayerModel stats should be preserved
