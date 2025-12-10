@@ -1,20 +1,18 @@
 from pydantic import Json
 
 from espn_api_extractor.requests import EspnFantasyRequests
-from espn_api_extractor.runners import CoreRunner
+from espn_api_extractor.requests.constants import FantasySports
 
 
 class ProPlayersHandler:
-    def __init__(self, runner: CoreRunner, league_id: int = None):
-        self.runner = runner
+    def __init__(self, year: int, league_id: int = None):
         self.league_id = league_id
         # Get ESPN player universe
         self.fantasy_requestor = EspnFantasyRequests(
-            sport="mlb",
-            year=runner.year,
+            sport=FantasySports.MLB,
+            year=year,
             league_id=league_id,
             cookies={},
-            logger=runner.logger,
         )
 
     def fetch(self) -> Json:
