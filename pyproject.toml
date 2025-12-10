@@ -1,31 +1,39 @@
 [project]
 name = "espn-api-extractor"
-version = "0.1.0"
+version = "0.2.0"
 description = "API for Extracting ESPN API Data"
-authors = [
-    {name = "Taylor \"TP\" Pubins",email = "tpubz@icloud.com"}
-]
+authors = [{ name = "Taylor \"TP\" Pubins", email = "tpubz@icloud.com" }]
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "requests (>=2.32.3,<3.0.0)",
-    "pydantic (>=2.11.4,<3.0.0)",
-    "tqdm (>=4.67.1,<5.0.0)"
+    "requests>=2.32.3,<3.0.0",
+    "pydantic>=2.11.4,<3.0.0",
+    "tqdm>=4.67.1,<5.0.0",
 ]
 
-[tool.poetry]
-
-[tool.poetry.group.dev.dependencies]
-pdbpp = "^0.11.6"
-pytest = "^8.3.5"
-pytest-cov = "^6.1.1"
-mypy = "^1.15.0"
-types-requests = "^2.32.0.1"
-types-tqdm = "^4.66.0.20240106"
+[project.optional-dependencies]
+dev = [
+    "pdbpp>=0.11.6",
+    "pytest>=8.3.5",
+    "pytest-cov>=6.1.1",
+    "mypy>=1.15.0",
+    "types-requests>=2.32.0.1",
+    "types-tqdm>=4.66.0.20240106",
+]
 
 [project.scripts]
-espn-players = "espn_api_extractor.runners.players:main"
+espn-players = "espn_api_extractor.__main__:cli_main"
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests as integration tests (may require external services)",
+    "slow: marks tests as slow running"
+]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

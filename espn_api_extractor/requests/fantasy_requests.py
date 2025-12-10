@@ -3,8 +3,9 @@ from typing import List
 
 import requests
 
-from ..utils.logger import Logger
-from .constant import FANTASY_BASE_ENDPOINT, FANTASY_SPORTS, NEWS_BASE_ENDPOINT
+from espn_api_extractor.utils.logger import Logger
+
+from .constants import FANTASY_BASE_ENDPOINT, NEWS_BASE_ENDPOINT, FantasySports
 from .exceptions import ESPNAccessDenied, ESPNInvalidLeague, ESPNUnknownError
 
 
@@ -13,26 +14,20 @@ class EspnFantasyRequests(object):
         self,
         sport: str,
         year: int,
-        league_id: int | None,
-        cookies: dict,
-        logger: Logger,
+        league_id: int | None = None,
+        cookies: dict = {},
     ):
-        if sport not in FANTASY_SPORTS:
-            raise Exception(
-                f"Unknown sport: {sport}, available options are {FANTASY_SPORTS.keys()}"
-            )
         self.year: str = str(year)
         self.league_id: str = str(league_id) if league_id else ""
-        self.SPORT_ENDPOINT = FANTASY_BASE_ENDPOINT + FANTASY_SPORTS[sport]
+        sport_code = FantasySports[sport.upper()].value
+        self.SPORT_ENDPOINT = FANTASY_BASE_ENDPOINT + sport_code
         self.SEASON_ENDPOINT = self.SPORT_ENDPOINT + "/seasons/" + str(self.year)
         self.ENDPOINT = (
-            FANTASY_BASE_ENDPOINT + FANTASY_SPORTS[sport] + "/seasons/" + str(self.year)
+            FANTASY_BASE_ENDPOINT + sport_code + "/seasons/" + str(self.year)
         )
-        self.NEWS_ENDPOINT = (
-            NEWS_BASE_ENDPOINT + FANTASY_SPORTS[sport] + "/news/" + "players"
-        )
+        self.NEWS_ENDPOINT = NEWS_BASE_ENDPOINT + sport_code + "/news/" + "players"
         self.cookies = cookies
-        self.logger = logger
+        self.logger = Logger(EspnFantasyRequests.__name__)
 
         self.LEAGUE_ENDPOINT: str
 
@@ -153,13 +148,35 @@ class EspnFantasyRequests(object):
         filters = {"filterActive": {"value": True}}
         headers = {"x-fantasy-filter": json.dumps(filters)}
         data = self._get(extend="/players", params=params, headers=headers)
+        self.logger.logging.info(f"Retrieved {len(data)} players from ESPN API")
+
         return data
 
-    def get_pro_projections(self, filters: dict):
-        """Gets the current sports professional players projections"""
-        params = {"view": "kona_player_info", "scoringPeriodId": 0}
+    def get_player_cards(self, player_ids: List[int]):
+        """Gets player cards with projections, seasonal stats, and outlook data"""
+        params = {"view": "kona_playercard", "scoringPeriodId": 0}
+
+        # Build filters for projections with preseason and regular season stats
+        additional_value = [
+            f"00{self.year}",  # current year stats
+            f"10{self.year}",  # projections
+            f"00{int(self.year) - 1}",  # previous year stats
+            f"01{self.year}",  # preseason stats
+            f"02{self.year}",  # regular season stats
+        ]
+
+        filters = {
+            "players": {
+                "filterIds": {"value": player_ids},
+                "filterStatsForTopScoringPeriodIds": {
+                    "value": 1,
+                    "additionalValue": additional_value,
+                },
+            }
+        }
+
         headers = {"x-fantasy-filter": json.dumps(filters)}
-        data = self._get(extend="/players", params=params, headers=headers)
+        data = self._get(params=params, headers=headers)
         return data
 
     def get_league_draft(self):

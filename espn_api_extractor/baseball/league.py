@@ -1,11 +1,11 @@
 import json
 from typing import Any, List, Union
 
-from ..base_league import BaseLeague
-from ..base_settings import BaseSettings
+from espn_api_extractor.base.base_league import BaseLeague
+from espn_api_extractor.base.base_settings import BaseSettings
 from .activity import Activity
 from .box_score import BoxScore, H2HCategoryBoxScore, H2HPointsBoxScore
-from .constant import ACTIVITY_MAP, POSITION_MAP
+from .constants import ACTIVITY_MAP, POSITION_MAP
 from .matchup import Matchup
 from .player import Player
 from .team import Team

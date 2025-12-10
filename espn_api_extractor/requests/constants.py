@@ -1,0 +1,24 @@
+from enum import Enum
+
+FANTASY_BASE_ENDPOINT = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/"
+NEWS_BASE_ENDPOINT = "https://site.api.espn.com/apis/fantasy/v3/games/"
+
+
+class FantasySports(Enum):
+    NFL = "ffl"
+    NBA = "fba"
+    NHL = "fhl"
+    MLB = "flb"
+    WNBA = "wfba"
+
+
+ESPN_CORE_ENDPOINT = "http://sports.core.api.espn.com/v2"
+ESPN_CORE_MLB_ENDPOINT = ESPN_CORE_ENDPOINT + "/sports/baseball/leagues/mlb"
+ESPN_CORE_MLB_PLAYERS_ENDPOINT = ESPN_CORE_MLB_ENDPOINT + "/athletes"
+ESPN_CORE_SPORT_ENDPOINTS = {"mlb": ESPN_CORE_ENDPOINT + "/sports/baseball/leagues/mlb"}
+
+# Statistics endpoints and constants
+# Type 2 = Regular Season, Type 1 = Spring Training
+STAT_SEASON_TYPE = 2
+# Stats category 0 = All Splits
+STAT_CATEGORY = 0

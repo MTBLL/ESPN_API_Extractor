@@ -1,8 +1,0 @@
-from api.baseball.filters import *
-from api.requests.espn_requests import *
-from api.utils.logger import *
-import json
-r = EspnFantasyRequests('mlb','2025',None,{},Logger('dev'))
-players_list = r.get_pro_projections(filter1)
-j = json.dumps(players_list, indent=2, sort_keys=True)
-ohtani = next((player for player in players_list if player.get("fullName") == "Shohei Ohtani"), None)

@@ -1,9 +1,10 @@
 from datetime import datetime
+from typing import Any, Dict, List
 
 from espn_api_extractor.models.player_model import PlayerModel
-from espn_api_extractor.utils.utils import json_parsing
+from espn_api_extractor.utils.utils import json_parsing, safe_get, safe_get_nested
 
-from .constant import NOMINAL_POSITION_MAP, POSITION_MAP, PRO_TEAM_MAP, STATS_MAP
+from .constants import NOMINAL_POSITION_MAP, POSITION_MAP, PRO_TEAM_MAP, STATS_MAP
 
 
 class Player(object):
@@ -35,13 +36,12 @@ class Player(object):
 
         self.injury_status = json_parsing(data, "injuryStatus")
         self.status = json_parsing(data, "status")
-        self.stats: dict = {}
+        self.stats: Dict[str, Any] = {}
         percent_owned_value = json_parsing(data, "percentOwned")
         self.percent_owned = (
             round(percent_owned_value, 2) if percent_owned_value else -1
         )
 
-        player_stats = []
         # Handle case where player info might be missing
         try:
             player = data.get("playerPoolEntry", {}).get("player") or data.get(
@@ -49,9 +49,44 @@ class Player(object):
             )
             self.injury_status = player.get("injuryStatus", self.injury_status)
             self.injured = player.get("injured", False)
-            player_stats = player.get("stats", [])
 
-            # add available stats from player data
+            # Process stats from player data if available
+            if "stats" in player and isinstance(player["stats"], list):
+                current_year = datetime.now().year
+
+                for stat_entry in player["stats"]:
+                    # Filter by current year and season stats (statSplitTypeId 0 or 5)
+                    if (
+                        stat_entry.get("seasonId") == current_year
+                        and stat_entry.get("statSplitTypeId") in [0, 5]
+                    ):
+                        # Use statSplitTypeId as key (0 = season, 5 = projected season)
+                        stat_key = stat_entry.get("statSplitTypeId", 0)
+
+                        if stat_key not in self.stats:
+                            self.stats[stat_key] = {}
+
+                        # Map statSourceId: 0 = actual, 1 = projected
+                        stat_source = stat_entry.get("statSourceId", 0)
+
+                        if stat_source == 0:
+                            # Actual stats
+                            self.stats[stat_key]["points"] = stat_entry.get("appliedTotal", 0)
+                            # Map numeric stat keys to readable names
+                            raw_stats = stat_entry.get("stats", {})
+                            self.stats[stat_key]["breakdown"] = {
+                                STATS_MAP.get(int(k), str(k)): v
+                                for k, v in raw_stats.items()
+                            }
+                        elif stat_source == 1:
+                            # Projected stats
+                            self.stats[stat_key]["projected_points"] = stat_entry.get("appliedTotal", 0)
+                            # Map numeric stat keys to readable names
+                            raw_projected = stat_entry.get("appliedStats", {})
+                            self.stats[stat_key]["projected_breakdown"] = {
+                                STATS_MAP.get(int(k), str(k)): v
+                                for k, v in raw_projected.items()
+                            }
         except (KeyError, TypeError):
             # If we can't get player data, set defaults
             self.injured = False
@@ -59,81 +94,17 @@ class Player(object):
                 data.get("ownership", {}).get("percentOwned", -1), 2
             )
 
-        year = datetime.now().year
-        for stats in player_stats:
-            stats_split_type = stats.get("statSplitTypeId")
-            if stats.get("seasonId") != year or (
-                stats_split_type != 0 and stats_split_type != 5
-            ):
-                continue
-            stats_breakdown = stats.get("stats") or stats.get("appliedStats", {})
-            breakdown = {
-                STATS_MAP.get(int(k), k): v for (k, v) in stats_breakdown.items()
-            }
-            points = round(stats.get("appliedTotal", 0), 2)
-            scoring_period = stats.get("scoringPeriodId")
-            stat_source = stats.get("statSourceId")
-            # TODO update stats to include stat split type (0: Season, 1: Last 7 Days, 2: Last 15 Days, 3: Last 30, 4: ??, 5: ?? Used in Box Scores)
-            (points_type, breakdown_type) = (
-                ("points", "breakdown")
-                if stat_source == 0
-                else ("projected_points", "projected_breakdown")
-            )
-            if self.stats.get(scoring_period):
-                self.stats[scoring_period][points_type] = points
-                self.stats[scoring_period][breakdown_type] = breakdown
-            else:
-                self.stats[scoring_period] = {
-                    points_type: points,
-                    breakdown_type: breakdown,
-                }
-
     def __repr__(self) -> str:
         return "Player(%s)" % (self.name,)
 
     @classmethod
-    def from_model(cls, player_model: PlayerModel):
-        """
-        Create a Player instance from a PlayerModel.
-
-        Args:
-            player_model (PlayerModel): The Pydantic model to convert
-
-        Returns:
-            Player: A new Player instance
-        """
-        # Convert the model to a dict for initialization
-        player_dict = player_model.to_player_dict()
-
-        # Create a new Player instance
-        player = cls(player_dict)
-
-        # Copy fields that might have been missed in initialization
-        if hasattr(player_model, "name") and player_model.name:
-            player.name = player_model.name
-
-        if hasattr(player_model, "pro_team") and player_model.pro_team:
-            player.pro_team = player_model.pro_team
-
-        if hasattr(player_model, "primary_position") and player_model.primary_position:
-            player.primary_position = player_model.primary_position
-
-        if hasattr(player_model, "eligible_slots") and player_model.eligible_slots:
-            # Ensure eligible_slots are always strings
-            player.eligible_slots = [str(slot) for slot in player_model.eligible_slots]
-
-        # Handle special fields not covered by the standard initialization
-        if player_model.stats:
-            player.stats = {}
-            for period, stat in player_model.stats.items():
-                player.stats[period] = {
-                    "points": stat.points,
-                    "projected_points": stat.projected_points,
-                    "breakdown": stat.breakdown,
-                    "projected_breakdown": stat.projected_breakdown,
-                }
-
-        return player
+    def _handle_eligible_slots(
+        cls, player: "Player", player_model: PlayerModel
+    ) -> None:
+        """Handle eligible_slots conversion with type safety."""
+        eligible_slots = getattr(player_model, "eligible_slots", None)
+        if eligible_slots:
+            player.eligible_slots = [str(slot) for slot in eligible_slots]
 
     def to_model(self) -> PlayerModel:
         """
@@ -144,7 +115,96 @@ class Player(object):
         """
         return PlayerModel.from_player(self)
 
-    def hydrate(self, data: dict) -> None:
+    @classmethod
+    def from_model(cls, player_model: PlayerModel) -> "Player":
+        """
+        Create a Player instance from a PlayerModel.
+
+        This enables conversion from validated Pydantic models back to Player objects
+        which contain all the business logic and hydration methods. This is the primary
+        method used by the runner to convert GraphQL PlayerModel objects to Player objects.
+
+        Args:
+            player_model: PlayerModel instance from GraphQL/database
+
+        Returns:
+            Player: A new Player instance with data from the model
+        """
+        # Use the existing to_player_dict method to get properly formatted data
+        player_data = player_model.to_player_dict()
+
+        # Create a new Player instance using the converted data
+        player = cls(player_data)
+
+        # Initialize kona fields to ensure they exist
+        player._initialize_kona_fields()
+
+        # Handle additional fields that the constructor doesn't set automatically
+        # These are fields that come from PlayerModel but aren't in the basic player_data
+        additional_fields = [
+            "injured",
+            "injury_status",
+            "pro_team",
+            "primary_position",
+            "season_outlook",
+            "draft_ranks",
+            "games_played_by_position",
+            "draft_auction_value",
+            "on_team_id",
+            "auction_value_average",
+            "display_name",
+            "short_name",
+            "nickname",
+            "weight",
+            "height",
+            "date_of_birth",
+            "birth_place",
+            "debut_year",
+            "jersey",
+            "headshot",
+            "bats",
+            "throws",
+            "active",
+            "eligible_slots",
+            "season_stats",
+        ]
+
+        for field in additional_fields:
+            value = getattr(player_model, field, None)
+            if value is not None:
+                # Special handling for season_stats - convert Pydantic model to dict
+                if field == "season_stats" and hasattr(value, "model_dump"):
+                    value = value.model_dump()
+                setattr(player, field, value)
+
+        # Handle stats - PlayerModel stats should be preserved
+        if player_model.stats:
+            player.stats = player_model.stats
+
+        # Also handle projection fields stored directly in PlayerModel
+        projection_fields = [
+            "projections",
+            "preseason_stats",
+            "regular_season_stats",
+            "previous_season_stats",
+        ]
+        for field in projection_fields:
+            value = getattr(player_model, field, None)
+            if value:
+                # Convert field name for stats dictionary
+                stats_key = field.replace("_stats", "").replace("_", "_")
+                if field == "projections":
+                    player.stats["projections"] = value
+                elif field == "preseason_stats":
+                    player.stats["preseason"] = value
+                elif field == "regular_season_stats":
+                    player.stats["regular_season"] = value
+                elif field == "previous_season_stats":
+                    player.stats["previous_season"] = value
+
+        return player
+
+    def hydrate_bio(self, data: dict) -> None:
         """
         Hydrates the player object with additional data from the player details API.
 
@@ -193,3 +253,188 @@ class Player(object):
         # Headshot URL if available
         if data.get("headshot"):
             self.headshot = data.get("headshot", {}).get("href")
+
+    def hydrate_statistics(self, data: Dict[str, Any]) -> None:
+        """
+        Hydrates the player object with statistics data from the statistics API.
+
+        Args:
+            data (dict): The statistics data from the ESPN API
+        """
+        # Initialize the statistics dictionary if it doesn't exist
+        if not hasattr(self, "season_stats"):
+            self.season_stats = {}
+
+        # Get the splits data which contains all the statistics
+        splits = data.get("splits", {})
+        if not splits:
+            return
+
+        # Get the split id and name
+        split_id = splits.get("id")
+        split_name = splits.get("name")
+        split_abbreviation = splits.get("abbreviation")
+        split_type = splits.get("type")
+
+        # Store basic split information
+        self.season_stats["split_id"] = split_id
+        self.season_stats["split_name"] = split_name
+        self.season_stats["split_abbreviation"] = split_abbreviation
+        self.season_stats["split_type"] = split_type
+
+        # Initialize categories dictionary
+        self.season_stats["categories"] = {}
+
+        # Process each category (e.g., batting, pitching, fielding)
+        categories = splits.get("categories", [])
+        for category in categories:
+            category_name = category.get("name")
+            if not category_name:
+                continue
+
+            # Get the category display name and summary
+            category_display_name = category.get("displayName", category_name)
+            category_summary = category.get("summary", "")
+
+            # Initialize the category dictionary
+            self.season_stats["categories"][category_name] = {
+                "display_name": category_display_name,
+                "short_display_name": category.get(
+                    "shortDisplayName", category_display_name
+                ),
+                "abbreviation": category.get("abbreviation", ""),
+                "summary": category_summary,
+                "stats": {},
+            }
+
+            # Process each stat in the category
+            stats = category.get("stats", [])
+            for stat in stats:
+                stat_name = stat.get("name")
+                if not stat_name:
+                    continue
+
+                # Store the stat with all its attributes
+                self.season_stats["categories"][category_name]["stats"][stat_name] = {
+                    "display_name": stat.get("displayName", stat_name),
+                    "short_display_name": stat.get("shortDisplayName", stat_name),
+                    "description": stat.get("description", ""),
+                    "abbreviation": stat.get("abbreviation", ""),
+                    "value": stat.get("value"),
+                    "display_value": stat.get("displayValue", ""),
+                    "rank": stat.get("rank"),
+                    "rank_display_value": stat.get("rankDisplayValue", ""),
+                }
+
+    def _initialize_kona_fields(self) -> None:
+        """Initialize all kona_playercard fields with default values."""
+        field_defaults: Dict[str, Any] = {
+            "season_outlook": None,
+            "draft_auction_value": None,
+            "on_team_id": None,
+            "draft_ranks": {},
+            "games_played_by_position": {},
+            "auction_value_average": None,
+        }
+
+        for field, default in field_defaults.items():
+            if not hasattr(self, field):
+                setattr(self, field, default)
+
+        # Initialize stats structure with kona stat keys
+        if not hasattr(self, "stats") or not isinstance(self.stats, dict):
+            self.stats = {}
+
+        # Ensure kona stat keys exist
+        kona_stat_keys = [
+            "projections",
+            "preseason",
+            "regular_season",
+            "previous_season",
+        ]
+        for key in kona_stat_keys:
+            if key not in self.stats:
+                self.stats[key] = {}
+
+    def _extract_games_by_position(self, kona_data: Dict[str, Any]) -> None:
+        """Extract and map games played by position."""
+        games_by_pos = safe_get(kona_data, "gamesPlayedByPosition", {})
+        if games_by_pos:
+            self.games_played_by_position = {
+                str(POSITION_MAP.get(int(pos_id), pos_id)): games
+                for pos_id, games in games_by_pos.items()
+            }
+
+    def _hydrate_kona_stats(self, stats: List[Dict[str, Any]]) -> None:
+        # Process stats array to extract projections and seasonal stats
+        current_year = str(datetime.now().year)
+        previous_year = str(int(current_year) - 1)
+
+        for stat_entry in stats:
+            stat_id = stat_entry.get("id", "")
+            stats_data = stat_entry.get("stats", {})
+
+            # Map numeric stat keys to readable names, skip unknown keys
+            mapped_stats = {}
+            for key, value in stats_data.items():
+                stat_key = int(key)
+                if stat_key in STATS_MAP:
+                    mapped_stats[STATS_MAP[stat_key]] = value
+
+            # Identify stat type based on ID pattern and namespace under stats property
+            if stat_id == f"10{current_year}":  # Projections (102025)
+                self.stats["projections"] = mapped_stats
+            elif stat_id == f"01{current_year}":  # Preseason stats (012025)
+                self.stats["preseason"] = mapped_stats
+            elif stat_id == f"02{current_year}":  # Regular season stats (022025)
+                self.stats["regular_season"] = mapped_stats
+            elif stat_id == f"00{previous_year}":  # Previous season stats (002024)
+                self.stats["previous_season"] = mapped_stats
+
+    def hydrate_kona_playercard(self, player_dict: Dict[str, Any]) -> None:
+        """
+        Hydrates the player object with comprehensive kona_playercard data including projections,
+        seasonal stats, fantasy information, and player outlook from the ESPN kona_playercard API.
+
+        Args:
+            player_dict (dict): The complete player dictionary from kona_playercard API response
+                              containing top-level fields (draftAuctionValue, onTeamId) and
+                              nested 'player' object with seasonOutlook, stats array, etc.
+        """
+        # Initialize all fields first
+        self._initialize_kona_fields()
+
+        # Extract nested player data
+        player_data = player_dict.get("player", {})
+
+        # Define field mappings: (attribute_name, json_key, data_source, default_value)
+        field_mappings: List[tuple[str, str, Dict[str, Any], Any]] = [
+            (
+                "draft_auction_value",
+                "draftAuctionValue",
+                player_dict,
+                None,
+            ),  # top-level
+            ("on_team_id", "onTeamId", player_dict, None),  # top-level
+            ("season_outlook", "seasonOutlook", player_data, None),  # nested in player
+            (
+                "draft_ranks",
+                "draftRanksByRankType",
+                player_data,
+                {},
+            ),  # nested in player
+            ("injured", "injured", player_data, None),  # nested in player
+            ("injury_status", "injuryStatus", player_data, None),  # nested in player
+        ]
+
+        # Apply field mappings
+        for attr_name, json_key, source, default in field_mappings:
+            setattr(self, attr_name, safe_get(source, json_key, default))
+
+        self.auction_value_average = safe_get_nested(
+            player_data, "ownership", "auctionValueAverage", default=None
+        )
+        self._extract_games_by_position(player_data)
+
+        if "stats" in player_data:
+            self._hydrate_kona_stats(player_data["stats"])

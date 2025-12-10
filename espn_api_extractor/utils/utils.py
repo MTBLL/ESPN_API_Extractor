@@ -1,7 +1,7 @@
 # Helper functions for json parsing
 import json
 import os
-from typing import Any, List
+from typing import Any, Dict, List
 
 from espn_api_extractor.models import PlayerModel
 
@@ -44,3 +44,19 @@ def write_models_to_json(
     full_path = os.path.join(output_dir, file_name)
     with open(full_path, "w") as f:
         json.dump(json_list, f, indent=2)
+
+
+def safe_get(data: Dict[str, Any], key: str, default: Any = None) -> Any:
+    """Safely get a value from a dictionary with a default."""
+    return data.get(key, default)
+
+
+def safe_get_nested(data: Dict[str, Any], *keys: str, default: Any = None) -> Any:
+    """Safely get a nested value from a dictionary."""
+    current = data
+    for key in keys:
+        if isinstance(current, dict) and key in current:
+            current = current[key]
+        else:
+            return default
+    return current

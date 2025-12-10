@@ -97,22 +97,22 @@ def test_player_model_from_dict():
     assert model.active is True
     assert model.bats == "Left"
 
-    # Test stats
-    assert model.stats[0].points == 250.5
-    assert model.stats[0].projected_points == 300.0
-    assert model.stats[0].breakdown["HR"] == 25
-    assert model.stats[0].projected_breakdown["AB"] == 600
+    # Test stats (key was converted to string by validator)
+    assert model.stats["0"]["points"] == 250.5
+    assert model.stats["0"]["projected_points"] == 300.0
+    assert model.stats["0"]["breakdown"]["HR"] == 25
+    assert model.stats["0"]["projected_breakdown"]["AB"] == 600
 
 
 def test_player_model_from_player_object(player_data, player_details_data):
     """Test converting a Player object to a PlayerModel and back"""
     # Create and hydrate a Player object
     player = Player(player_data)
-    player.hydrate(player_details_data)
+    player.hydrate_bio(player_details_data)
 
     # Add some stats for testing
     player.stats = {
-        0: {
+        "0": {
             "points": 250.5,
             "projected_points": 300.0,
             "breakdown": {"AB": 550, "H": 175, "HR": 25},
@@ -132,8 +132,8 @@ def test_player_model_from_player_object(player_data, player_details_data):
     assert model.throws == player.throws
 
     # Verify stats conversion
-    assert model.stats[0].points == 250.5
-    assert model.stats[0].breakdown["HR"] == 25
+    assert model.stats["0"]["points"] == 250.5
+    assert model.stats["0"]["breakdown"]["HR"] == 25
 
     # Convert back to dict for Player initialization
     player_dict = model.to_player_dict()
@@ -149,7 +149,7 @@ def test_player_model_json_serialization(player_data, player_details_data):
     """Test JSON serialization and deserialization of PlayerModel"""
     # Create and hydrate a Player object
     player = Player(player_data)
-    player.hydrate(player_details_data)
+    player.hydrate_bio(player_details_data)
 
     # Convert to PlayerModel
     model = PlayerModel.from_player(player)
