@@ -17,7 +17,7 @@ from .constants import ESPN_CORE_SPORT_ENDPOINTS, STAT_CATEGORY, STAT_SEASON_TYP
 
 class EspnCoreRequests:
     def __init__(
-        self, sport: str, year: int, logger: Logger, max_workers: int | None = None
+        self, sport: str, year: int, max_workers: int | None = None
     ):
         try:
             assert sport in ["nfl", "mlb"]
@@ -28,7 +28,7 @@ class EspnCoreRequests:
             print("Invalid sport")
             exit()
 
-        self.logger = logger
+        self.logger = Logger(EspnCoreRequests.__name__)
         self.logger_lock = Lock()  # Thread-safe logging
 
         # Configure default number of workers if not specified (use CPU count)

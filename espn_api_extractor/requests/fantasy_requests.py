@@ -4,7 +4,8 @@ from typing import List
 import requests
 
 from espn_api_extractor.utils.logger import Logger
-from .constants import FANTASY_BASE_ENDPOINT, FANTASY_SPORTS, NEWS_BASE_ENDPOINT
+
+from .constants import FANTASY_BASE_ENDPOINT, NEWS_BASE_ENDPOINT, FantasySports
 from .exceptions import ESPNAccessDenied, ESPNInvalidLeague, ESPNUnknownError
 
 
@@ -13,26 +14,20 @@ class EspnFantasyRequests(object):
         self,
         sport: str,
         year: int,
-        logger: Logger,
         league_id: int | None = None,
         cookies: dict = {},
     ):
-        if sport not in FANTASY_SPORTS:
-            raise Exception(
-                f"Unknown sport: {sport}, available options are {FANTASY_SPORTS.keys()}"
-            )
         self.year: str = str(year)
         self.league_id: str = str(league_id) if league_id else ""
-        self.SPORT_ENDPOINT = FANTASY_BASE_ENDPOINT + FANTASY_SPORTS[sport]
+        sport_code = FantasySports[sport.upper()].value
+        self.SPORT_ENDPOINT = FANTASY_BASE_ENDPOINT + sport_code
         self.SEASON_ENDPOINT = self.SPORT_ENDPOINT + "/seasons/" + str(self.year)
         self.ENDPOINT = (
-            FANTASY_BASE_ENDPOINT + FANTASY_SPORTS[sport] + "/seasons/" + str(self.year)
+            FANTASY_BASE_ENDPOINT + sport_code + "/seasons/" + str(self.year)
         )
-        self.NEWS_ENDPOINT = (
-            NEWS_BASE_ENDPOINT + FANTASY_SPORTS[sport] + "/news/" + "players"
-        )
+        self.NEWS_ENDPOINT = NEWS_BASE_ENDPOINT + sport_code + "/news/" + "players"
         self.cookies = cookies
-        self.logger = logger
+        self.logger = Logger(EspnFantasyRequests.__name__)
 
         self.LEAGUE_ENDPOINT: str
 
