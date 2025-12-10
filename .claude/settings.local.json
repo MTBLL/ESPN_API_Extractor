@@ -1,8 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(poetry run pytest:*)",
-      "Bash(poetry run mypy:*)"
+      "Bash(uv run pytest:*)",
+      "Bash(uv run mypy:*)",
+      "Bash(uv run python:*)",
+      "Bash(uv sync:*)",
+      "Bash(python3 -m py_compile:*)"
     ]
   },
   "enableAllProjectMcpServers": false,
