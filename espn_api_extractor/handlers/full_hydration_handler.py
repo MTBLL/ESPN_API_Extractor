@@ -1,4 +1,4 @@
-from typing import Dict, List, Set
+from typing import Dict, List, Optional, Set
 
 from espn_api_extractor.baseball.player import Player
 from espn_api_extractor.requests import EspnCoreRequests, EspnFantasyRequests
@@ -17,7 +17,11 @@ class FullHydrationHandler:
     """
 
     def __init__(
-        self, league_id: int, year: int, threads: int = None, batch_size: int = 100
+        self,
+        league_id: int,
+        year: int,
+        threads: Optional[int] = None,
+        batch_size: int = 100,
     ):
         self.league_id = league_id
         self.year = year
@@ -27,14 +31,14 @@ class FullHydrationHandler:
 
         # Initialize API requestors
         self.fantasy_requests = EspnFantasyRequests(
-            league_id=self.league_id, sport=FantasySports.MLB, year=self.year
+            league_id=self.league_id, sport=FantasySports.MLB.value, year=self.year
         )
         self.core_requests = EspnCoreRequests(
             sport="mlb", year=self.year, max_workers=self.threads
         )
 
     async def execute(
-        self, player_ids: Set[int], pro_players_data: List[Dict] = None
+        self, player_ids: Set[int], pro_players_data: Optional[List[Dict]] = None
     ) -> List[Player]:
         """
         Execute complete hydration for new players.
@@ -55,7 +59,9 @@ class FullHydrationHandler:
 
         # Filter to only the players we need to hydrate
         players_to_hydrate = []
-        pro_players_map = {p["id"]: p for p in pro_players_data}
+        pro_players_map = (
+            {p["id"]: p for p in pro_players_data} if pro_players_data else {}
+        )
 
         for player_id in player_ids:
             if player_id in pro_players_map:

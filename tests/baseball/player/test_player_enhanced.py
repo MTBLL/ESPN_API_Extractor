@@ -101,7 +101,6 @@ class TestPlayerEnhanced:
             "lineupSlotId": 10,  # RF
         }
 
-    @pytest.mark.skip(reason="TODO: Player constructor stats processing not implemented yet")
     def test_player_with_stats_processing(self, player_stats_data):
         """Test player initialization with stats processing"""
         player = Player(player_stats_data)

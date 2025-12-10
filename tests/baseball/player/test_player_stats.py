@@ -2,8 +2,7 @@
 Unit tests for player statistics functionality.
 """
 
-from unittest.mock import MagicMock, patch
-import pytest
+from unittest.mock import patch
 
 from espn_api_extractor.baseball.player import Player
 from espn_api_extractor.requests.core_requests import EspnCoreRequests
@@ -55,7 +54,6 @@ class TestPlayerStatistics:
         assert fielding["display_name"] == "Fielding"
         assert fielding["stats"]["fieldingPct"]["value"] == 0.99115044
 
-    @pytest.mark.skip(reason="TODO: SeasonStats object conversion in from_model needs fixing")
     def test_player_model_with_stats(self):
         """Test that player statistics are properly included in the PlayerModel."""
         # Create a player and hydrate with statistics
@@ -110,11 +108,8 @@ class TestPlayerStatistics:
         # Create a player
         player = Player(SAMPLE_PLAYER_BASIC_INFO)
 
-        # Create a mock logger
-        mock_logger = MagicMock()
-
-        # Create the core requests object with the mock logger
-        core_requests = EspnCoreRequests(sport="mlb", year=2025, logger=mock_logger)
+        # Create the core requests object
+        core_requests = EspnCoreRequests(sport="mlb", year=2025)
 
         # Call the method to hydrate a player with statistics
         hydrated_player, success = core_requests._hydrate_player_with_stats(player)

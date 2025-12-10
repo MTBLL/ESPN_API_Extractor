@@ -1,4 +1,4 @@
-from typing import Dict, List, Set
+from typing import Dict, List, Optional, Set
 
 from espn_api_extractor.baseball.player import Player
 from espn_api_extractor.requests import EspnCoreRequests, EspnFantasyRequests
@@ -15,7 +15,11 @@ class UpdatePlayerHandler:
     """
 
     def __init__(
-        self, league_id: int, year: int, threads: int = None, batch_size: int = 100
+        self,
+        league_id: int,
+        year: int,
+        threads: Optional[int] = None,
+        batch_size: int = 100,
     ):
         self.league_id = league_id
         self.year = year
@@ -25,7 +29,7 @@ class UpdatePlayerHandler:
 
         # Initialize API requestors
         self.fantasy_requests = EspnFantasyRequests(
-            league_id=self.league_id, sport=FantasySports.MLB, year=self.year
+            league_id=self.league_id, sport=FantasySports.MLB.value, year=self.year
         )
         self.core_requests = EspnCoreRequests(
             sport="mlb", year=self.year, max_workers=self.threads
@@ -34,7 +38,7 @@ class UpdatePlayerHandler:
     async def execute(
         self,
         player_ids: Set[int],
-        pro_players_data: List[Dict] = None,
+        pro_players_data: Optional[List[Dict]] = None,
         include_stats_update: bool = True,
     ) -> List[Player]:
         """
@@ -56,7 +60,9 @@ class UpdatePlayerHandler:
             pro_players_data = self.fantasy_requests.get_pro_players()
 
         # Create map for quick lookup
-        pro_players_map = {p["id"]: p for p in pro_players_data}
+        pro_players_map = (
+            {p["id"]: p for p in pro_players_data} if pro_players_data else {}
+        )
 
         # Step 2: Create/update Player objects with latest data
         updated_players = []
