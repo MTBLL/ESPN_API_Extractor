@@ -36,17 +36,14 @@ class GraphQLClient:
     Implements User Story 4: GraphQL Client with Human-in-the-Loop Validation.
     """
 
-    def __init__(
-        self, config_path: str = "hasura_config.json", logger: Optional[Logger] = None
-    ):
+    def __init__(self, config_path: str = "hasura_config.json"):
         """
         Initialize GraphQL client with configuration.
 
         Args:
             config_path: Path to GraphQL configuration file
-            logger: Optional logger instance
         """
-        self.logger = logger or Logger(GraphQLClient.__name__)
+        self.logger = Logger(GraphQLClient.__name__)
         self.config_path = config_path
         self.endpoint: Optional[str] = None
         self.headers: Dict[str, str] = {}
@@ -330,7 +327,7 @@ class GraphQLClient:
                                     player_data["eligibleSlots"] = json.loads(
                                         player_data["eligibleSlots"]
                                     )
-                                except:
+                                except json.JSONDecodeError:
                                     player_data["eligibleSlots"] = []
 
                             player_model = PlayerModel(**player_data)
