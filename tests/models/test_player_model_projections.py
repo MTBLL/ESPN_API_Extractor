@@ -211,7 +211,10 @@ class TestPlayerModelProjections:
         restored_player = Player.from_model(deserialized_model)
 
         # Verify all projection data survived the round trip
-        assert restored_player.season_outlook == original_player.season_outlook
+        # Player objects store season_outlook in stats dictionary
+        assert restored_player.stats.get("season_outlook") == original_player.stats.get(
+            "season_outlook"
+        )
         # Player objects store projections in stats dictionary
         assert restored_player.stats.get("projections") == original_player.stats.get(
             "projections"
@@ -251,7 +254,27 @@ class TestPlayerModelProjections:
     def test_player_model_projection_fields_are_optional(self):
         """Test that all projection fields are optional in PlayerModel"""
         # Create model with no projection data
-        minimal_model = PlayerModel(id=12345, name="Test Player")
+        minimal_model = PlayerModel(
+            name="Test Player",
+            idEspn=12345,
+            firstName=None,
+            lastName=None,
+            displayName=None,
+            shortName=None,
+            primaryPosition=None,
+            positionName=None,
+            proTeam=None,
+            injuryStatus=None,
+            displayWeight=None,
+            displayHeight=None,
+            dateOfBirth=None,
+            birthPlace=None,
+            debutYear=None,
+            seasonOutlook=None,
+            draftAuctionValue=None,
+            onTeamId=None,
+            auctionValueAverage=None,
+        )
 
         # Should not raise any validation errors
         assert minimal_model.id == 12345
