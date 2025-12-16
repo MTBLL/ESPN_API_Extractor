@@ -65,93 +65,86 @@ class Player(object):
         self.active: bool | None = None
 
         # Handle case where player info might be missing
-        try:
-            player = data.get("playerPoolEntry", {}).get("player") or data.get(
-                "player", {}
-            )
-            self.injury_status = player.get("injuryStatus", self.injury_status)
-            self.injured = player.get("injured", False)
+        player = data.get("playerPoolEntry", {}).get("player") or data.get(
+            "player", {}
+        )
+        self.injury_status = player.get("injuryStatus", self.injury_status)
+        self.injured = player.get("injured", False)
 
-            # Process stats from player data if available
-            if "stats" in player and isinstance(player["stats"], list):
-                current_year = datetime.now().year
-                previous_year = current_year - 1
+        # Process stats from player data if available
+        if "stats" in player and isinstance(player["stats"], list):
+            current_year = datetime.now().year
+            previous_year = current_year - 1
 
-                for stat_entry in player["stats"]:
-                    season_id = stat_entry.get("seasonId")
-                    split_type = stat_entry.get("statSplitTypeId")
-                    stat_source = stat_entry.get("statSourceId", 0)
+            for stat_entry in player["stats"]:
+                season_id = stat_entry.get("seasonId")
+                split_type = stat_entry.get("statSplitTypeId")
+                stat_source = stat_entry.get("statSourceId", 0)
 
-                    # Skip individual game stats (split type 5)
-                    if split_type == 5:
-                        continue
+                # Skip individual game stats (split type 5)
+                if split_type == 5:
+                    continue
 
-                    # Determine stat key based on split type and season
-                    stat_key = None
+                # Determine stat key based on split type and season
+                stat_key = None
 
-                    if season_id == current_year:
-                        # Current year stats
-                        stat_type_map = {
-                            0: "current_season",
-                            1: "last_7_games",
-                            2: "last_15_games",
-                            3: "last_30_games",
-                        }
-                        stat_key = stat_type_map.get(split_type)
+                if season_id == current_year:
+                    # Current year stats
+                    stat_type_map = {
+                        0: "current_season",
+                        1: "last_7_games",
+                        2: "last_15_games",
+                        3: "last_30_games",
+                    }
+                    stat_key = stat_type_map.get(split_type)
 
-                    elif season_id == previous_year and split_type == 0:
-                        # Previous season full stats (only split type 0)
-                        stat_key = "previous_season"
+                elif season_id == previous_year and split_type == 0:
+                    # Previous season full stats (only split type 0)
+                    stat_key = "previous_season"
 
-                    # Skip if we couldn't map the stat type
-                    if not stat_key:
-                        continue
+                # Skip if we couldn't map the stat type
+                if not stat_key:
+                    continue
 
-                    # Initialize stat key if not exists
-                    if stat_key not in self.stats:
-                        self.stats[stat_key] = {}
+                # Initialize stat key if not exists
+                if stat_key not in self.stats:
+                    self.stats[stat_key] = {}
 
-                    # Map statSourceId: 0 = actual, 1 = projected
-                    if stat_source == 0:
-                        # Actual stats
-                        raw_stats = stat_entry.get("stats", {})
-                        mapped_stats = {
-                            STATS_MAP.get(int(k), str(k)): v
-                            for k, v in raw_stats.items()
-                        }
-                        self.stats[stat_key].update(mapped_stats)
+                # Map statSourceId: 0 = actual, 1 = projected
+                if stat_source == 0:
+                    # Actual stats
+                    raw_stats = stat_entry.get("stats", {})
+                    mapped_stats = {
+                        STATS_MAP.get(int(k), str(k)): v
+                        for k, v in raw_stats.items()
+                    }
+                    self.stats[stat_key].update(mapped_stats)
 
-                        # Add fantasy scoring if available
-                        if "appliedTotal" in stat_entry:
-                            if "_fantasy_scoring" not in self.stats[stat_key]:
-                                self.stats[stat_key]["_fantasy_scoring"] = {}
-                            self.stats[stat_key]["_fantasy_scoring"]["applied_total"] = stat_entry.get("appliedTotal", 0)
+                    # Add fantasy scoring if available
+                    if "appliedTotal" in stat_entry:
+                        if "_fantasy_scoring" not in self.stats[stat_key]:
+                            self.stats[stat_key]["_fantasy_scoring"] = {}
+                        self.stats[stat_key]["_fantasy_scoring"]["applied_total"] = stat_entry.get("appliedTotal", 0)
 
-                    elif stat_source == 1:
-                        # Projected stats - store separately under "projections" key
-                        if "projections" not in self.stats:
-                            self.stats["projections"] = {}
+                elif stat_source == 1:
+                    # Projected stats - store separately under "projections" key
+                    if "projections" not in self.stats:
+                        self.stats["projections"] = {}
 
-                        raw_projected = stat_entry.get("appliedStats", {})
-                        mapped_projected = {
-                            STATS_MAP.get(int(k), str(k)): v
-                            for k, v in raw_projected.items()
-                        }
-                        self.stats["projections"].update(mapped_projected)
+                    raw_projected = stat_entry.get("appliedStats", {})
+                    mapped_projected = {
+                        STATS_MAP.get(int(k), str(k)): v
+                        for k, v in raw_projected.items()
+                    }
+                    self.stats["projections"].update(mapped_projected)
 
-                        # Add fantasy scoring for projections
-                        if "_fantasy_scoring" not in self.stats["projections"]:
-                            self.stats["projections"]["_fantasy_scoring"] = {}
-                        if "appliedTotal" in stat_entry:
-                            self.stats["projections"]["_fantasy_scoring"]["applied_total"] = stat_entry.get("appliedTotal", 0)
-                        if "appliedAverage" in stat_entry:
-                            self.stats["projections"]["_fantasy_scoring"]["applied_average"] = stat_entry.get("appliedAverage", 0)
-        except (KeyError, TypeError):
-            # If we can't get player data, set defaults
-            self.injured = False
-            self.percent_owned = round(
-                data.get("ownership", {}).get("percentOwned", -1), 2
-            )
+                    # Add fantasy scoring for projections
+                    if "_fantasy_scoring" not in self.stats["projections"]:
+                        self.stats["projections"]["_fantasy_scoring"] = {}
+                    if "appliedTotal" in stat_entry:
+                        self.stats["projections"]["_fantasy_scoring"]["applied_total"] = stat_entry.get("appliedTotal", 0)
+                    if "appliedAverage" in stat_entry:
+                        self.stats["projections"]["_fantasy_scoring"]["applied_average"] = stat_entry.get("appliedAverage", 0)
 
     def __repr__(self) -> str:
         return "Player(%s)" % (self.name,)
