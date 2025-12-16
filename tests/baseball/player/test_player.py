@@ -134,10 +134,10 @@ def test_player_hydration(player_data, player_details_data):
     # Initialize a player
     player = Player(player_data)
 
-    # Initial state should not have detailed attributes
-    assert not hasattr(player, "display_name")
-    assert not hasattr(player, "short_name")
-    assert not hasattr(player, "date_of_birth")
+    # Initial state should have fields initialized to None
+    assert player.display_name is None
+    assert player.short_name is None
+    assert player.date_of_birth is None
 
     # Hydrate the player
     player.hydrate_bio(player_details_data)
@@ -186,11 +186,11 @@ def test_player_model_conversion(player_data, player_details_data):
     player = Player(player_data)
     player.hydrate_bio(player_details_data)
 
-    # Add some stats for testing (using string keys as expected by PlayerModel)
+    # Add some stats for testing (using semantic keys as expected by PlayerModel)
     player.stats = {
         "projections": {"AB": 600, "H": 190, "HR": 30},
-        "preseason": {"AB": 550, "H": 175, "HR": 25},
-        "regular_season": {"AB": 500, "H": 160, "HR": 22},
+        "current_season": {"AB": 550, "H": 175, "HR": 25},
+        "last_7_games": {"AB": 500, "H": 160, "HR": 22},
         "previous_season": {"AB": 580, "H": 180, "HR": 28},
     }
 
@@ -205,7 +205,7 @@ def test_player_model_conversion(player_data, player_details_data):
 
     # Verify stats conversion
     assert model.stats["projections"]["HR"] == 30
-    assert model.stats["preseason"]["AB"] == 550
+    assert model.stats["current_season"]["AB"] == 550
 
 
 @pytest.fixture
@@ -330,9 +330,9 @@ def test_player_from_model_with_hasura_fixture(hasura_fixture_data):
             assert isinstance(games, int)
         assert isinstance(player_model.auction_value_average, (float, type(None)))
         
-        # Statistics - kona stats with 4 specific keys
+        # Statistics - kona stats with semantic keys
         assert isinstance(player_model.stats, dict)
-        expected_stat_keys = {"projections", "preseason", "regular_season", "previous_season"}
+        expected_stat_keys = {"projections", "current_season", "previous_season", "last_7_games", "last_15_games", "last_30_games"}
         for key in player_model.stats.keys():
             assert key in expected_stat_keys or isinstance(key, str)
             assert isinstance(player_model.stats[key], dict)

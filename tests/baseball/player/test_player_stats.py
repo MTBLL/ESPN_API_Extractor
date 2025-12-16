@@ -15,7 +15,7 @@ from tests.baseball.test_stats_fixtures import (
 class TestPlayerStatistics:
     """Test player statistics functionality."""
 
-    def test_player_hydrate_statistics(self):
+    def test_player_hydrate_stats(self):
         """Test that a player can be hydrated with statistics data."""
         # Create a player
         player = Player(SAMPLE_PLAYER_BASIC_INFO)
@@ -24,21 +24,21 @@ class TestPlayerStatistics:
         assert player.id == 42404
         assert player.name == "Test Player"
 
-        # Call the hydrate_statistics method
-        player.hydrate_statistics(SAMPLE_PLAYER_STATS_RESPONSE)
+        # Call the hydrate_stats method
+        player.hydrate_stats(SAMPLE_PLAYER_STATS_RESPONSE)
 
-        # Verify the player now has statistics
-        assert hasattr(player, "season_stats")
-        assert player.season_stats["split_id"] == "0"
-        assert player.season_stats["split_name"] == "All Splits"
+        # Verify the player now has statistics in the stats dict
+        assert "split_id" in player.stats
+        assert player.stats["split_id"] == "0"
+        assert player.stats["split_name"] == "All Splits"
 
         # Check the categories were added
-        assert "categories" in player.season_stats
-        assert "batting" in player.season_stats["categories"]
-        assert "fielding" in player.season_stats["categories"]
+        assert "categories" in player.stats
+        assert "batting" in player.stats["categories"]
+        assert "fielding" in player.stats["categories"]
 
         # Check specific batting stats
-        batting = player.season_stats["categories"]["batting"]
+        batting = player.stats["categories"]["batting"]
         assert batting["display_name"] == "Batting"
         assert (
             batting["summary"]
@@ -50,7 +50,7 @@ class TestPlayerStatistics:
         assert batting["stats"]["avg"]["display_value"] == ".279"
 
         # Check fielding stats
-        fielding = player.season_stats["categories"]["fielding"]
+        fielding = player.stats["categories"]["fielding"]
         assert fielding["display_name"] == "Fielding"
         assert fielding["stats"]["fieldingPct"]["value"] == 0.99115044
 
@@ -58,42 +58,42 @@ class TestPlayerStatistics:
         """Test that player statistics are properly included in the PlayerModel."""
         # Create a player and hydrate with statistics
         player = Player(SAMPLE_PLAYER_BASIC_INFO)
-        player.hydrate_statistics(SAMPLE_PLAYER_STATS_RESPONSE)
+        player.hydrate_stats(SAMPLE_PLAYER_STATS_RESPONSE)
 
         # Convert to model
         model = player.to_model()
 
-        # Verify model has statistics
-        assert model.season_stats is not None
-        assert model.season_stats.split_id == "0"
-        assert model.season_stats.split_name == "All Splits"
+        # Verify model has statistics in the stats dict
+        assert model.stats is not None
+        assert "split_id" in model.stats
+        assert model.stats["split_id"] == "0"
+        assert model.stats["split_name"] == "All Splits"
 
         # Check categories in model
-        assert len(model.season_stats.categories) == 2
-        assert "batting" in model.season_stats.categories
-        assert "fielding" in model.season_stats.categories
+        assert "categories" in model.stats
+        assert len(model.stats["categories"]) == 2
+        assert "batting" in model.stats["categories"]
+        assert "fielding" in model.stats["categories"]
 
         # Check specific stat values in model
-        # Access the categories, which is a dictionary of StatCategory objects
-        # The StatCategory objects have display_name and stats attributes
-        assert "batting" in model.season_stats.categories
-        batting = model.season_stats.categories["batting"]
-        assert batting.display_name == "Batting"
+        assert "batting" in model.stats["categories"]
+        batting = model.stats["categories"]["batting"]
+        assert batting["display_name"] == "Batting"
 
-        # The stats attribute of a StatCategory is a dictionary of StatDetail objects
-        assert "homeRuns" in batting.stats
-        assert batting.stats["homeRuns"].value == 14.0
-        assert "avg" in batting.stats
-        assert batting.stats["avg"].display_value == ".279"
+        # The stats dict contains nested dictionaries
+        assert "homeRuns" in batting["stats"]
+        assert batting["stats"]["homeRuns"]["value"] == 14.0
+        assert "avg" in batting["stats"]
+        assert batting["stats"]["avg"]["display_value"] == ".279"
 
         # Convert back to player
         player2 = Player.from_model(model)
 
-        # Verify statistics were preserved
-        assert hasattr(player2, "season_stats")
-        assert player2.season_stats["split_id"] == "0"
+        # Verify statistics were preserved in the stats dict
+        assert "split_id" in player2.stats
+        assert player2.stats["split_id"] == "0"
         assert (
-            player2.season_stats["categories"]["batting"]["stats"]["homeRuns"]["value"]
+            player2.stats["categories"]["batting"]["stats"]["homeRuns"]["value"]
             == 14.0
         )
 
@@ -116,10 +116,10 @@ class TestPlayerStatistics:
 
         # Verify the result
         assert success is True
-        assert hasattr(hydrated_player, "season_stats")
-        assert hydrated_player.season_stats["split_name"] == "All Splits"
+        assert "split_name" in hydrated_player.stats
+        assert hydrated_player.stats["split_name"] == "All Splits"
         assert (
-            hydrated_player.season_stats["categories"]["batting"]["stats"]["homeRuns"][
+            hydrated_player.stats["categories"]["batting"]["stats"]["homeRuns"][
                 "value"
             ]
             == 14.0

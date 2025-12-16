@@ -78,7 +78,7 @@ class PlayerModel(BaseModel):
     injury_status: Optional[str] = Field(None, alias="injuryStatus")
     status: Optional[str] = None
     injured: bool = False
-    active: bool = False
+    active: Optional[bool] = False
 
     # Ownership statistics
     percent_owned: float = -1
@@ -106,12 +106,14 @@ class PlayerModel(BaseModel):
 
     # Projections and outlook
     season_outlook: Optional[str] = Field(None, alias="seasonOutlook")
-    
-    # Direct projection fields for easy access
+
+    # Direct stat fields for easy access (semantic keys)
     projections: Dict[str, Any] = Field(default_factory=dict)
-    preseason_stats: Dict[str, Any] = Field(default_factory=dict)
-    regular_season_stats: Dict[str, Any] = Field(default_factory=dict)
+    current_season_stats: Dict[str, Any] = Field(default_factory=dict)
     previous_season_stats: Dict[str, Any] = Field(default_factory=dict)
+    last_7_games: Dict[str, Any] = Field(default_factory=dict)
+    last_15_games: Dict[str, Any] = Field(default_factory=dict)
+    last_30_games: Dict[str, Any] = Field(default_factory=dict)
 
     # Fantasy and draft information from kona_playercard
     draft_auction_value: Optional[float] = Field(None, alias="draftAuctionValue")
@@ -122,8 +124,9 @@ class PlayerModel(BaseModel):
     )
     auction_value_average: Optional[float] = Field(None, alias="auctionValueAverage")
 
-    # Statistics - kona stats with 4 specific keys: projections, preseason, regular_season, previous_season
-    stats: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+    # Statistics - kona stats with semantic keys: projections, current_season, previous_season, last_7_games, last_15_games, last_30_games
+    # Also includes split_id, split_name, split_abbreviation, split_type, categories from season stats
+    stats: Dict[str, Any] = Field(default_factory=dict)
 
     # Season statistics from the statistics endpoint
     season_stats: Optional[SeasonStats] = None
@@ -182,19 +185,23 @@ class PlayerModel(BaseModel):
             else:
                 data[key] = value
 
-        # Convert stats dictionary - now only contains kona stats with 4 specific keys
+        # Convert stats dictionary - contains kona stats with semantic keys
         if hasattr(player, "stats") and player.stats:
             data["stats"] = player.stats
-            
-            # Also populate direct projection fields for easy access
+
+            # Also populate direct stat fields for easy access
             if "projections" in player.stats:
                 data["projections"] = player.stats["projections"]
-            if "preseason" in player.stats:
-                data["preseason_stats"] = player.stats["preseason"]
-            if "regular_season" in player.stats:
-                data["regular_season_stats"] = player.stats["regular_season"]
+            if "current_season" in player.stats:
+                data["current_season_stats"] = player.stats["current_season"]
             if "previous_season" in player.stats:
                 data["previous_season_stats"] = player.stats["previous_season"]
+            if "last_7_games" in player.stats:
+                data["last_7_games"] = player.stats["last_7_games"]
+            if "last_15_games" in player.stats:
+                data["last_15_games"] = player.stats["last_15_games"]
+            if "last_30_games" in player.stats:
+                data["last_30_games"] = player.stats["last_30_games"]
 
         # Convert season_stats dictionary to use SeasonStats model
         if hasattr(player, "season_stats") and player.season_stats:
@@ -289,7 +296,7 @@ class PlayerModel(BaseModel):
                     int_key = int(key)
                     stats_with_int_keys[int_key] = value
                 except ValueError:
-                    # Keep string keys that aren't numeric (like "projections", "preseason", etc.)
+                    # Keep string keys that aren't numeric (like "projections", "current_season", "last_7_games", etc.)
                     stats_with_int_keys[key] = value
             data["stats"] = stats_with_int_keys
 
