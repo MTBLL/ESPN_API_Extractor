@@ -26,7 +26,6 @@ requestor = EspnFantasyRequests(
     year=2025,
     league_id=None,  # Set league_id for specific league data
     cookies={},      # For private leagues, provide espn_s2 and SWID cookies
-    logger=logger,
 )
 
 # Get all professional players
@@ -53,7 +52,6 @@ from espn_api_extractor.requests.core_requests import EspnCoreRequests
 core_requestor = EspnCoreRequests(
     sport="mlb",
     year=2025,
-    logger=logger,
     max_workers=32,  # Optional: Number of threads to use for player hydration (default: min(32, 4 * CPU cores))
 )
 
