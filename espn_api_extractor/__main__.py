@@ -26,13 +26,13 @@ def create_player_parser(subparsers):
         help="Number of threads to use for player hydration (default: 4x CPU cores)",
     )
     player_parser.add_argument(
-        "--batch-size",
+        "--batch_size",
         type=int,
         default=100,
         help="Number of players to process in each batch for progress tracking (default: 100)",
     )
     player_parser.add_argument(
-        "--as-models",
+        "--as_models",
         action="store_true",
         help="Return Pydantic models instead of Player objects (default: False)",
     )
@@ -43,18 +43,18 @@ def create_player_parser(subparsers):
         help="Directory path to write JSON output",
     )
     player_parser.add_argument(
-        "--force-full-extraction",
+        "--force_full_extraction",
         action="store_true",
         help="Force full ESPN extraction, bypassing GraphQL optimization (default: False)",
     )
     player_parser.add_argument(
-        "--graphql-config",
+        "--graphql_config",
         type=str,
         default="hasura_config.json",
         help="Path to GraphQL configuration file (default: hasura_config.json)",
     )
     player_parser.add_argument(
-        "--sample-size",
+        "--sample_size",
         type=int,
         help="Optional maximum number of players to process",
     )
@@ -89,8 +89,7 @@ async def main():
 
 def cli_main():
     """Synchronous entry point for console script."""
-    result = asyncio.run(main())
-    return result
+    asyncio.run(main())
 
 
 if __name__ == "__main__":

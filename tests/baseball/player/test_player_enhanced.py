@@ -103,12 +103,19 @@ class TestPlayerEnhanced:
 
     def test_player_with_stats_processing(self, player_stats_data):
         """Test player initialization with stats processing"""
+        from datetime import datetime
+
         player = Player(player_stats_data)
 
         # Verify stats are processed correctly with readable keys
+        # Use dynamic key for previous_season (e.g., "previous_season_24")
+        current_year = datetime.now().year
+        previous_year = current_year - 1
+        previous_season_key = f"previous_season_{str(previous_year)[-2:]}"
+
         assert "current_season" in player.stats
         assert "last_7_games" in player.stats
-        assert "previous_season" in player.stats
+        assert previous_season_key in player.stats
         assert "projections" in player.stats
 
         # Verify current season stats

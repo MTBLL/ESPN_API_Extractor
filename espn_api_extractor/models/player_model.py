@@ -107,14 +107,6 @@ class PlayerModel(BaseModel):
     # Projections and outlook
     season_outlook: Optional[str] = Field(None, alias="seasonOutlook")
 
-    # Direct stat fields for easy access (semantic keys)
-    projections: Dict[str, Any] = Field(default_factory=dict)
-    current_season_stats: Dict[str, Any] = Field(default_factory=dict)
-    previous_season_stats: Dict[str, Any] = Field(default_factory=dict)
-    last_7_games: Dict[str, Any] = Field(default_factory=dict)
-    last_15_games: Dict[str, Any] = Field(default_factory=dict)
-    last_30_games: Dict[str, Any] = Field(default_factory=dict)
-
     # Fantasy and draft information from kona_playercard
     draft_auction_value: Optional[float] = Field(None, alias="draftAuctionValue")
     on_team_id: Optional[int] = Field(None, alias="onTeamId")
@@ -188,20 +180,6 @@ class PlayerModel(BaseModel):
         # Convert stats dictionary - contains kona stats with semantic keys
         if hasattr(player, "stats") and player.stats:
             data["stats"] = player.stats
-
-            # Also populate direct stat fields for easy access
-            if "projections" in player.stats:
-                data["projections"] = player.stats["projections"]
-            if "current_season" in player.stats:
-                data["current_season_stats"] = player.stats["current_season"]
-            if "previous_season" in player.stats:
-                data["previous_season_stats"] = player.stats["previous_season"]
-            if "last_7_games" in player.stats:
-                data["last_7_games"] = player.stats["last_7_games"]
-            if "last_15_games" in player.stats:
-                data["last_15_games"] = player.stats["last_15_games"]
-            if "last_30_games" in player.stats:
-                data["last_30_games"] = player.stats["last_30_games"]
 
         # Convert season_stats dictionary to use SeasonStats model
         if hasattr(player, "season_stats") and player.season_stats:

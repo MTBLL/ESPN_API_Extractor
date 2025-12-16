@@ -92,9 +92,14 @@ class PlayerExtractRunner:
 
         # Save players to JSON
         players_file = os.path.join(
-            self.args.output_dir, f"players_{self.args.year}_{timestamp}.json"
+            self.args.output_dir, f"espn_players_{self.args.year}_{timestamp}.json"
         )
-        players_data = [player.to_model().model_dump() for player in players]
+
+        # Sort players by percent owned (descending) before saving
+        sorted_players = sorted(
+            players, key=lambda p: p.percent_owned if p.percent_owned > 0 else -1, reverse=True
+        )
+        players_data = [player.to_model().model_dump() for player in sorted_players]
 
         with open(players_file, "w") as f:
             json.dump(players_data, f, indent=2)
