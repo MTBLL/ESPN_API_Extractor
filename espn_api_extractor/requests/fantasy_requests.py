@@ -168,6 +168,12 @@ class EspnFantasyRequests(object):
         filters = {
             "players": {
                 "filterIds": {"value": player_ids},
+                "sortAppliedStatTotal": {
+                    "sortAsc": False,
+                    "sortPriority": 1,
+                    "value": f"10{self.year}",
+                },
+                "sortPercOwned": {"sortAsc": False, "sortPriority": 2},
                 "filterStatsForTopScoringPeriodIds": {
                     "value": 1,
                     "additionalValue": additional_value,
@@ -176,7 +182,9 @@ class EspnFantasyRequests(object):
         }
 
         headers = {"x-fantasy-filter": json.dumps(filters)}
-        data = self._get(extend="/segments/0/leaguedefaults/1", params=params, headers=headers)
+        data = self._get(
+            extend="/segments/0/leaguedefaults/1", params=params, headers=headers
+        )
         return data
 
     def get_league_draft(self):

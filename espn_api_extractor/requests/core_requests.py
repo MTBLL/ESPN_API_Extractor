@@ -16,9 +16,7 @@ from .constants import ESPN_CORE_SPORT_ENDPOINTS, STAT_CATEGORY, STAT_SEASON_TYP
 
 
 class EspnCoreRequests:
-    def __init__(
-        self, sport: str, year: int, max_workers: int | None = None
-    ):
+    def __init__(self, sport: str, year: int, max_workers: int | None = None):
         try:
             assert sport in ["nfl", "mlb"]
             self.sport = sport
@@ -61,7 +59,8 @@ class EspnCoreRequests:
         # Use thread-safe logging
         with self.logger_lock:
             if status == 404:
-                self.logger.logging.warning(f"Endpoint not found: {extend}")
+                pass
+                # self.logger.logging.warning(f"Endpoint not found: {extend}")
             elif status == 429:
                 self.logger.logging.warning("Rate limit exceeded")
             elif status == 500:
@@ -203,9 +202,10 @@ class EspnCoreRequests:
                         r.status_code, extend=endpoint, params=params
                     )
                     with self.logger_lock:
-                        self.logger.logging.warning(
-                            f"Failed to fetch statistics for player {player_id} (attempt {retries + 1}/{max_retries}): HTTP {r.status_code}"
-                        )
+                        pass
+                        # self.logger.logging.warning(
+                        #     f"Failed to fetch statistics for player {player_id} (attempt {retries + 1}/{max_retries}): HTTP {r.status_code}"
+                        # )
 
                     # Don't retry 404 errors - player ID doesn't exist
                     if r.status_code == 404:

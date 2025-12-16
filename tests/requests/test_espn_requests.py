@@ -73,3 +73,25 @@ def test_get_pro_players_structure(espn_request):
     # Print sample data for reference/debugging
     print(f"Example player data: {player}")
     print(f"Total players retrieved: {len(players)}")
+
+
+def test_get_player_cards_structure(espn_request):
+    players = espn_request.get_player_cards(player_ids=[39832, 42404])
+    assert len(players) > 0, "Expected at least one player in the response"
+
+    # Get the first player to validate structure
+    player = players["players"][0]
+
+    # Test that the required fields exist
+    required_fields = [
+        "defaultPositionId",
+        "eligibleSlots",
+        "firstName",
+        "fullName",
+        "id",
+        "lastName",
+        "proTeamId",
+    ]
+
+    for field in required_fields:
+        assert field in player["player"], f"{field} field is missing"

@@ -65,9 +65,7 @@ class Player(object):
         self.active: bool | None = None
 
         # Handle case where player info might be missing
-        player = data.get("playerPoolEntry", {}).get("player") or data.get(
-            "player", {}
-        )
+        player = data.get("playerPoolEntry", {}).get("player") or data.get("player", {})
         self.injury_status = player.get("injuryStatus", self.injury_status)
         self.injured = player.get("injured", False)
 
@@ -116,8 +114,7 @@ class Player(object):
                     # Actual stats
                     raw_stats = stat_entry.get("stats", {})
                     mapped_stats = {
-                        STATS_MAP.get(int(k), str(k)): v
-                        for k, v in raw_stats.items()
+                        STATS_MAP.get(int(k), str(k)): v for k, v in raw_stats.items()
                     }
                     self.stats[stat_key].update(mapped_stats)
 
@@ -125,7 +122,9 @@ class Player(object):
                     if "appliedTotal" in stat_entry:
                         if "_fantasy_scoring" not in self.stats[stat_key]:
                             self.stats[stat_key]["_fantasy_scoring"] = {}
-                        self.stats[stat_key]["_fantasy_scoring"]["applied_total"] = stat_entry.get("appliedTotal", 0)
+                        self.stats[stat_key]["_fantasy_scoring"]["applied_total"] = (
+                            stat_entry.get("appliedTotal", 0)
+                        )
 
                 elif stat_source == 1:
                     # Projected stats - store separately under "projections" key
@@ -143,9 +142,13 @@ class Player(object):
                     if "_fantasy_scoring" not in self.stats["projections"]:
                         self.stats["projections"]["_fantasy_scoring"] = {}
                     if "appliedTotal" in stat_entry:
-                        self.stats["projections"]["_fantasy_scoring"]["applied_total"] = stat_entry.get("appliedTotal", 0)
+                        self.stats["projections"]["_fantasy_scoring"][
+                            "applied_total"
+                        ] = stat_entry.get("appliedTotal", 0)
                     if "appliedAverage" in stat_entry:
-                        self.stats["projections"]["_fantasy_scoring"]["applied_average"] = stat_entry.get("appliedAverage", 0)
+                        self.stats["projections"]["_fantasy_scoring"][
+                            "applied_average"
+                        ] = stat_entry.get("appliedAverage", 0)
 
     def __repr__(self) -> str:
         return "Player(%s)" % (self.name,)
@@ -308,12 +311,8 @@ class Player(object):
         Args:
             data (dict): The stats data from the ESPN API
         """
-        # Initialize detailed stats entry in the stats dict
         if not hasattr(self, "stats") or not isinstance(self.stats, dict):
             self.stats = {}
-
-        if "detailed" not in self.stats:
-            self.stats["detailed"] = {}
 
         # Get the splits data which contains all the statistics
         splits = data.get("splits", {})
@@ -478,9 +477,13 @@ class Player(object):
                 if applied_total is not None or applied_average is not None:
                     self.stats[stat_key]["_fantasy_scoring"] = {}
                     if applied_total is not None:
-                        self.stats[stat_key]["_fantasy_scoring"]["applied_total"] = applied_total
+                        self.stats[stat_key]["_fantasy_scoring"]["applied_total"] = (
+                            applied_total
+                        )
                     if applied_average is not None:
-                        self.stats[stat_key]["_fantasy_scoring"]["applied_average"] = applied_average
+                        self.stats[stat_key]["_fantasy_scoring"]["applied_average"] = (
+                            applied_average
+                        )
 
             elif stat_id == f"00{current_year}":  # Current season full stats (002025)
                 stat_key = "current_season"
@@ -509,7 +512,9 @@ class Player(object):
             if stat_key and stat_key != "projections" and applied_total is not None:
                 if "_fantasy_scoring" not in self.stats[stat_key]:
                     self.stats[stat_key]["_fantasy_scoring"] = {}
-                self.stats[stat_key]["_fantasy_scoring"]["applied_total"] = applied_total
+                self.stats[stat_key]["_fantasy_scoring"]["applied_total"] = (
+                    applied_total
+                )
 
     def hydrate_kona_playercard(self, player_dict: Dict[str, Any]) -> None:
         """
