@@ -78,19 +78,37 @@ class FullHydrationHandler:
             return []
 
         # Step 2: Hydrate with kona_playercard data (projections, outlook, etc.)
+        # Batch requests to avoid HTTP 494 (Request header too large) errors
         self.logger.logging.info("Hydrating with kona_playercard data")
-        kona_data = self.fantasy_requests.get_player_cards(list(player_ids))
+        kona_batch_size = 100  # ESPN can handle ~100 player IDs per request
+        player_ids_list = list(player_ids)
+        kona_players_map = {}
 
-        if kona_data and "players" in kona_data:
-            kona_players_map = {p["id"]: p for p in kona_data["players"]}
-            for player in players_to_hydrate:
-                if player.id in kona_players_map:
-                    try:
-                        player.hydrate_kona_playercard(kona_players_map[player.id])
-                    except Exception as e:
-                        self.logger.logging.warning(
-                            f"Failed to hydrate player {player.id} with kona data: {e}"
-                        )
+        for i in range(0, len(player_ids_list), kona_batch_size):
+            batch = player_ids_list[i : i + kona_batch_size]
+            self.logger.logging.info(
+                f"Fetching kona_playercard batch {i // kona_batch_size + 1}/{(len(player_ids_list) + kona_batch_size - 1) // kona_batch_size} "
+                f"({len(batch)} players)"
+            )
+            try:
+                kona_data = self.fantasy_requests.get_player_cards(batch)
+                if kona_data and "players" in kona_data:
+                    for p in kona_data["players"]:
+                        kona_players_map[p["id"]] = p
+            except Exception as e:
+                self.logger.logging.warning(
+                    f"Failed to fetch kona_playercard batch starting at index {i}: {e}"
+                )
+
+        # Hydrate players with kona data
+        for player in players_to_hydrate:
+            if player.id in kona_players_map:
+                try:
+                    player.hydrate_kona_playercard(kona_players_map[player.id])
+                except Exception as e:
+                    self.logger.logging.warning(
+                        f"Failed to hydrate player {player.id} with kona data: {e}"
+                    )
 
         # Step 3: Multi-threaded hydration with bio + stats from Core API
         self.logger.logging.info("Hydrating with bio and stats data from Core API")
