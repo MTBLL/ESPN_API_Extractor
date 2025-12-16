@@ -31,7 +31,7 @@ class FullHydrationHandler:
 
         # Initialize API requestors
         self.fantasy_requests = EspnFantasyRequests(
-            league_id=self.league_id, sport=FantasySports.MLB.value, year=self.year
+            league_id=self.league_id, sport=FantasySports.MLB, year=self.year
         )
         self.core_requests = EspnCoreRequests(
             sport="mlb", year=self.year, max_workers=self.threads

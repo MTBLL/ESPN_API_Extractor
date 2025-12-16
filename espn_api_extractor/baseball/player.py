@@ -42,57 +42,109 @@ class Player(object):
             round(percent_owned_value, 2) if percent_owned_value else -1
         )
 
+        # Initialize all additional fields with appropriate empty/default values
+        self.injured: bool = False
+        self.season_outlook: str | None = None
+        self.draft_ranks: Dict[str, Any] = {}
+        self.games_played_by_position: Dict[str, int] = {}
+        self.draft_auction_value: int | None = None
+        self.on_team_id: int | None = None
+        self.auction_value_average: float | None = None
+        self.display_name: str | None = None
+        self.short_name: str | None = None
+        self.nickname: str | None = None
+        self.weight: int | None = None
+        self.height: str | None = None
+        self.date_of_birth: str | None = None
+        self.birth_place: str | None = None
+        self.debut_year: int | None = None
+        self.jersey: str | None = None
+        self.headshot: str | None = None
+        self.bats: str | None = None
+        self.throws: str | None = None
+        self.active: bool | None = None
+
         # Handle case where player info might be missing
-        try:
-            player = data.get("playerPoolEntry", {}).get("player") or data.get(
-                "player", {}
-            )
-            self.injury_status = player.get("injuryStatus", self.injury_status)
-            self.injured = player.get("injured", False)
+        player = data.get("playerPoolEntry", {}).get("player") or data.get(
+            "player", {}
+        )
+        self.injury_status = player.get("injuryStatus", self.injury_status)
+        self.injured = player.get("injured", False)
 
-            # Process stats from player data if available
-            if "stats" in player and isinstance(player["stats"], list):
-                current_year = datetime.now().year
+        # Process stats from player data if available
+        if "stats" in player and isinstance(player["stats"], list):
+            current_year = datetime.now().year
+            previous_year = current_year - 1
 
-                for stat_entry in player["stats"]:
-                    # Filter by current year and season stats (statSplitTypeId 0 or 5)
-                    if (
-                        stat_entry.get("seasonId") == current_year
-                        and stat_entry.get("statSplitTypeId") in [0, 5]
-                    ):
-                        # Use statSplitTypeId as key (0 = season, 5 = projected season)
-                        stat_key = stat_entry.get("statSplitTypeId", 0)
+            for stat_entry in player["stats"]:
+                season_id = stat_entry.get("seasonId")
+                split_type = stat_entry.get("statSplitTypeId")
+                stat_source = stat_entry.get("statSourceId", 0)
 
-                        if stat_key not in self.stats:
-                            self.stats[stat_key] = {}
+                # Skip individual game stats (split type 5)
+                if split_type == 5:
+                    continue
 
-                        # Map statSourceId: 0 = actual, 1 = projected
-                        stat_source = stat_entry.get("statSourceId", 0)
+                # Determine stat key based on split type and season
+                stat_key = None
 
-                        if stat_source == 0:
-                            # Actual stats
-                            self.stats[stat_key]["points"] = stat_entry.get("appliedTotal", 0)
-                            # Map numeric stat keys to readable names
-                            raw_stats = stat_entry.get("stats", {})
-                            self.stats[stat_key]["breakdown"] = {
-                                STATS_MAP.get(int(k), str(k)): v
-                                for k, v in raw_stats.items()
-                            }
-                        elif stat_source == 1:
-                            # Projected stats
-                            self.stats[stat_key]["projected_points"] = stat_entry.get("appliedTotal", 0)
-                            # Map numeric stat keys to readable names
-                            raw_projected = stat_entry.get("appliedStats", {})
-                            self.stats[stat_key]["projected_breakdown"] = {
-                                STATS_MAP.get(int(k), str(k)): v
-                                for k, v in raw_projected.items()
-                            }
-        except (KeyError, TypeError):
-            # If we can't get player data, set defaults
-            self.injured = False
-            self.percent_owned = round(
-                data.get("ownership", {}).get("percentOwned", -1), 2
-            )
+                if season_id == current_year:
+                    # Current year stats
+                    stat_type_map = {
+                        0: "current_season",
+                        1: "last_7_games",
+                        2: "last_15_games",
+                        3: "last_30_games",
+                    }
+                    stat_key = stat_type_map.get(split_type)
+
+                elif season_id == previous_year and split_type == 0:
+                    # Previous season full stats (only split type 0)
+                    stat_key = "previous_season"
+
+                # Skip if we couldn't map the stat type
+                if not stat_key:
+                    continue
+
+                # Initialize stat key if not exists
+                if stat_key not in self.stats:
+                    self.stats[stat_key] = {}
+
+                # Map statSourceId: 0 = actual, 1 = projected
+                if stat_source == 0:
+                    # Actual stats
+                    raw_stats = stat_entry.get("stats", {})
+                    mapped_stats = {
+                        STATS_MAP.get(int(k), str(k)): v
+                        for k, v in raw_stats.items()
+                    }
+                    self.stats[stat_key].update(mapped_stats)
+
+                    # Add fantasy scoring if available
+                    if "appliedTotal" in stat_entry:
+                        if "_fantasy_scoring" not in self.stats[stat_key]:
+                            self.stats[stat_key]["_fantasy_scoring"] = {}
+                        self.stats[stat_key]["_fantasy_scoring"]["applied_total"] = stat_entry.get("appliedTotal", 0)
+
+                elif stat_source == 1:
+                    # Projected stats - store separately under "projections" key
+                    if "projections" not in self.stats:
+                        self.stats["projections"] = {}
+
+                    raw_projected = stat_entry.get("appliedStats", {})
+                    mapped_projected = {
+                        STATS_MAP.get(int(k), str(k)): v
+                        for k, v in raw_projected.items()
+                    }
+                    self.stats["projections"].update(mapped_projected)
+
+                    # Add fantasy scoring for projections
+                    if "_fantasy_scoring" not in self.stats["projections"]:
+                        self.stats["projections"]["_fantasy_scoring"] = {}
+                    if "appliedTotal" in stat_entry:
+                        self.stats["projections"]["_fantasy_scoring"]["applied_total"] = stat_entry.get("appliedTotal", 0)
+                    if "appliedAverage" in stat_entry:
+                        self.stats["projections"]["_fantasy_scoring"]["applied_average"] = stat_entry.get("appliedAverage", 0)
 
     def __repr__(self) -> str:
         return "Player(%s)" % (self.name,)
@@ -141,6 +193,8 @@ class Player(object):
 
         # Handle additional fields that the constructor doesn't set automatically
         # These are fields that come from PlayerModel but aren't in the basic player_data
+        # Note: These fields are now initialized in __init__ with defaults, so we only
+        # need to overwrite them if the PlayerModel has non-None values
         additional_fields = [
             "injured",
             "injury_status",
@@ -166,41 +220,33 @@ class Player(object):
             "throws",
             "active",
             "eligible_slots",
-            "season_stats",
         ]
 
         for field in additional_fields:
             value = getattr(player_model, field, None)
             if value is not None:
-                # Special handling for season_stats - convert Pydantic model to dict
-                if field == "season_stats" and hasattr(value, "model_dump"):
-                    value = value.model_dump()
                 setattr(player, field, value)
 
         # Handle stats - PlayerModel stats should be preserved
         if player_model.stats:
             player.stats = player_model.stats
 
-        # Also handle projection fields stored directly in PlayerModel
-        projection_fields = [
+        # Handle stat fields stored directly in PlayerModel
+        stat_fields = [
             "projections",
-            "preseason_stats",
-            "regular_season_stats",
+            "current_season_stats",
             "previous_season_stats",
+            "last_7_games",
+            "last_15_games",
+            "last_30_games",
         ]
-        for field in projection_fields:
+
+        for field in stat_fields:
             value = getattr(player_model, field, None)
             if value:
-                # Convert field name for stats dictionary
-                stats_key = field.replace("_stats", "").replace("_", "_")
-                if field == "projections":
-                    player.stats["projections"] = value
-                elif field == "preseason_stats":
-                    player.stats["preseason"] = value
-                elif field == "regular_season_stats":
-                    player.stats["regular_season"] = value
-                elif field == "previous_season_stats":
-                    player.stats["previous_season"] = value
+                # Remove _stats suffix to get the stats key
+                stats_key = field.replace("_stats", "")
+                player.stats[stats_key] = value
 
         return player
 
@@ -254,16 +300,19 @@ class Player(object):
         if data.get("headshot"):
             self.headshot = data.get("headshot", {}).get("href")
 
-    def hydrate_statistics(self, data: Dict[str, Any]) -> None:
+    def hydrate_stats(self, data: Dict[str, Any]) -> None:
         """
-        Hydrates the player object with statistics data from the statistics API.
+        Hydrates the player object with stats data from the stats API.
 
         Args:
-            data (dict): The statistics data from the ESPN API
+            data (dict): The stats data from the ESPN API
         """
-        # Initialize the statistics dictionary if it doesn't exist
-        if not hasattr(self, "season_stats"):
-            self.season_stats = {}
+        # Initialize detailed stats entry in the stats dict
+        if not hasattr(self, "stats") or not isinstance(self.stats, dict):
+            self.stats = {}
+
+        if "detailed" not in self.stats:
+            self.stats["detailed"] = {}
 
         # Get the splits data which contains all the statistics
         splits = data.get("splits", {})
@@ -276,14 +325,14 @@ class Player(object):
         split_abbreviation = splits.get("abbreviation")
         split_type = splits.get("type")
 
-        # Store basic split information
-        self.season_stats["split_id"] = split_id
-        self.season_stats["split_name"] = split_name
-        self.season_stats["split_abbreviation"] = split_abbreviation
-        self.season_stats["split_type"] = split_type
+        # Store basic split information directly in stats
+        self.stats["split_id"] = split_id
+        self.stats["split_name"] = split_name
+        self.stats["split_abbreviation"] = split_abbreviation
+        self.stats["split_type"] = split_type
 
         # Initialize categories dictionary
-        self.season_stats["categories"] = {}
+        self.stats["categories"] = {}
 
         # Process each category (e.g., batting, pitching, fielding)
         categories = splits.get("categories", [])
@@ -297,7 +346,7 @@ class Player(object):
             category_summary = category.get("summary", "")
 
             # Initialize the category dictionary
-            self.season_stats["categories"][category_name] = {
+            self.stats["categories"][category_name] = {
                 "display_name": category_display_name,
                 "short_display_name": category.get(
                     "shortDisplayName", category_display_name
@@ -315,7 +364,7 @@ class Player(object):
                     continue
 
                 # Store the stat with all its attributes
-                self.season_stats["categories"][category_name]["stats"][stat_name] = {
+                self.stats["categories"][category_name]["stats"][stat_name] = {
                     "display_name": stat.get("displayName", stat_name),
                     "short_display_name": stat.get("shortDisplayName", stat_name),
                     "description": stat.get("description", ""),
@@ -341,18 +390,20 @@ class Player(object):
             if not hasattr(self, field):
                 setattr(self, field, default)
 
-        # Initialize stats structure with kona stat keys
+        # Initialize stats structure with semantic stat keys
         if not hasattr(self, "stats") or not isinstance(self.stats, dict):
             self.stats = {}
 
-        # Ensure kona stat keys exist
-        kona_stat_keys = [
+        # Ensure semantic stat keys exist
+        stat_keys = [
             "projections",
-            "preseason",
-            "regular_season",
+            "current_season",
             "previous_season",
+            "last_7_games",
+            "last_15_games",
+            "last_30_games",
         ]
-        for key in kona_stat_keys:
+        for key in stat_keys:
             if key not in self.stats:
                 self.stats[key] = {}
 
@@ -366,30 +417,91 @@ class Player(object):
             }
 
     def _hydrate_kona_stats(self, stats: List[Dict[str, Any]]) -> None:
-        # Process stats array to extract projections and seasonal stats
+        """
+        Process stats array from kona_playercard to extract projections and seasonal stats.
+
+        Stat ID format: {splitTypeId}{year}
+        - 102025: Projections (statSourceId: 1, statSplitTypeId: 0)
+        - 002025: Current season full stats (split type 0)
+        - 002024: Previous season full stats (split type 0)
+        - 012025: Last 7 games (split type 1)
+        - 022025: Last 15 games (split type 2)
+        - 032025: Last 30 games (split type 3)
+
+        Note: Split type 5 (individual games) is skipped due to ambiguity with two-way players.
+        """
         current_year = str(datetime.now().year)
         previous_year = str(int(current_year) - 1)
 
         for stat_entry in stats:
             stat_id = stat_entry.get("id", "")
             stats_data = stat_entry.get("stats", {})
+            applied_stats = stat_entry.get("appliedStats", {})
+            applied_total = stat_entry.get("appliedTotal")
+            applied_average = stat_entry.get("appliedAverage")
 
             # Map numeric stat keys to readable names, skip unknown keys
             mapped_stats = {}
             for key, value in stats_data.items():
-                stat_key = int(key)
-                if stat_key in STATS_MAP:
-                    mapped_stats[STATS_MAP[stat_key]] = value
+                numeric_key = int(key)
+                if numeric_key in STATS_MAP:
+                    mapped_stats[STATS_MAP[numeric_key]] = value
 
-            # Identify stat type based on ID pattern and namespace under stats property
+            # Map applied stats for projections (uses appliedStats instead of stats)
+            mapped_applied_stats = {}
+            for key, value in applied_stats.items():
+                numeric_key = int(key)
+                if numeric_key in STATS_MAP:
+                    mapped_applied_stats[STATS_MAP[numeric_key]] = value
+
+            # Determine stat key based on stat ID pattern
+            stat_key: str | None = None
+
             if stat_id == f"10{current_year}":  # Projections (102025)
-                self.stats["projections"] = mapped_stats
-            elif stat_id == f"01{current_year}":  # Preseason stats (012025)
-                self.stats["preseason"] = mapped_stats
-            elif stat_id == f"02{current_year}":  # Regular season stats (022025)
-                self.stats["regular_season"] = mapped_stats
-            elif stat_id == f"00{previous_year}":  # Previous season stats (002024)
-                self.stats["previous_season"] = mapped_stats
+                stat_key = "projections"
+                # Use appliedStats for projections (more detailed than stats)
+                if mapped_applied_stats:
+                    self.stats[stat_key] = mapped_applied_stats
+                elif mapped_stats:
+                    self.stats[stat_key] = mapped_stats
+                else:
+                    self.stats[stat_key] = {}
+
+                # Add fantasy scoring for projections
+                if applied_total is not None or applied_average is not None:
+                    self.stats[stat_key]["_fantasy_scoring"] = {}
+                    if applied_total is not None:
+                        self.stats[stat_key]["_fantasy_scoring"]["applied_total"] = applied_total
+                    if applied_average is not None:
+                        self.stats[stat_key]["_fantasy_scoring"]["applied_average"] = applied_average
+
+            elif stat_id == f"00{current_year}":  # Current season full stats (002025)
+                stat_key = "current_season"
+                self.stats[stat_key] = mapped_stats
+
+            elif stat_id == f"00{previous_year}":  # Previous season full stats (002024)
+                stat_key = "previous_season"
+                self.stats[stat_key] = mapped_stats
+
+            elif stat_id == f"01{current_year}":  # Last 7 games (012025)
+                stat_key = "last_7_games"
+                self.stats[stat_key] = mapped_stats
+
+            elif stat_id == f"02{current_year}":  # Last 15 games (022025)
+                stat_key = "last_15_games"
+                self.stats[stat_key] = mapped_stats
+
+            elif stat_id == f"03{current_year}":  # Last 30 games (032025)
+                stat_key = "last_30_games"
+                self.stats[stat_key] = mapped_stats
+
+            # Skip split type 5 (individual games) - ambiguous for two-way players
+
+            # Add fantasy scoring for non-projection stats if available
+            if stat_key and stat_key != "projections" and applied_total is not None:
+                if "_fantasy_scoring" not in self.stats[stat_key]:
+                    self.stats[stat_key]["_fantasy_scoring"] = {}
+                self.stats[stat_key]["_fantasy_scoring"]["applied_total"] = applied_total
 
     def hydrate_kona_playercard(self, player_dict: Dict[str, Any]) -> None:
         """

@@ -273,7 +273,7 @@ class EspnCoreRequests:
 
         try:
             # Add statistics to the player
-            player.hydrate_statistics(stats_data)
+            player.hydrate_stats(stats_data)
             return player, True
         except Exception as e:
             with self.logger_lock:

@@ -105,35 +105,30 @@ class TestPlayerEnhanced:
         """Test player initialization with stats processing"""
         player = Player(player_stats_data)
 
-        # Verify stats are processed correctly
-        assert 0 in player.stats  # Season stats
+        # Verify stats are processed correctly with readable keys
+        assert "current_season" in player.stats
+        assert "last_7_games" in player.stats
+        assert "previous_season" in player.stats
+        assert "projections" in player.stats
 
-        # Note: Week 10 stats are not included because statSplitTypeId is not 0 or 5
-        # The statSplitTypeId: 1 (Last 7 days) is filtered out by the if condition in Player.__init__
+        # Verify current season stats
+        current_season = player.stats["current_season"]
+        assert "AB" in current_season
+        assert current_season["AB"] == 145
+        assert current_season["H"] == 42
+        assert current_season["AVG"] == 8
+        assert current_season["R"] == 12
 
-        # Verify season stats
-        season_stats = player.stats[0]
-        assert season_stats["points"] == 120.5
-        assert season_stats["projected_points"] == 450.2
+        # Verify fantasy scoring in current_season
+        assert "_fantasy_scoring" in current_season
+        assert current_season["_fantasy_scoring"]["applied_total"] == 120.5
 
-        # Verify stats in breakdown (field names depend on STATS_MAP in constant.py)
-        # The actual keys may not be "atBats", "hits", etc. but could be abbreviated
-        assert "AB" in season_stats["breakdown"]
-        assert season_stats["breakdown"]["AB"] == 145
-        assert season_stats["breakdown"]["H"] == 42
-        assert (
-            season_stats["breakdown"]["AVG"] == 8
-        )  # This might be homeRuns in STATS_MAP
-        assert (
-            season_stats["breakdown"]["R"] == 12
-        )  # This might be stolenBases in STATS_MAP
-
-        # Verify projected stats
-        assert "projected_breakdown" in season_stats
-        assert season_stats["projected_breakdown"]["AB"] == 600
-
-        # Since weekly stats with statSplitTypeId=1 are excluded, we can't test them.
-        # This section is removed.
+        # Verify projections
+        projections = player.stats["projections"]
+        assert "AB" in projections
+        assert projections["AB"] == 600
+        assert "_fantasy_scoring" in projections
+        assert projections["_fantasy_scoring"]["applied_total"] == 450.2
 
         # Verify player info from playerPoolEntry
         assert player.injury_status == "ACTIVE"
@@ -200,14 +195,15 @@ class TestPlayerEnhanced:
         # Verify basic fields were set
         assert player.display_name == "Test Player"
 
-        # Fields that depend on nested data should not be set
-        assert not hasattr(player, "bats")
-        assert not hasattr(player, "throws")
-        assert not hasattr(player, "status_name")
-        assert not hasattr(player, "experience_years")
-        assert not hasattr(player, "headshot")
+        # Fields that depend on nested data should be initialized but None
+        assert player.bats is None
+        assert player.throws is None
+        assert not hasattr(player, "status_name")  # This field is not in our init list
+        assert not hasattr(player, "experience_years")  # This field is not in our init list
+        assert player.headshot is None
 
         # Default values for certain fields
+        # active is set to False by hydrate_bio when not in data
         assert player.active is False
 
         # Hydrate with partial nested data
@@ -240,5 +236,5 @@ class TestPlayerEnhanced:
         # experience_years is not set because the empty experience dictionary is not handled in the code
         assert not hasattr(player, "experience_years")
 
-        # headshot is not set because the empty headshot dictionary is not handled in the code
-        assert not hasattr(player, "headshot")
+        # headshot remains None because the empty headshot dictionary doesn't have href
+        assert player.headshot is None

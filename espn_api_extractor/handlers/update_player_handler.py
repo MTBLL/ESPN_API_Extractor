@@ -29,7 +29,7 @@ class UpdatePlayerHandler:
 
         # Initialize API requestors
         self.fantasy_requests = EspnFantasyRequests(
-            league_id=self.league_id, sport=FantasySports.MLB.value, year=self.year
+            league_id=self.league_id, sport=FantasySports.MLB, year=self.year
         )
         self.core_requests = EspnCoreRequests(
             sport="mlb", year=self.year, max_workers=self.threads
@@ -37,7 +37,7 @@ class UpdatePlayerHandler:
 
     async def execute(
         self,
-        player_ids: Set[int],
+        player_ids: Set[int | None],
         pro_players_data: Optional[List[Dict]] = None,
         include_stats_update: bool = True,
     ) -> List[Player]:
@@ -52,6 +52,7 @@ class UpdatePlayerHandler:
         Returns:
             List[Player]: Updated player objects with refreshed data
         """
+        assert player_ids is not None, "player_ids cannot be None"
         self.logger.logging.info(f"Updating {len(player_ids)} existing players")
 
         # Step 1: Get current pro_players data if not provided

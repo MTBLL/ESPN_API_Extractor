@@ -3,6 +3,8 @@ from typing import Any, List, Union
 
 from espn_api_extractor.base.base_league import BaseLeague
 from espn_api_extractor.base.base_settings import BaseSettings
+from espn_api_extractor.requests.constants import FantasySports
+
 from .activity import Activity
 from .box_score import BoxScore, H2HCategoryBoxScore, H2HPointsBoxScore
 from .constants import ACTIVITY_MAP, POSITION_MAP
@@ -28,7 +30,7 @@ class League(BaseLeague):
         super().__init__(
             league_id=league_id,
             year=year,
-            sport="mlb",
+            sport=FantasySports.MLB,
             espn_s2=espn_s2,
             swid=swid,
             debug=debug,

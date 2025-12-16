@@ -134,10 +134,10 @@ def test_player_hydration(player_data, player_details_data):
     # Initialize a player
     player = Player(player_data)
 
-    # Initial state should not have detailed attributes
-    assert not hasattr(player, "display_name")
-    assert not hasattr(player, "short_name")
-    assert not hasattr(player, "date_of_birth")
+    # Initial state should have fields initialized to None
+    assert player.display_name is None
+    assert player.short_name is None
+    assert player.date_of_birth is None
 
     # Hydrate the player
     player.hydrate_bio(player_details_data)
@@ -186,11 +186,11 @@ def test_player_model_conversion(player_data, player_details_data):
     player = Player(player_data)
     player.hydrate_bio(player_details_data)
 
-    # Add some stats for testing (using string keys as expected by PlayerModel)
+    # Add some stats for testing (using semantic keys as expected by PlayerModel)
     player.stats = {
         "projections": {"AB": 600, "H": 190, "HR": 30},
-        "preseason": {"AB": 550, "H": 175, "HR": 25},
-        "regular_season": {"AB": 500, "H": 160, "HR": 22},
+        "current_season": {"AB": 550, "H": 175, "HR": 25},
+        "last_7_games": {"AB": 500, "H": 160, "HR": 22},
         "previous_season": {"AB": 580, "H": 180, "HR": 28},
     }
 
@@ -205,7 +205,7 @@ def test_player_model_conversion(player_data, player_details_data):
 
     # Verify stats conversion
     assert model.stats["projections"]["HR"] == 30
-    assert model.stats["preseason"]["AB"] == 550
+    assert model.stats["current_season"]["AB"] == 550
 
 
 @pytest.fixture
@@ -330,9 +330,9 @@ def test_player_from_model_with_hasura_fixture(hasura_fixture_data):
             assert isinstance(games, int)
         assert isinstance(player_model.auction_value_average, (float, type(None)))
         
-        # Statistics - kona stats with 4 specific keys
+        # Statistics - kona stats with semantic keys
         assert isinstance(player_model.stats, dict)
-        expected_stat_keys = {"projections", "preseason", "regular_season", "previous_season"}
+        expected_stat_keys = {"projections", "current_season", "previous_season", "last_7_games", "last_15_games", "last_30_games"}
         for key in player_model.stats.keys():
             assert key in expected_stat_keys or isinstance(key, str)
             assert isinstance(player_model.stats[key], dict)
@@ -371,3 +371,178 @@ def test_player_from_model_with_hasura_fixture(hasura_fixture_data):
             assert player_model.id == 11111
             assert player_model.active is False
             assert player_model.status == "injured"
+
+
+class TestPlayerEdgeCasesAndSadPaths:
+    """Test edge cases and sad paths for Player class to increase code coverage."""
+
+    def test_player_with_split_type_5_individual_game_stats(self):
+        """Test that split type 5 (individual game stats) are skipped."""
+        from datetime import datetime
+        current_year = datetime.now().year
+
+        player_data = {
+            "id": 12345,
+            "fullName": "Test Player",
+            "playerPoolEntry": {
+                "player": {
+                    "stats": [
+                        {
+                            "seasonId": current_year,
+                            "statSplitTypeId": 5,  # Individual game stats - should be skipped
+                            "statSourceId": 0,
+                            "stats": {
+                                "0": 100,  # AB
+                                "1": 30,   # H
+                            }
+                        },
+                        {
+                            "seasonId": current_year,
+                            "statSplitTypeId": 0,  # Season stats - should be processed
+                            "statSourceId": 0,
+                            "stats": {
+                                "0": 200,  # AB
+                                "1": 60,   # H
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+
+        player = Player(player_data)
+
+        # Verify that split type 5 was skipped and only split type 0 was processed
+        assert "current_season" in player.stats
+        assert player.stats["current_season"]["AB"] == 200  # From split type 0, not 100 from split type 5
+        assert player.stats["current_season"]["H"] == 60
+
+    def test_player_with_unmapped_stat_key(self):
+        """Test that stats with unmapped season/split combinations are skipped."""
+        from datetime import datetime
+        current_year = datetime.now().year
+        future_year = current_year + 1
+
+        player_data = {
+            "id": 12345,
+            "fullName": "Test Player",
+            "playerPoolEntry": {
+                "player": {
+                    "stats": [
+                        {
+                            "seasonId": future_year,  # Future season - not mapped
+                            "statSplitTypeId": 0,
+                            "statSourceId": 0,
+                            "stats": {
+                                "0": 100,
+                                "1": 30,
+                            }
+                        },
+                        {
+                            "seasonId": current_year,
+                            "statSplitTypeId": 10,  # Unknown split type - not mapped
+                            "statSourceId": 0,
+                            "stats": {
+                                "0": 150,
+                                "1": 45,
+                            }
+                        },
+                        {
+                            "seasonId": current_year,
+                            "statSplitTypeId": 0,  # Valid stats
+                            "statSourceId": 0,
+                            "stats": {
+                                "0": 200,
+                                "1": 60,
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+
+        player = Player(player_data)
+
+        # Verify that only valid stats were processed
+        assert "current_season" in player.stats
+        assert player.stats["current_season"]["AB"] == 200
+        assert player.stats["current_season"]["H"] == 60
+
+    def test_player_projections_with_applied_average(self):
+        """Test that projections include appliedAverage when present."""
+        from datetime import datetime
+        current_year = datetime.now().year
+
+        player_data = {
+            "id": 12345,
+            "fullName": "Test Player",
+            "playerPoolEntry": {
+                "player": {
+                    "stats": [
+                        {
+                            "seasonId": current_year,
+                            "statSplitTypeId": 0,
+                            "statSourceId": 1,  # Projected stats
+                            "appliedStats": {
+                                "0": 600,  # AB
+                                "1": 180,  # H
+                            },
+                            "appliedTotal": 450.5,
+                            "appliedAverage": 7.8,
+                        }
+                    ]
+                }
+            }
+        }
+
+        player = Player(player_data)
+
+        # Verify projections were created with both appliedTotal and appliedAverage
+        assert "projections" in player.stats
+        assert "_fantasy_scoring" in player.stats["projections"]
+        assert player.stats["projections"]["_fantasy_scoring"]["applied_total"] == 450.5
+        assert player.stats["projections"]["_fantasy_scoring"]["applied_average"] == 7.8
+
+    def test_player_with_previous_year_non_season_stats(self):
+        """Test that previous year stats with non-zero split type are skipped."""
+        from datetime import datetime
+        current_year = datetime.now().year
+        previous_year = current_year - 1
+
+        player_data = {
+            "id": 12345,
+            "fullName": "Test Player",
+            "playerPoolEntry": {
+                "player": {
+                    "stats": [
+                        {
+                            "seasonId": previous_year,
+                            "statSplitTypeId": 1,  # Last 7 games from previous year - should be skipped
+                            "statSourceId": 0,
+                            "stats": {
+                                "0": 20,
+                                "1": 5,
+                            }
+                        },
+                        {
+                            "seasonId": previous_year,
+                            "statSplitTypeId": 0,  # Previous season full stats - should be processed
+                            "statSourceId": 0,
+                            "stats": {
+                                "0": 500,
+                                "1": 150,
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+
+        player = Player(player_data)
+
+        # Verify that only split type 0 from previous year was processed
+        assert "previous_season" in player.stats
+        assert player.stats["previous_season"]["AB"] == 500
+        assert player.stats["previous_season"]["H"] == 150
+        # Last 7 games from previous year should not create any stats entry
+        assert "last_7_games" not in player.stats

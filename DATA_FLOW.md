@@ -18,8 +18,8 @@ This document provides a comprehensive data flow analysis of the ESPN API Extrac
                                   │
                                   ▼
                         ┌─────────────────────┐
-                        │  Command = ?        │◄────── Current Implementation
-                        └─────┬───────────────┘        (BROKEN)
+                        │  Command = ?        │◄
+                        └─────┬───────────────┘
                               │
                 ┌─────────────┴─────────────┐
                 ▼                           ▼
@@ -30,179 +30,16 @@ This document provides a comprehensive data flow analysis of the ESPN API Extrac
               │
               ▼
     ┌─────────────────────┐
-    │ PlayerExtractRunner │◄────── ⚠️  INCOMPLETE
+    │ PlayerExtractRunner │
     │ runners/            │
     └─────────┬───────────┘
               │
               ▼
     ┌─────────────────────┐
-    │ PlayerController    │◄────── ⚠️  NOT IMPLEMENTED
+    │ PlayerController    │
     │ controllers/        │
-    │ execute_extraction()│◄────── ⚠️  MISSING METHOD
+    │ execute_extraction()│
     └─────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                         ORIGINAL WORKING FLOW                                      │
-│                        (From deleted players.py)                                   │
-└─────────────────────────────────┬───────────────────────────────────────────────────┘
-                                  │
-                                  ▼
-                        ┌─────────────────────┐
-                        │  Parse CLI Args     │
-                        │  Initialize Logger  │
-                        └─────────┬───────────┘
-                                  │
-                                  ▼
-                        ┌─────────────────────┐
-                        │  Initialize         │
-                        │  GraphQL Client     │
-                        └─────────┬───────────┘
-                                  │
-                                  ▼
-                        ┌─────────────────────┐
-                        │  GraphQL Available? │
-                        └─────┬───────────────┘
-                              │
-                ┌─────────────┼─────────────┐
-                ▼             │             ▼
-    ┌─────────────────────┐   │   ┌─────────────────────┐
-    │      YES            │   │   │       NO            │
-    │ Check Existing IDs  │   │   │ Full Extraction     │
-    │ Filter Missing      │   │   │ Mode                │
-    │ Players             │   │   │                     │
-    └─────────┬───────────┘   │   └─────────┬───────────┘
-              │               │             │
-              └───────────────┼─────────────┘
-                              ▼
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                          ESPN API CALLS - STAGE 1                                  │
-└─────────────────────────────────┬───────────────────────────────────────────────────┘
-                                  │
-                                  ▼
-                        ┌─────────────────────┐
-                        │ EspnFantasyRequests │
-                        │ get_pro_players()   │
-                        │                     │
-                        │ ESPN API CALL #1    │
-                        │ Endpoint: /players  │
-                        │ View: players_wl    │
-                        │ Filter: active=true │
-                        └─────────┬───────────┘
-                                  │
-                                  ▼ Returns ~3000+ players
-                        ┌─────────────────────┐
-                        │   Create Player     │
-                        │   Objects           │
-                        │   (baseball/        │
-                        │   player.py)        │
-                        └─────────┬───────────┘
-                                  │
-                                  ▼
-                        ┌─────────────────────┐
-                        │ Extract Player IDs  │
-                        │ for Batch Calls     │
-                        └─────────┬───────────┘
-                                  │
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                          ESPN API CALLS - STAGE 2                                  │
-└─────────────────────────────────┬───────────────────────────────────────────────────┘
-                                  │
-                                  ▼
-                        ┌─────────────────────┐
-                        │ get_player_cards()  │
-                        │                     │
-                        │ ESPN API CALL #2    │
-                        │ Endpoint: /players  │
-                        │ View: kona_playercard│
-                        │ Batch: 1000+ IDs    │
-                        └─────────┬───────────┘
-                                  │
-                                  ▼ Returns projections, outlook, fantasy data
-                        ┌─────────────────────┐
-                        │ hydrate_kona_       │
-                        │ playercard()        │
-                        │                     │
-                        │ Sets:               │
-                        │ • stats["projections"]│
-                        │ • stats["preseason"] │
-                        │ • stats["regular_season"]│  
-                        │ • stats["previous_season"]│
-                        │ • season_outlook    │
-                        │ • draft_auction_value│
-                        │ • draft_ranks       │
-                        └─────────┬───────────┘
-                                  │
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                    MULTI-THREADED HYDRATION - STAGE 3                              │
-└─────────────────────────────────┬───────────────────────────────────────────────────┘
-                                  │
-                                  ▼
-                        ┌─────────────────────┐
-                        │ EspnCoreRequests    │
-                        │ hydrate_players()   │
-                        │                     │
-                        │ ThreadPoolExecutor  │
-                        │ (4x CPU cores)      │
-                        └─────────┬───────────┘
-                                  │
-                                  ▼
-                        ┌─────────────────────┐
-                        │  For Each Player    │
-                        │  (Parallel)         │
-                        └─────┬───────────────┘
-                              │
-                ┌─────────────┼─────────────┐
-                ▼             │             ▼
-    ┌─────────────────────┐   │   ┌─────────────────────┐
-    │ hydrate_bio()       │   │   │ hydrate_statistics()│
-    │                     │   │   │                     │
-    │ ESPN API CALL #3    │   │   │ ESPN API CALL #4    │
-    │ /athletes/{id}      │   │   │ /athletes/{id}/     │
-    │                     │   │   │ statistics          │
-    │ Sets:               │   │   │                     │
-    │ • weight, height    │   │   │ Sets:               │
-    │ • bats, throws      │   │   │ • season_stats      │
-    │ • birth_place       │   │   │ • categories        │
-    │ • date_of_birth     │   │   │ • stat details      │
-    └─────────┬───────────┘   │   └─────────┬───────────┘
-              │               │             │
-              └───────────────┼─────────────┘
-                              ▼
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                        DATA TRANSFORMATION - STAGE 4                               │
-└─────────────────────────────────┬───────────────────────────────────────────────────┘
-                                  │
-                                  ▼
-                        ┌─────────────────────┐
-                        │   Fully Hydrated   │
-                        │   Player Objects    │
-                        └─────────┬───────────┘
-                                  │
-                                  ▼
-                        ┌─────────────────────┐
-                        │  player.to_model()  │
-                        │                     │
-                        │  Convert to         │
-                        │  PlayerModel        │
-                        │  (Pydantic)         │
-                        └─────────┬───────────┘
-                                  │
-                                  ▼
-                        ┌─────────────────────┐
-                        │  JSON Serialization │
-                        │                     │
-                        │  write_models_      │
-                        │  to_json()          │
-                        └─────────┬───────────┘
-                                  │
-                                  ▼
-                        ┌─────────────────────┐
-                        │   Final Output      │
-                        │   espn_player_      │
-                        │   universe.json     │
-                        └─────────────────────┘
 ```
 
 ## Conditional Logic Flow
@@ -248,33 +85,6 @@ SAMPLE SIZE LIMITING:
 │ Limit to Sample     │
 │ Size (Testing)      │
 └─────────────────────┘
-```
-
-## Current State Analysis
-
-### ⚠️ **CRITICAL ISSUE**: Incomplete Refactoring
-The current codebase is in a partially refactored state:
-
-1. **New Structure (Incomplete)**:
-   - `__main__.py` → `PlayerExtractRunner` → `PlayerController`
-   - `PlayerController.execute_extraction()` **NOT IMPLEMENTED**
-
-2. **Original Working Structure (Deleted)**:
-   - `players.py` main function contained the complete working logic
-   - This file was deleted during refactoring
-
-### Working Data Flow (From Original Implementation)
-
-## Entry Points
-
-### CLI Command Structure
-```bash
-# Current (broken) entry point
-python -m espn_api_extractor player-extract --output_dir ./output
-
-# Legacy working entry points  
-poetry run espn-players --output_dir ./output
-poetry run python -m espn_api_extractor.players --output_dir ./output
 ```
 
 ## Data Flow Stages
@@ -453,7 +263,6 @@ graph TD
 ## Current Issues & Next Steps
 
 ### Immediate Fixes Needed
-1. **Complete PlayerController Implementation**: Restore working logic
 2. **Fix PlayerModel Schema**: Add missing fields, correct validation
 3. **Fix Test Data**: Align test expectations with actual data structures
 4. **Update Import Paths**: Ensure all refactored imports work
