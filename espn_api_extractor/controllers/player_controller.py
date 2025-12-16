@@ -24,6 +24,7 @@ class PlayerController:
         self.year = args.year
         self.threads = args.threads
         self.batch_size = args.batch_size
+        self.sample_size = args.sample_size
         self.logger = Logger("PlayerController").logging
         self.fantasy_requests = EspnFantasyRequests(
             league_id=self.league_id, sport=FantasySports.MLB, year=self.year
@@ -78,6 +79,14 @@ class PlayerController:
             existing_to_update = existing_player_ids.intersection(espn_player_ids)
             new_player_ids = espn_player_ids - existing_player_ids
             missing_from_espn = existing_player_ids - espn_player_ids
+
+            # Apply sample_size limit if specified
+            if self.sample_size is not None:
+                self.logger.info(f"Limiting to sample_size of {self.sample_size} players")
+                # Limit new players to sample size
+                new_player_ids = set(list(new_player_ids)[:self.sample_size])
+                # Don't update existing players if we're sampling
+                existing_to_update = set()
 
             self.logger.info(f"Players to update: {len(existing_to_update)}")
             self.logger.info(f"New players to fully hydrate: {len(new_player_ids)}")

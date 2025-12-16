@@ -9,6 +9,7 @@
 # Output files
 test.json
 debug_output/
+output/
 test_run_output/
 test_with_stats_output/
 

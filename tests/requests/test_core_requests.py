@@ -340,7 +340,12 @@ class TestCoreRequests:
         core_requests._hydrate_player_with_stats.assert_not_called()
 
     def test_hydrate_player_worker_bio_succeeds_stats_fails(self, core_requests):
-        """Test _hydrate_player_worker when bio succeeds but stats fails"""
+        """Test _hydrate_player_worker when bio succeeds but stats fails
+
+        Note: Stats hydration is best-effort. Even if stats fail, the player
+        is still considered successfully hydrated (for prospects/injured players
+        who have projections but no season stats).
+        """
         # Create a player with valid ID
         player = Player({"id": 123, "fullName": "Test Player"})
         hydrated_player = Player(
@@ -360,9 +365,10 @@ class TestCoreRequests:
             player, include_stats=True
         )
 
-        # Verify results - should return the hydrated player but with failed status
+        # Verify results - should return the hydrated player with success=True
+        # because bio succeeded (stats are best-effort)
         assert result_player is hydrated_player
-        assert success is False
+        assert success is True
 
         # Verify both methods were called
         core_requests._hydrate_player_with_bio.assert_called_once_with(player)

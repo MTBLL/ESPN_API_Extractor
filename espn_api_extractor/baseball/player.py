@@ -100,7 +100,8 @@ class Player(object):
 
                 elif season_id == previous_year and split_type == 0:
                     # Previous season full stats (only split type 0)
-                    stat_key = "previous_season"
+                    # Use 2-digit year suffix (e.g., "previous_season_24" for 2024)
+                    stat_key = f"previous_season_{str(previous_year)[-2:]}"
 
                 # Skip if we couldn't map the stat type
                 if not stat_key:
@@ -395,10 +396,13 @@ class Player(object):
             self.stats = {}
 
         # Ensure semantic stat keys exist
+        # Note: previous_season uses dynamic year suffix (e.g., "previous_season_24")
+        current_year = datetime.now().year
+        previous_year = current_year - 1
         stat_keys = [
             "projections",
             "current_season",
-            "previous_season",
+            f"previous_season_{str(previous_year)[-2:]}",
             "last_7_games",
             "last_15_games",
             "last_30_games",
@@ -408,11 +412,14 @@ class Player(object):
                 self.stats[key] = {}
 
     def _extract_games_by_position(self, kona_data: Dict[str, Any]) -> None:
-        """Extract and map games played by position."""
+        """Extract and map games played by position.
+
+        Note: gamesPlayedByPosition uses NOMINAL_POSITION_MAP, not POSITION_MAP.
+        """
         games_by_pos = safe_get(kona_data, "gamesPlayedByPosition", {})
         if games_by_pos:
             self.games_played_by_position = {
-                str(POSITION_MAP.get(int(pos_id), pos_id)): games
+                str(NOMINAL_POSITION_MAP.get(int(pos_id), pos_id)): games
                 for pos_id, games in games_by_pos.items()
             }
 
@@ -480,7 +487,8 @@ class Player(object):
                 self.stats[stat_key] = mapped_stats
 
             elif stat_id == f"00{previous_year}":  # Previous season full stats (002024)
-                stat_key = "previous_season"
+                # Use 2-digit year suffix (e.g., "previous_season_24" for 2024)
+                stat_key = f"previous_season_{str(previous_year)[-2:]}"
                 self.stats[stat_key] = mapped_stats
 
             elif stat_id == f"01{current_year}":  # Last 7 games (012025)

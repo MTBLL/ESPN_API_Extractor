@@ -541,8 +541,10 @@ class TestPlayerEdgeCasesAndSadPaths:
         player = Player(player_data)
 
         # Verify that only split type 0 from previous year was processed
-        assert "previous_season" in player.stats
-        assert player.stats["previous_season"]["AB"] == 500
-        assert player.stats["previous_season"]["H"] == 150
+        # Use dynamic key with year suffix (e.g., "previous_season_24")
+        previous_season_key = f"previous_season_{str(previous_year)[-2:]}"
+        assert previous_season_key in player.stats
+        assert player.stats[previous_season_key]["AB"] == 500
+        assert player.stats[previous_season_key]["H"] == 150
         # Last 7 games from previous year should not create any stats entry
         assert "last_7_games" not in player.stats

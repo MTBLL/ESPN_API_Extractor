@@ -288,6 +288,9 @@ class EspnCoreRequests:
         """
         Worker function for ThreadPoolExecutor that handles the hydration logic.
         Calls appropriate hydration methods based on include_stats parameter.
+
+        Note: Stats hydration is best-effort. If stats fail but bio succeeds,
+        the player is still considered successfully hydrated (for prospects/injured players).
         """
         # First, hydrate with biographical data
         hydrated_player, bio_success = self._hydrate_player_with_bio(player)
@@ -296,11 +299,14 @@ class EspnCoreRequests:
             return hydrated_player, False
 
         # If stats are requested and bio hydration succeeded, also get stats
+        # But don't fail the entire hydration if stats fail (best-effort)
         if include_stats:
             hydrated_player, stats_success = self._hydrate_player_with_stats(
                 hydrated_player
             )
-            return hydrated_player, stats_success
+            # Note: We return True (bio_success) even if stats fail
+            # This allows prospects/injured players with projections but no season stats
+            # to still be included in the dataset
 
         return hydrated_player, bio_success
 

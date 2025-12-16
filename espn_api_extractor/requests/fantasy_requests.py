@@ -42,7 +42,7 @@ class EspnFantasyRequests(object):
                 )
         else:
             self.SPORT_ENDPOINT += (
-                "/seasons/" + self.year + "/segments/0/leagueleaguedefaults/1"
+                "/seasons/" + self.year + "/segments/0/leaguedefaults/1"
             )
 
     def _checkRequestStatus(
@@ -160,8 +160,9 @@ class EspnFantasyRequests(object):
             f"00{self.year}",  # current year stats
             f"10{self.year}",  # projections
             f"00{int(self.year) - 1}",  # previous year stats
-            f"01{self.year}",  # preseason stats
-            f"02{self.year}",  # regular season stats
+            f"01{self.year}",  # last 7 games
+            f"02{self.year}",  # last 15 games
+            f"03{self.year}",  # last 30 games
         ]
 
         filters = {
@@ -175,7 +176,7 @@ class EspnFantasyRequests(object):
         }
 
         headers = {"x-fantasy-filter": json.dumps(filters)}
-        data = self._get(params=params, headers=headers)
+        data = self._get(extend="/segments/0/leaguedefaults/1", params=params, headers=headers)
         return data
 
     def get_league_draft(self):
