@@ -1,6 +1,7 @@
 from abc import ABC
 from typing import Any, Dict, List, TypeVar, Union
 
+from espn_api_extractor.requests.constants import FantasySports
 from espn_api_extractor.requests.fantasy_requests import EspnFantasyRequests
 from espn_api_extractor.utils.logger import Logger
 
@@ -18,12 +19,12 @@ class BaseLeague(ABC):
         self,
         league_id: int,
         year: int,
-        sport: str,
+        sport: FantasySports,
         espn_s2=None,
         swid=None,
         debug=False,
     ):
-        self.logger = Logger(name=f"{sport} league", debug=debug)
+        self.logger = Logger(name=f"{sport.value} league", debug=debug)
         self.league_id = league_id
         self.year = year
         self.teams: List[Any] = []

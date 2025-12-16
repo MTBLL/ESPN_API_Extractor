@@ -450,19 +450,19 @@ class Player(object):
             # Map numeric stat keys to readable names, skip unknown keys
             mapped_stats = {}
             for key, value in stats_data.items():
-                stat_key = int(key)
-                if stat_key in STATS_MAP:
-                    mapped_stats[STATS_MAP[stat_key]] = value
+                numeric_key = int(key)
+                if numeric_key in STATS_MAP:
+                    mapped_stats[STATS_MAP[numeric_key]] = value
 
             # Map applied stats for projections (uses appliedStats instead of stats)
             mapped_applied_stats = {}
             for key, value in applied_stats.items():
-                stat_key = int(key)
-                if stat_key in STATS_MAP:
-                    mapped_applied_stats[STATS_MAP[stat_key]] = value
+                numeric_key = int(key)
+                if numeric_key in STATS_MAP:
+                    mapped_applied_stats[STATS_MAP[numeric_key]] = value
 
             # Determine stat key based on stat ID pattern
-            stat_key = None
+            stat_key: str | None = None
 
             if stat_id == f"10{current_year}":  # Projections (102025)
                 stat_key = "projections"

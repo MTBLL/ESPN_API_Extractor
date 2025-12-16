@@ -12,14 +12,14 @@ from .exceptions import ESPNAccessDenied, ESPNInvalidLeague, ESPNUnknownError
 class EspnFantasyRequests(object):
     def __init__(
         self,
-        sport: str,
+        sport: FantasySports,
         year: int,
         league_id: int | None = None,
         cookies: dict = {},
     ):
         self.year: str = str(year)
         self.league_id: str = str(league_id) if league_id else ""
-        sport_code = FantasySports[sport.upper()].value
+        sport_code: str = sport.value
         self.SPORT_ENDPOINT = FANTASY_BASE_ENDPOINT + sport_code
         self.SEASON_ENDPOINT = self.SPORT_ENDPOINT + "/seasons/" + str(self.year)
         self.ENDPOINT = (

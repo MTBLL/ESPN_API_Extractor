@@ -35,13 +35,13 @@ class PlayerController:
             league_id=self.league_id,
             year=self.year,
             threads=self.threads,
-            batch_size=self.batch_size
+            batch_size=self.batch_size,
         )
         self.full_hydration_handler = FullHydrationHandler(
             league_id=self.league_id,
             year=self.year,
             threads=self.threads,
-            batch_size=self.batch_size
+            batch_size=self.batch_size,
         )
 
     async def execute(self, existing_players: List[Player]) -> Dict[str, Any]:
@@ -96,8 +96,7 @@ class PlayerController:
                 self.logger.info("Processing existing player updates")
                 try:
                     updated_players = await self.update_handler.execute(
-                        existing_to_update,
-                        pro_players_data=espn_players_response
+                        existing_to_update, pro_players_data=espn_players_response
                     )
                     all_players.extend(updated_players)
                     self.logger.info(
@@ -113,8 +112,7 @@ class PlayerController:
                 self.logger.info("Processing new player hydration")
                 try:
                     new_players = await self.full_hydration_handler.execute(
-                        new_player_ids,
-                        pro_players_data=espn_players_response
+                        new_player_ids, pro_players_data=espn_players_response
                     )
                     all_players.extend(new_players)
                     self.logger.info(

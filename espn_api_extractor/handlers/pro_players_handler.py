@@ -11,7 +11,7 @@ class ProPlayersHandler:
         self.league_id = league_id
         # Get ESPN player universe
         self.fantasy_requestor = EspnFantasyRequests(
-            sport=FantasySports.MLB.value,
+            sport=FantasySports.MLB,
             year=year,
             league_id=league_id,
             cookies={},
