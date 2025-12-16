@@ -28,8 +28,8 @@ class TestPlayerModelProjections:
                 "SB": 15.0,
                 "AVG": 0.300,
             },
-            "preseason_stats": {"AB": 45.0, "H": 12.0, "HR": 2.0, "RBI": 8.0},
-            "regular_season_stats": {"AB": 400.0, "H": 120.0, "HR": 25.0, "RBI": 75.0},
+            "last_7_games": {"AB": 45.0, "H": 12.0, "HR": 2.0, "RBI": 8.0},
+            "current_season_stats": {"AB": 400.0, "H": 120.0, "HR": 25.0, "RBI": 75.0},
             "previous_season_stats": {
                 "AB": 550.0,
                 "H": 165.0,
@@ -49,9 +49,9 @@ class TestPlayerModelProjections:
         # Verify all projection fields are set
         assert model.season_outlook == sample_projection_data["season_outlook"]
         assert model.projections == sample_projection_data["projections"]
-        assert model.preseason_stats == sample_projection_data["preseason_stats"]
+        assert model.last_7_games == sample_projection_data["last_7_games"]
         assert (
-            model.regular_season_stats == sample_projection_data["regular_season_stats"]
+            model.current_season_stats == sample_projection_data["current_season_stats"]
         )
         assert (
             model.previous_season_stats
@@ -66,8 +66,8 @@ class TestPlayerModelProjections:
             "name": "Test Player",
             "season_outlook": "Valid string outlook",
             "projections": {"HR": 25.0, "AB": 500.0},
-            "preseason_stats": {"HR": 2.0},
-            "regular_season_stats": {"HR": 20.0},
+            "last_7_games": {"HR": 2.0},
+            "current_season_stats": {"HR": 20.0},
             "previous_season_stats": {"HR": 30.0},
         }
 
@@ -103,8 +103,8 @@ class TestPlayerModelProjections:
         # Verify projection fields default to empty dicts
         assert model.season_outlook is None
         assert model.projections == {}
-        assert model.preseason_stats == {}
-        assert model.regular_season_stats == {}
+        assert model.last_7_games == {}
+        assert model.current_season_stats == {}
         assert model.previous_season_stats == {}
 
     def test_player_model_serializes_projection_data_correctly(
@@ -124,8 +124,8 @@ class TestPlayerModelProjections:
         # Verify projection fields are in the JSON
         assert "season_outlook" in parsed_data
         assert "projections" in parsed_data
-        assert "preseason_stats" in parsed_data
-        assert "regular_season_stats" in parsed_data
+        assert "last_7_games" in parsed_data
+        assert "current_season_stats" in parsed_data
         assert "previous_season_stats" in parsed_data
 
         # Verify actual values
@@ -147,9 +147,9 @@ class TestPlayerModelProjections:
         # Verify all projection data is correctly deserialized
         assert model.season_outlook == sample_projection_data["season_outlook"]
         assert model.projections == sample_projection_data["projections"]
-        assert model.preseason_stats == sample_projection_data["preseason_stats"]
+        assert model.last_7_games == sample_projection_data["last_7_games"]
         assert (
-            model.regular_season_stats == sample_projection_data["regular_season_stats"]
+            model.current_season_stats == sample_projection_data["current_season_stats"]
         )
         assert (
             model.previous_season_stats
@@ -159,7 +159,7 @@ class TestPlayerModelProjections:
     def test_player_model_with_real_fixture_data(self, projections_fixture_data):
         """Test PlayerModel with real data from the projections fixture"""
         # Use Corbin Carroll's data from fixture
-        carroll_data = projections_fixture_data["players"][0]
+        carroll_data = projections_fixture_data["players"][1]
 
         # Create a Player object and hydrate it
         player = Player({"id": 42404, "fullName": "Corbin Carroll"})
@@ -180,11 +180,11 @@ class TestPlayerModelProjections:
         assert model.projections["SB"] == 21.0
 
         # Verify seasonal stats
-        assert model.preseason_stats is not None
-        assert len(model.preseason_stats) > 0
+        assert model.last_7_games is not None
+        assert len(model.last_7_games) > 0
 
-        assert model.regular_season_stats is not None
-        assert len(model.regular_season_stats) > 0
+        assert model.current_season_stats is not None
+        assert len(model.current_season_stats) > 0
 
         assert model.previous_season_stats is not None
         assert len(model.previous_season_stats) > 0
@@ -192,7 +192,7 @@ class TestPlayerModelProjections:
     def test_player_model_round_trip_with_projections(self, projections_fixture_data):
         """Test complete round trip: Player -> Model -> JSON -> Model -> Player"""
         # Use Shohei Ohtani's data from fixture
-        ohtani_data = projections_fixture_data["players"][1]
+        ohtani_data = projections_fixture_data["players"][0]
 
         # Step 1: Create Player and hydrate
         original_player = Player({"id": 39832, "fullName": "Shohei Ohtani"})
@@ -219,11 +219,11 @@ class TestPlayerModelProjections:
         assert restored_player.stats.get("projections") == original_player.stats.get(
             "projections"
         )
-        assert restored_player.stats.get("preseason") == original_player.stats.get(
-            "preseason"
+        assert restored_player.stats.get("last_7_games") == original_player.stats.get(
+            "last_7_games"
         )
-        assert restored_player.stats.get("regular_season") == original_player.stats.get(
-            "regular_season"
+        assert restored_player.stats.get("current_season") == original_player.stats.get(
+            "current_season"
         )
         assert restored_player.stats.get(
             "previous_season"
@@ -237,7 +237,7 @@ class TestPlayerModelProjections:
             "name": "Test Player",
             "season_outlook": "Only outlook provided",
             "projections": {"HR": 25.0},
-            # Missing preseason_stats, regular_season_stats, previous_season_stats
+            # Missing last_7_games, current_season_stats, previous_season_stats
         }
 
         model = PlayerModel(**partial_data)
@@ -247,8 +247,8 @@ class TestPlayerModelProjections:
         assert model.projections == {"HR": 25.0}
 
         # Verify missing fields default to empty dicts
-        assert model.preseason_stats == {}
-        assert model.regular_season_stats == {}
+        assert model.last_7_games == {}
+        assert model.current_season_stats == {}
         assert model.previous_season_stats == {}
 
     def test_player_model_projection_fields_are_optional(self):
@@ -283,8 +283,8 @@ class TestPlayerModelProjections:
         # All projection fields should be None or empty
         assert minimal_model.season_outlook is None
         assert minimal_model.projections == {}
-        assert minimal_model.preseason_stats == {}
-        assert minimal_model.regular_season_stats == {}
+        assert minimal_model.last_7_games == {}
+        assert minimal_model.current_season_stats == {}
         assert minimal_model.previous_season_stats == {}
 
     def test_player_model_preserves_existing_fields_with_projections(
