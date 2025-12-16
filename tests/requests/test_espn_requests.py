@@ -2,6 +2,7 @@ import datetime
 
 import pytest
 
+from espn_api_extractor.requests.constants import FantasySports
 from espn_api_extractor.requests.fantasy_requests import EspnFantasyRequests
 
 
@@ -14,9 +15,9 @@ def espn_request():
     current_year = datetime.datetime.now().year
 
     return EspnFantasyRequests(
-        sport="mlb",  # Use mlb instead of baseball
+        sport=FantasySports.MLB,  # Use mlb instead of baseball
         year=current_year,  # Use the current year
-        league_id=None,  # Not needed for get_pro_players
+        league_id=10998,  # Not needed for get_pro_players
         cookies=cookies,
     )
 

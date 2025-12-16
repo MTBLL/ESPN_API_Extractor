@@ -19,13 +19,12 @@ class EspnFantasyRequests(object):
     ):
         self.year: str = str(year)
         self.league_id: str = str(league_id) if league_id else ""
-        sport_code: str = sport.value
-        self.SPORT_ENDPOINT = FANTASY_BASE_ENDPOINT + sport_code
+        self.SPORT_ENDPOINT = FANTASY_BASE_ENDPOINT + sport.value
         self.SEASON_ENDPOINT = self.SPORT_ENDPOINT + "/seasons/" + str(self.year)
         self.ENDPOINT = (
-            FANTASY_BASE_ENDPOINT + sport_code + "/seasons/" + str(self.year)
+            FANTASY_BASE_ENDPOINT + sport.value + "/seasons/" + str(self.year)
         )
-        self.NEWS_ENDPOINT = NEWS_BASE_ENDPOINT + sport_code + "/news/" + "players"
+        self.NEWS_ENDPOINT = NEWS_BASE_ENDPOINT + sport.value + "/news/" + "players"
         self.cookies = cookies
         self.logger = Logger(EspnFantasyRequests.__name__)
 

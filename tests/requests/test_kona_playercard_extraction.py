@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from espn_api_extractor.baseball.constants import STATS_MAP
+from espn_api_extractor.requests.constants import FantasySports
 from espn_api_extractor.requests.fantasy_requests import EspnFantasyRequests
 
 
@@ -17,7 +18,7 @@ class TestProjectionsExtraction:
     @pytest.fixture
     def fantasy_requests(self):
         return EspnFantasyRequests(
-            sport="mlb",
+            sport=FantasySports.MLB,
             year=2025,
             league_id=None,
             cookies={},
