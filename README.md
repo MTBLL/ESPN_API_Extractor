@@ -133,7 +133,7 @@ There are multiple ways to run the player extractor:
 
 ```bash
 # Option 1: Using the installed command-line script
-espn-players --year 2025 --threads 32 --batch-size 100
+espn-extract players-extract --year 2025 --threads 32 --batch-size 100
 
 # Option 2: Using the Python module directly
 python -m espn_api_extractor.players --year 2025 --threads 32 --batch-size 100

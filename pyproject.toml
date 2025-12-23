@@ -22,7 +22,7 @@ dev = [
 ]
 
 [project.scripts]
-espn-players = "espn_api_extractor.__main__:cli_main"
+espn-extract = "espn_api_extractor.__main__:cli_main"
 
 [build-system]
 requires = ["hatchling"]

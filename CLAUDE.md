@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Run mypy type checking: `uv run mypy espn_api_extractor`
 - Run mypy with stricter checking: `uv run mypy --check-untyped-defs espn_api_extractor`
 - Run the player extractor:
-  - `uv run espn-players player-extract --output_dir ./output`
+  - `uv run espn-extract player-extract --output_dir ./output`
 - Debug with players dump: `uv run python debug_dump_players.py`
 
 ## Code Style Guidelines
@@ -234,7 +234,7 @@ This branch successfully corrected the data flow and control hierarchy for the E
   - [x] **MIGRATED FROM POETRY TO UV** ✅
   - [x] Updated `pyproject.toml` to standard PEP 621 format
   - [x] Updated all CLI commands in CLAUDE.md Build & Test Commands section
-  - [x] Fixed entry point: `espn-players = "espn_api_extractor.__main__:cli_main"`
+  - [x] Fixed entry point: `espn-extract = "espn_api_extractor.__main__:cli_main"`
   - [x] Added sync wrapper for async main function
   - [x] Test all entry points work correctly
   - [x] Fixed mypy type errors (Optional types in handlers)
