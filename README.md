@@ -348,7 +348,7 @@ for player in hydrated_players:
 ```python
 # Comprehensive hydration with both bio and stats in a single efficient pass
 complete_players, failed_players = core_requestor.hydrate_players(
-    player_objects, 
+    player_objects,
     include_stats=True
 )
 
@@ -367,6 +367,25 @@ for player in complete_players:
 - **Biographical only**: ~1-2 API calls per player, faster execution
 - **Complete data**: ~2-3 API calls per player, single-pass threading for efficiency
 - **Multi-threading**: Automatically uses optimal thread count (4x CPU cores, max 32)
+
+### Handling Players Without Season Stats
+
+**Important**: The hydration process treats season stats as "best-effort" data. Players who have biographical data but no season stats (e.g., prospects with only projections, injured players who didn't play) are still considered successfully hydrated. This ensures that valuable players with projection data are included in your dataset even if they lack actual season statistics from the Core API.
+
+```python
+# Example: Player with projections but no season stats
+complete_players, failed_players = core_requestor.hydrate_players(
+    player_objects,
+    include_stats=True
+)
+
+# Players with kona_playercard projections but no season stats are included
+for player in complete_players:
+    if hasattr(player, 'projections') and player.projections:
+        print(f"{player.display_name} - Has projections: {bool(player.projections)}")
+        print(f"  Has season stats: {hasattr(player, 'season_stats') and bool(player.season_stats)}")
+        # Both prospects and injured players can have projections without season stats
+```
 
 ### Using with Pydantic Models
 

@@ -1,6 +1,6 @@
 [project]
 name = "espn-api-extractor"
-version = "0.2.0"
+version = "0.3.0"
 description = "API for Extracting ESPN API Data"
 authors = [{ name = "Taylor \"TP\" Pubins", email = "tpubz@icloud.com" }]
 readme = "README.md"

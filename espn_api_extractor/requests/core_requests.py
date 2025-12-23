@@ -16,9 +16,7 @@ from .constants import ESPN_CORE_SPORT_ENDPOINTS, STAT_CATEGORY, STAT_SEASON_TYP
 
 
 class EspnCoreRequests:
-    def __init__(
-        self, sport: str, year: int, max_workers: int | None = None
-    ):
+    def __init__(self, sport: str, year: int, max_workers: int | None = None):
         try:
             assert sport in ["nfl", "mlb"]
             self.sport = sport
@@ -61,7 +59,8 @@ class EspnCoreRequests:
         # Use thread-safe logging
         with self.logger_lock:
             if status == 404:
-                self.logger.logging.warning(f"Endpoint not found: {extend}")
+                pass
+                # self.logger.logging.warning(f"Endpoint not found: {extend}")
             elif status == 429:
                 self.logger.logging.warning("Rate limit exceeded")
             elif status == 500:
@@ -203,9 +202,10 @@ class EspnCoreRequests:
                         r.status_code, extend=endpoint, params=params
                     )
                     with self.logger_lock:
-                        self.logger.logging.warning(
-                            f"Failed to fetch statistics for player {player_id} (attempt {retries + 1}/{max_retries}): HTTP {r.status_code}"
-                        )
+                        pass
+                        # self.logger.logging.warning(
+                        #     f"Failed to fetch statistics for player {player_id} (attempt {retries + 1}/{max_retries}): HTTP {r.status_code}"
+                        # )
 
                     # Don't retry 404 errors - player ID doesn't exist
                     if r.status_code == 404:
@@ -288,6 +288,9 @@ class EspnCoreRequests:
         """
         Worker function for ThreadPoolExecutor that handles the hydration logic.
         Calls appropriate hydration methods based on include_stats parameter.
+
+        Note: Stats hydration is best-effort. If stats fail but bio succeeds,
+        the player is still considered successfully hydrated (for prospects/injured players).
         """
         # First, hydrate with biographical data
         hydrated_player, bio_success = self._hydrate_player_with_bio(player)
@@ -296,11 +299,14 @@ class EspnCoreRequests:
             return hydrated_player, False
 
         # If stats are requested and bio hydration succeeded, also get stats
+        # But don't fail the entire hydration if stats fail (best-effort)
         if include_stats:
             hydrated_player, stats_success = self._hydrate_player_with_stats(
                 hydrated_player
             )
-            return hydrated_player, stats_success
+            # Note: We return True (bio_success) even if stats fail
+            # This allows prospects/injured players with projections but no season stats
+            # to still be included in the dataset
 
         return hydrated_player, bio_success
 
