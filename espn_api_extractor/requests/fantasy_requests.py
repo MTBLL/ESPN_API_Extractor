@@ -44,6 +44,7 @@ class EspnFantasyRequests(object):
             self.SPORT_ENDPOINT += (
                 "/seasons/" + self.year + "/segments/0/leaguedefaults/1"
             )
+        self.LEAGUE_ENDPOINT = self.SPORT_ENDPOINT
 
     def _checkRequestStatus(
         self,
@@ -132,6 +133,12 @@ class EspnFantasyRequests(object):
     def get_league(self):
         """Gets all of the leagues initial data (teams, roster, matchups, settings)"""
         params = {"view": ["mTeam", "mRoster", "mMatchup", "mSettings", "mStandings"]}
+        data = self.league_get(params=params)
+        return data
+
+    def get_league_data(self, views: List[str]):
+        """Gets league data using custom views."""
+        params = {"view": views}
         data = self.league_get(params=params)
         return data
 
