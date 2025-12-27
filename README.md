@@ -494,7 +494,7 @@ The repository includes debug scripts to help test functionality:
 
 ```bash
 # Test player statistics fetching
-poetry run python debug_stats_fetch.py
+uv run python debug_stats_fetch.py
 ```
 
 This script:
@@ -510,10 +510,10 @@ This project uses mypy for static type checking to catch potential type-related 
 
 ```bash
 # Run mypy on the codebase
-poetry run mypy espn_api_extractor
+uv run mypy espn_api_extractor
 
 # Run mypy with stricter checking of untyped function bodies
-poetry run mypy --check-untyped-defs espn_api_extractor
+uv run mypy --check-untyped-defs espn_api_extractor
 ```
 
 Type checking is enforced via GitHub Actions on all pull requests to ensure type consistency. All code must pass mypy checks before it can be merged to the main branch.
