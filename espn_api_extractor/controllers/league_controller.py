@@ -8,7 +8,6 @@ class LeagueController:
     def __init__(self, args):
         self.league_id = args.league_id
         self.year = args.year
-        self.views = getattr(args, "views", None)
         self.espn_s2 = getattr(args, "espn_s2", None)
         self.swid = getattr(args, "swid", None)
         self.logger = Logger("LeagueController").logging
@@ -17,7 +16,6 @@ class LeagueController:
             year=self.year,
             espn_s2=self.espn_s2,
             swid=self.swid,
-            views=self.views,
         )
 
     async def execute(self) -> Dict[str, Any]:

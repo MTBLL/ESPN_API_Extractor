@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Install dependencies: `uv sync --all-extras`
 - Run all tests: `uv run pytest tests/`
 - Run a single test: `uv run pytest tests/test_file.py::TestClass::test_function`
-- Test with coverage: `uv run pytest --cov=espn_api_extractor --cov-report=xml tests/`
+- Test with coverage: `uv run pytest --cov=espn_api_extractor --cov-report=term-missing` 
 - Run mypy type checking: `uv run mypy espn_api_extractor`
 - Run mypy with stricter checking: `uv run mypy --check-untyped-defs espn_api_extractor`
 - Run the player extractor:
