@@ -1,55 +1,55 @@
-import pytest
 from unittest.mock import MagicMock
 
 from espn_api_extractor.handlers.league_handler import (
     DEFAULT_LEAGUE_VIEWS,
     LeagueHandler,
 )
-from espn_api_extractor.requests.constants import FantasySports
 
 
-def test_uses_existing_requestor(monkeypatch):
-    # Ensure the handler does not instantiate its own requestor when one is provided
+def test_uses_existing_league(monkeypatch):
+    # Ensure the handler does not instantiate its own league when one is provided
     monkeypatch.setattr(
-        "espn_api_extractor.handlers.league_handler.EspnFantasyRequests",
+        "espn_api_extractor.handlers.league_handler.League",
         MagicMock(side_effect=AssertionError("constructor should not be called")),
     )
 
-    existing_requestor = MagicMock()
+    existing_league = MagicMock()
 
     handler = LeagueHandler(
         year=2024,
         league_id=12345,
-        requestor=existing_requestor,
+        league=existing_league,
         views=("mTeam", "mRoster"),
     )
 
-    assert handler.fantasy_requestor is existing_requestor
+    assert handler.league is existing_league
     assert handler.views == ["mTeam", "mRoster"]
 
 
 def test_fetch_calls_get_league_data():
-    requestor = MagicMock()
-    requestor.get_league_data.return_value = {"league": "data"}
+    league = MagicMock()
+    league.espn_request.get_league_data.return_value = {"league": "data"}
 
     handler = LeagueHandler(
         year=2024,
         league_id=6789,
-        requestor=requestor,
+        league=league,
         views=["mTeam", "mSettings"],
     )
 
     result = handler.fetch()
 
     assert result == {"league": "data"}
-    requestor.get_league_data.assert_called_once_with(["mTeam", "mSettings"])
+    league.espn_request.get_league_data.assert_called_once_with(
+        ["mTeam", "mSettings"]
+    )
 
 
-def test_initializes_requestor_with_cookies(monkeypatch):
-    requestor = MagicMock()
-    constructor = MagicMock(return_value=requestor)
+def test_initializes_league_with_cookies(monkeypatch):
+    league = MagicMock()
+    constructor = MagicMock(return_value=league)
     monkeypatch.setattr(
-        "espn_api_extractor.handlers.league_handler.EspnFantasyRequests",
+        "espn_api_extractor.handlers.league_handler.League",
         constructor,
     )
 
@@ -61,23 +61,24 @@ def test_initializes_requestor_with_cookies(monkeypatch):
     )
 
     constructor.assert_called_once_with(
-        sport=FantasySports.MLB,
         year=2023,
         league_id=2468,
-        cookies={"espn_s2": "token1", "SWID": "token2"},
+        espn_s2="token1",
+        swid="token2",
+        fetch_league=False,
     )
-    assert handler.fantasy_requestor is requestor
+    assert handler.league is league
     assert handler.views == list(DEFAULT_LEAGUE_VIEWS)
 
 
 def test_initializes_with_default_views(monkeypatch):
-    requestor = MagicMock()
+    league = MagicMock()
     monkeypatch.setattr(
-        "espn_api_extractor.handlers.league_handler.EspnFantasyRequests",
-        MagicMock(return_value=requestor),
+        "espn_api_extractor.handlers.league_handler.League",
+        MagicMock(return_value=league),
     )
 
     handler = LeagueHandler(year=2024, league_id=13579)
 
     assert handler.views == list(DEFAULT_LEAGUE_VIEWS)
-    requestor.get_league_data.assert_not_called()
+    league.espn_request.get_league_data.assert_not_called()

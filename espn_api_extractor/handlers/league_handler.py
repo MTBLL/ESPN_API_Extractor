@@ -2,8 +2,7 @@ from typing import List, Optional, Sequence
 
 from pydantic import Json
 
-from espn_api_extractor.requests import EspnFantasyRequests
-from espn_api_extractor.requests.constants import FantasySports
+from espn_api_extractor.baseball.league import League
 
 DEFAULT_LEAGUE_VIEWS = ("mSettings", "mRoster", "mTeam", "modular", "mNav")
 
@@ -16,25 +15,21 @@ class LeagueHandler:
         espn_s2: Optional[str] = None,
         swid: Optional[str] = None,
         views: Optional[Sequence[str]] = None,
-        requestor: Optional[EspnFantasyRequests] = None,
+        league: Optional[League] = None,
     ):
-        self.league_id = league_id
         self.views: List[str] = list(views) if views else list(DEFAULT_LEAGUE_VIEWS)
 
-        if requestor is not None:
-            self.fantasy_requestor = requestor
+        if league is not None:
+            self.league = league
             return
 
-        cookies = {}
-        if espn_s2 and swid:
-            cookies = {"espn_s2": espn_s2, "SWID": swid}
-
-        self.fantasy_requestor = EspnFantasyRequests(
-            sport=FantasySports.MLB,
+        self.league = League(
             year=year,
             league_id=league_id,
-            cookies=cookies,
+            espn_s2=espn_s2,
+            swid=swid,
+            fetch_league=False,
         )
 
     def fetch(self) -> Json:
-        return self.fantasy_requestor.get_league_data(self.views)
+        return self.league.espn_request.get_league_data(self.views)
