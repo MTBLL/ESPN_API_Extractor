@@ -38,5 +38,10 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 
+[tool.coverage.run]
+omit = [
+    "espn_api_extractor/__main__.py"
+]
+
 [tool.mypy]
 ignore_missing_imports = false
