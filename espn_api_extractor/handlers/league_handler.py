@@ -5,6 +5,14 @@ from pydantic import Json
 from espn_api_extractor.baseball.league import League
 
 DEFAULT_LEAGUE_VIEWS = ("mSettings", "mRoster", "mTeam", "modular", "mNav")
+EXCLUDED_LEAGUE_KEYS = {"draftDetail", "gameId", "members", "segmentId"}
+EXCLUDED_SETTINGS_KEYS = {
+    "financeSettings",
+    "isAutoReactivated",
+    "isCustomizable",
+    "restrictionType",
+}
+ACQUISITION_SETTINGS_KEEP = {"acquisitionBudget"}
 
 
 class LeagueHandler:
@@ -32,4 +40,26 @@ class LeagueHandler:
         )
 
     def fetch(self) -> Json:
-        return self.league.espn_request.get_league_data(self.views)
+        data = self.league.espn_request.get_league_data(self.views)
+        assert isinstance(data, dict)
+
+        filtered = {
+            key: value for key, value in data.items() if key not in EXCLUDED_LEAGUE_KEYS
+        }
+        settings = filtered.get("settings")
+        if isinstance(settings, dict):
+            settings = {
+                key: value
+                for key, value in settings.items()
+                if key not in EXCLUDED_SETTINGS_KEYS
+            }
+            acquisition_settings = settings.get("acquisitionSettings")
+            if isinstance(acquisition_settings, dict):
+                settings["acquisitionSettings"] = {
+                    key: value
+                    for key, value in acquisition_settings.items()
+                    if key in ACQUISITION_SETTINGS_KEEP
+                }
+            filtered["settings"] = settings
+
+        return filtered

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from .constants import POSITION_MAP, PRO_TEAM_MAP
+from .constants import LINEUP_SLOT_MAP, PRO_TEAM_MAP
 from .player import Player
 
 
@@ -16,7 +16,7 @@ class BoxPlayer(Player):
         self.on_bye_week = False
 
         if "lineupSlotId" in data:
-            self.slot_position = POSITION_MAP[data["lineupSlotId"]]
+            self.slot_position = LINEUP_SLOT_MAP[data["lineupSlotId"]]
 
         player = (
             data["playerPoolEntry"]["player"]

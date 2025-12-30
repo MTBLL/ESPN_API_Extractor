@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 from espn_api_extractor.models.player_model import PlayerModel
 from espn_api_extractor.utils.utils import json_parsing, safe_get, safe_get_nested
 
-from .constants import NOMINAL_POSITION_MAP, POSITION_MAP, PRO_TEAM_MAP, STATS_MAP
+from .constants import LINEUP_SLOT_MAP, NOMINAL_POSITION_MAP, PRO_TEAM_MAP, STATS_MAP
 
 
 class Player(object):
@@ -24,7 +24,7 @@ class Player(object):
 
         eligible_slots = json_parsing(data, "eligibleSlots")
         self.eligible_slots = [
-            str(POSITION_MAP.get(pos, pos))
+            str(LINEUP_SLOT_MAP.get(pos, pos))
             for pos in (eligible_slots if eligible_slots else [])
             if pos != 16 and pos != 17  # Filter out Bench (BE) and Injured List (IL)
         ]  # if position isn't in position map, just use the position id number as a string
@@ -413,7 +413,8 @@ class Player(object):
     def _extract_games_by_position(self, kona_data: Dict[str, Any]) -> None:
         """Extract and map games played by position.
 
-        Note: gamesPlayedByPosition uses NOMINAL_POSITION_MAP, not POSITION_MAP.
+        Note: gamesPlayedByPosition uses NOMINAL_POSITION_MAP (position ids),
+        not LINEUP_SLOT_MAP (lineup slot ids).
         """
         games_by_pos = safe_get(kona_data, "gamesPlayedByPosition", {})
         if games_by_pos:

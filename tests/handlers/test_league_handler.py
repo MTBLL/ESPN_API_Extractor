@@ -2,6 +2,8 @@ from unittest.mock import MagicMock
 
 from espn_api_extractor.handlers.league_handler import (
     DEFAULT_LEAGUE_VIEWS,
+    EXCLUDED_LEAGUE_KEYS,
+    EXCLUDED_SETTINGS_KEYS,
     LeagueHandler,
 )
 
@@ -28,7 +30,20 @@ def test_uses_existing_league(monkeypatch):
 
 def test_fetch_calls_get_league_data():
     league = MagicMock()
-    league.espn_request.get_league_data.return_value = {"league": "data"}
+    league.espn_request.get_league_data.return_value = {
+        "league": "data",
+        "draftDetail": {"drafted": True},
+        "gameId": 2,
+        "members": [],
+        "segmentId": 0,
+        "settings": {
+            "acquisitionSettings": {"acquisitionBudget": 200, "foo": "bar"},
+            "financeSettings": {"bar": "baz"},
+            "isAutoReactivated": True,
+            "isCustomizable": True,
+            "restrictionType": "NONE",
+        },
+    }
 
     handler = LeagueHandler(
         year=2024,
@@ -39,10 +54,48 @@ def test_fetch_calls_get_league_data():
 
     result = handler.fetch()
 
-    assert result == {"league": "data"}
+    assert result == {
+        "league": "data",
+        "settings": {"acquisitionSettings": {"acquisitionBudget": 200}},
+    }
     league.espn_request.get_league_data.assert_called_once_with(
         ["mTeam", "mSettings"]
     )
+
+
+def test_fetch_drops_excluded_keys():
+    league = MagicMock()
+    league.espn_request.get_league_data.return_value = {
+        "league": "data",
+        "draftDetail": {"drafted": True},
+        "gameId": 2,
+        "members": [],
+        "segmentId": 0,
+        "settings": {
+            "acquisitionSettings": {"acquisitionBudget": 100, "ignored": True},
+            "financeSettings": {"bar": "baz"},
+            "isAutoReactivated": True,
+            "isCustomizable": True,
+            "restrictionType": "NONE",
+        },
+    }
+
+    handler = LeagueHandler(
+        year=2024,
+        league_id=6789,
+        league=league,
+    )
+
+    result = handler.fetch()
+
+    assert result == {
+        "league": "data",
+        "settings": {"acquisitionSettings": {"acquisitionBudget": 100}},
+    }
+    for key in EXCLUDED_LEAGUE_KEYS:
+        assert key not in result
+    for key in EXCLUDED_SETTINGS_KEYS:
+        assert key not in result["settings"]
 
 
 def test_initializes_league_with_cookies(monkeypatch):

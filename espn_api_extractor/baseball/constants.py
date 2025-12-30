@@ -1,6 +1,7 @@
 from typing import Dict
 
-POSITION_MAP: Dict[int, str] = {
+# Lineup slot ids (not position ids)
+LINEUP_SLOT_MAP: Dict[int, str] = {
     0: "C",
     1: "1B",
     2: "2B",
