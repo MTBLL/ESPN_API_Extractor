@@ -1,5 +1,4 @@
 import json
-
 from unittest.mock import patch
 
 from espn_api_extractor.requests.constants import FantasySports
@@ -22,7 +21,7 @@ def test_get_league_calls_league_get_with_views():
         assert result == {"league": "data"}
         mock_league_get.assert_called_once_with(
             params={
-                "view": ["mTeam", "mRoster", "mMatchup", "mSettings", "mStandings"]
+                "view": ["mTeam", "mRoster", "mMatchupScore", "mSettings", "mStandings"]
             }
         )
 

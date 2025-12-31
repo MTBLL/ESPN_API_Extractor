@@ -132,7 +132,9 @@ class EspnFantasyRequests(object):
 
     def get_league(self):
         """Gets all of the leagues initial data (teams, roster, matchups, settings)"""
-        params = {"view": ["mTeam", "mRoster", "mMatchup", "mSettings", "mStandings"]}
+        params = {
+            "view": ["mTeam", "mRoster", "mMatchupScore", "mSettings", "mStandings"]
+        }
         data = self.league_get(params=params)
         return data
 

@@ -72,6 +72,10 @@ def test_fetch_league_calls_base_fetch_and_players(monkeypatch, league_response_
 def test_fetch_teams_maps_opponents_to_team_instances(league_response_fixture):
     league = League(league_id=1, year=2025, fetch_league=False)
     data = league_response_fixture
+    for team in data["teams"]:
+        roster = team.get("roster") or {}
+        roster.setdefault("entries", [])
+        team["roster"] = roster
     team_ids = [team["id"] for team in data["teams"][:2]]
     data["schedule"] = [
         {

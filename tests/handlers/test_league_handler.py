@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 
 from espn_api_extractor.baseball.constants import STATS_MAP
 from espn_api_extractor.handlers.league_handler import (
-    DEFAULT_LEAGUE_VIEWS,
     EXCLUDED_LEAGUE_KEYS,
     EXCLUDED_SETTINGS_KEYS,
     LeagueHandler,
@@ -26,18 +25,18 @@ def test_uses_existing_league(monkeypatch):
     )
 
     assert handler.league is existing_league
-    assert handler.views == ["mTeam", "mRoster"]
+    assert handler.views == ("mTeam", "mRoster")
 
 
-def test_fetch_calls_get_league_data(league_response_fixture):
+def test_fetch_calls_get_league(league_response_fixture):
     league = MagicMock()
-    league.espn_request.get_league_data.return_value = league_response_fixture
+    league.espn_request.get_league.return_value = league_response_fixture
 
     handler = LeagueHandler(
         year=2024,
         league_id=6789,
         league=league,
-        views=["mTeam", "mSettings"],
+        views=("mTeam", "mSettings"),
     )
 
     result = handler.fetch()
@@ -55,8 +54,7 @@ def test_fetch_calls_get_league_data(league_response_fixture):
     ]
     expected_ids = {item["statId"] for item in scoring_items}
     category_ids = {
-        entry["statId"]
-        for entry in categories["batting"] + categories["pitching"]
+        entry["statId"] for entry in categories["batting"] + categories["pitching"]
     }
     assert category_ids == expected_ids
     source_by_id = {item["statId"]: item for item in scoring_items}
@@ -65,14 +63,12 @@ def test_fetch_calls_get_league_data(league_response_fixture):
         assert entry["isReverseItem"] == source_by_id[entry["statId"]].get(
             "isReverseItem"
         )
-    league.espn_request.get_league_data.assert_called_once_with(
-        ["mTeam", "mSettings"]
-    )
+    league.espn_request.get_league.assert_called_once_with()
 
 
 def test_fetch_drops_excluded_keys(league_response_fixture):
     league = MagicMock()
-    league.espn_request.get_league_data.return_value = league_response_fixture
+    league.espn_request.get_league.return_value = league_response_fixture
 
     handler = LeagueHandler(
         year=2024,
@@ -95,7 +91,7 @@ def test_fetch_drops_excluded_keys(league_response_fixture):
 
 def test_fetch_removes_waiver_process_status(league_response_fixture):
     league = MagicMock()
-    league.espn_request.get_league_data.return_value = league_response_fixture
+    league.espn_request.get_league.return_value = league_response_fixture
 
     handler = LeagueHandler(
         year=2024,
@@ -131,7 +127,7 @@ def test_initializes_league_with_cookies(monkeypatch):
         fetch_league=False,
     )
     assert handler.league is league
-    assert handler.views == list(DEFAULT_LEAGUE_VIEWS)
+    assert handler.views is None
 
 
 def test_initializes_with_default_views(monkeypatch):
@@ -143,5 +139,5 @@ def test_initializes_with_default_views(monkeypatch):
 
     handler = LeagueHandler(year=2024, league_id=13579)
 
-    assert handler.views == list(DEFAULT_LEAGUE_VIEWS)
-    league.espn_request.get_league_data.assert_not_called()
+    assert handler.views is None
+    league.espn_request.get_league.assert_not_called()

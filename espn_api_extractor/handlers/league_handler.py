@@ -1,11 +1,10 @@
-from typing import List, Optional, Sequence
+from typing import Optional, Sequence
 
 from pydantic import Json
 
 from espn_api_extractor.baseball.constants import STATS_MAP
 from espn_api_extractor.baseball.league import League
 
-DEFAULT_LEAGUE_VIEWS = ("mSettings", "mRoster", "mTeam", "modular", "mNav")
 EXCLUDED_LEAGUE_KEYS = {"draftDetail", "gameId", "members", "segmentId"}
 EXCLUDED_SETTINGS_KEYS = {
     "financeSettings",
@@ -27,8 +26,7 @@ class LeagueHandler:
         views: Optional[Sequence[str]] = None,
         league: Optional[League] = None,
     ):
-        self.views: List[str] = list(views) if views else list(DEFAULT_LEAGUE_VIEWS)
-
+        self.views = views
         if league is not None:
             self.league = league
             return
@@ -42,7 +40,7 @@ class LeagueHandler:
         )
 
     def fetch(self) -> Json:
-        data = self.league.espn_request.get_league_data(self.views)
+        data = self.league.espn_request.get_league()
 
         filtered = self._drop_excluded_keys(data)
         filtered = self._filter_settings(filtered)
