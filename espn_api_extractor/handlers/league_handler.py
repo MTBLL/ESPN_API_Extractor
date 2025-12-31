@@ -45,6 +45,7 @@ class LeagueHandler:
         filtered = self._drop_excluded_keys(data)
         filtered = self._filter_settings(filtered)
         filtered = self._filter_status(filtered)
+        filtered = self._filter_schedule(filtered)
         return filtered
 
     def _drop_excluded_keys(self, data: dict) -> dict:
@@ -121,3 +122,65 @@ class LeagueHandler:
         updated_status.pop("waiverProcessStatus", None)
         updated["status"] = updated_status
         return updated
+
+    def _filter_schedule(self, data: dict) -> dict:
+        schedule = data.get("schedule")
+        if not isinstance(schedule, list):
+            return data
+
+        updated = dict(data)
+        updated["schedule"] = [self._simplify_matchup(matchup) for matchup in schedule]
+        return updated
+
+    def _simplify_matchup(self, matchup: dict) -> dict:
+        home = matchup.get("home") or {}
+        away = matchup.get("away") or {}
+
+        home_team_id = home.get("teamId")
+        away_team_id = away.get("teamId")
+
+        teams = {}
+        if home_team_id is not None:
+            teams[home_team_id] = self._format_record(home.get("cumulativeScore"))
+        if away_team_id is not None:
+            teams[away_team_id] = self._format_record(away.get("cumulativeScore"))
+
+        winner = self._normalize_winner(
+            matchup.get("winner"),
+            home_team_id,
+            away_team_id,
+            len(teams),
+        )
+
+        return {
+            "id": matchup.get("id"),
+            "matchupPeriodId": matchup.get("matchupPeriodId"),
+            "playoffTierType": matchup.get("playoffTierType"),
+            "winner": winner,
+            "teams": teams,
+        }
+
+    def _format_record(self, cumulative_score: Optional[dict]) -> str:
+        if not isinstance(cumulative_score, dict):
+            cumulative_score = {}
+        wins = cumulative_score.get("wins", 0)
+        losses = cumulative_score.get("losses", 0)
+        ties = cumulative_score.get("ties", 0)
+        return f"{wins}-{losses}-{ties}"
+
+    def _normalize_winner(
+        self,
+        winner: Optional[str],
+        home_team_id: Optional[int],
+        away_team_id: Optional[int],
+        team_count: int,
+    ) -> Optional[int | str]:
+        if team_count == 1 and winner in (None, "UNDECIDED"):
+            return "BYE WEEK"
+        if winner == "HOME":
+            return home_team_id
+        if winner == "AWAY":
+            return away_team_id
+        if winner == "TIE":
+            return "TIE"
+        return None

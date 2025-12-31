@@ -104,6 +104,89 @@ def test_fetch_removes_waiver_process_status(league_response_fixture):
     assert "waiverProcessStatus" not in result["status"]
 
 
+def test_fetch_simplifies_schedule(league_response_fixture):
+    league = MagicMock()
+    league.espn_request.get_league.return_value = league_response_fixture
+
+    handler = LeagueHandler(
+        year=2024,
+        league_id=6789,
+        league=league,
+    )
+
+    result = handler.fetch()
+
+    source_matchup = None
+    for matchup in league_response_fixture.get("schedule", []):
+        home = matchup.get("home") or {}
+        away = matchup.get("away") or {}
+        if home.get("cumulativeScore") and away.get("cumulativeScore"):
+            source_matchup = matchup
+            break
+
+    assert source_matchup is not None
+
+    simplified_matchup = next(
+        item for item in result["schedule"] if item["id"] == source_matchup["id"]
+    )
+
+    home = source_matchup.get("home") or {}
+    away = source_matchup.get("away") or {}
+    home_record = home.get("cumulativeScore", {})
+    away_record = away.get("cumulativeScore", {})
+
+    expected_teams = {
+        home["teamId"]: f"{home_record.get('wins', 0)}-{home_record.get('losses', 0)}-{home_record.get('ties', 0)}",
+        away["teamId"]: f"{away_record.get('wins', 0)}-{away_record.get('losses', 0)}-{away_record.get('ties', 0)}",
+    }
+
+    if source_matchup.get("winner") == "HOME":
+        expected_winner = home["teamId"]
+    elif source_matchup.get("winner") == "AWAY":
+        expected_winner = away["teamId"]
+    elif source_matchup.get("winner") == "TIE":
+        expected_winner = "TIE"
+    else:
+        expected_winner = None
+
+    assert simplified_matchup == {
+        "id": source_matchup["id"],
+        "matchupPeriodId": source_matchup["matchupPeriodId"],
+        "playoffTierType": source_matchup["playoffTierType"],
+        "winner": expected_winner,
+        "teams": expected_teams,
+    }
+
+
+def test_fetch_marks_bye_week_when_single_team(league_response_fixture):
+    league = MagicMock()
+    league.espn_request.get_league.return_value = league_response_fixture
+
+    handler = LeagueHandler(
+        year=2024,
+        league_id=6789,
+        league=league,
+    )
+
+    result = handler.fetch()
+
+    source_matchup = None
+    for matchup in league_response_fixture.get("schedule", []):
+        home = matchup.get("home") or {}
+        away = matchup.get("away") or {}
+        team_ids = [team_id for team_id in (home.get("teamId"), away.get("teamId")) if team_id is not None]
+        if len(team_ids) == 1:
+            source_matchup = matchup
+            break
+
+    assert source_matchup is not None
+
+    simplified_matchup = next(
+        item for item in result["schedule"] if item["id"] == source_matchup["id"]
+    )
+
+    assert simplified_matchup["winner"] == "BYE WEEK"
+
 def test_initializes_league_with_cookies(monkeypatch):
     league = MagicMock()
     constructor = MagicMock(return_value=league)
