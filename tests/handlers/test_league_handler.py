@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock
 
+from espn_api_extractor.baseball.constants import STATS_MAP
 from espn_api_extractor.handlers.league_handler import (
     DEFAULT_LEAGUE_VIEWS,
     EXCLUDED_LEAGUE_KEYS,
@@ -28,22 +29,9 @@ def test_uses_existing_league(monkeypatch):
     assert handler.views == ["mTeam", "mRoster"]
 
 
-def test_fetch_calls_get_league_data():
+def test_fetch_calls_get_league_data(league_response_fixture):
     league = MagicMock()
-    league.espn_request.get_league_data.return_value = {
-        "league": "data",
-        "draftDetail": {"drafted": True},
-        "gameId": 2,
-        "members": [],
-        "segmentId": 0,
-        "settings": {
-            "acquisitionSettings": {"acquisitionBudget": 200, "foo": "bar"},
-            "financeSettings": {"bar": "baz"},
-            "isAutoReactivated": True,
-            "isCustomizable": True,
-            "restrictionType": "NONE",
-        },
-    }
+    league.espn_request.get_league_data.return_value = league_response_fixture
 
     handler = LeagueHandler(
         year=2024,
@@ -54,31 +42,37 @@ def test_fetch_calls_get_league_data():
 
     result = handler.fetch()
 
-    assert result == {
-        "league": "data",
-        "settings": {"acquisitionSettings": {"acquisitionBudget": 200}},
+    assert result["settings"]["acquisitionSettings"] == {
+        "acquisitionBudget": league_response_fixture["settings"]["acquisitionSettings"][
+            "acquisitionBudget"
+        ]
     }
+    categories = result["settings"]["scoringSettings"]["categories"]
+    assert set(categories.keys()) == {"batting", "pitching"}
+
+    scoring_items = league_response_fixture["settings"]["scoringSettings"][
+        "scoringItems"
+    ]
+    expected_ids = {item["statId"] for item in scoring_items}
+    category_ids = {
+        entry["statId"]
+        for entry in categories["batting"] + categories["pitching"]
+    }
+    assert category_ids == expected_ids
+    source_by_id = {item["statId"]: item for item in scoring_items}
+    for entry in categories["batting"] + categories["pitching"]:
+        assert entry["name"] == STATS_MAP.get(entry["statId"], entry["statId"])
+        assert entry["isReverseItem"] == source_by_id[entry["statId"]].get(
+            "isReverseItem"
+        )
     league.espn_request.get_league_data.assert_called_once_with(
         ["mTeam", "mSettings"]
     )
 
 
-def test_fetch_drops_excluded_keys():
+def test_fetch_drops_excluded_keys(league_response_fixture):
     league = MagicMock()
-    league.espn_request.get_league_data.return_value = {
-        "league": "data",
-        "draftDetail": {"drafted": True},
-        "gameId": 2,
-        "members": [],
-        "segmentId": 0,
-        "settings": {
-            "acquisitionSettings": {"acquisitionBudget": 100, "ignored": True},
-            "financeSettings": {"bar": "baz"},
-            "isAutoReactivated": True,
-            "isCustomizable": True,
-            "restrictionType": "NONE",
-        },
-    }
+    league.espn_request.get_league_data.return_value = league_response_fixture
 
     handler = LeagueHandler(
         year=2024,
@@ -88,14 +82,30 @@ def test_fetch_drops_excluded_keys():
 
     result = handler.fetch()
 
-    assert result == {
-        "league": "data",
-        "settings": {"acquisitionSettings": {"acquisitionBudget": 100}},
+    assert result["settings"]["acquisitionSettings"] == {
+        "acquisitionBudget": league_response_fixture["settings"]["acquisitionSettings"][
+            "acquisitionBudget"
+        ]
     }
     for key in EXCLUDED_LEAGUE_KEYS:
         assert key not in result
     for key in EXCLUDED_SETTINGS_KEYS:
         assert key not in result["settings"]
+
+
+def test_fetch_removes_waiver_process_status(league_response_fixture):
+    league = MagicMock()
+    league.espn_request.get_league_data.return_value = league_response_fixture
+
+    handler = LeagueHandler(
+        year=2024,
+        league_id=6789,
+        league=league,
+    )
+
+    result = handler.fetch()
+
+    assert "waiverProcessStatus" not in result["status"]
 
 
 def test_initializes_league_with_cookies(monkeypatch):
