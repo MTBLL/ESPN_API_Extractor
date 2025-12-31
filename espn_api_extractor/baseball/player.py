@@ -50,6 +50,7 @@ class Player(object):
         self.draft_auction_value: int | None = None
         self.on_team_id: int | None = None
         self.auction_value_average: float | None = None
+        self.transactions: List[Dict[str, Any]] = []
         self.display_name: str | None = None
         self.short_name: str | None = None
         self.nickname: str | None = None
@@ -210,6 +211,7 @@ class Player(object):
             "draft_auction_value",
             "on_team_id",
             "auction_value_average",
+            "transactions",
             "display_name",
             "short_name",
             "nickname",
@@ -384,6 +386,7 @@ class Player(object):
             "draft_ranks": {},
             "games_played_by_position": {},
             "auction_value_average": None,
+            "transactions": [],
         }
 
         for field, default in field_defaults.items():
@@ -560,7 +563,29 @@ class Player(object):
         self.auction_value_average = safe_get_nested(
             player_data, "ownership", "auctionValueAverage", default=None
         )
+        if self.draft_auction_value is not None:
+            self.draft_auction_value = int(self.draft_auction_value)
+        self.transactions = safe_get(player_dict, "transactions", [])
+        if self.draft_auction_value in (None, 0):
+            transaction_value = self._extract_draft_auction_value(self.transactions)
+            if transaction_value is not None:
+                self.draft_auction_value = transaction_value
         self._extract_games_by_position(player_data)
 
         if "stats" in player_data:
             self._hydrate_kona_stats(player_data["stats"])
+
+    def _extract_draft_auction_value(
+        self, transactions: List[Dict[str, Any]]
+    ) -> int | None:
+        for transaction in transactions:
+            transaction_type = transaction.get("type")
+            items = transaction.get("items", [])
+            if transaction_type != "DRAFT" and not any(
+                item.get("type") == "DRAFT" for item in items if isinstance(item, dict)
+            ):
+                continue
+            bid_amount = transaction.get("bidAmount")
+            if bid_amount is not None:
+                return int(bid_amount)
+        return None

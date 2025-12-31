@@ -70,21 +70,49 @@ class PlayerController:
         try:
             # 1. Get all current ESPN players (single API call)
             self.logger.info("Fetching all current ESPN players")
-            espn_players_response = self.fantasy_requests.get_pro_players()
-            espn_player_ids = {player["id"] for player in espn_players_response}
+            espn_players_response = self.fantasy_requests.get_player_cards(
+                player_ids=[]
+            )
+            espn_player_cards = (
+                espn_players_response.get("players", [])
+                if isinstance(espn_players_response, dict)
+                else espn_players_response
+            )
+            espn_player_id_list = [
+                player.get("id") or player.get("player", {}).get("id")
+                for player in espn_player_cards
+                if isinstance(player, dict)
+            ]
+            espn_player_id_list = [
+                player_id for player_id in espn_player_id_list if player_id is not None
+            ]
+            espn_player_ids = set(espn_player_id_list)
+            pro_players_data = [
+                player.get("player", player)
+                for player in espn_player_cards
+                if isinstance(player, dict)
+            ]
 
             self.logger.info(f"Found {len(espn_player_ids)} current ESPN players")
 
             # 2. Strategic routing based on comparison
             existing_to_update = existing_player_ids.intersection(espn_player_ids)
-            new_player_ids = espn_player_ids - existing_player_ids
+            new_player_id_list = [
+                player_id
+                for player_id in espn_player_id_list
+                if player_id not in existing_player_ids
+            ]
+            new_player_ids = set(new_player_id_list)
             missing_from_espn = existing_player_ids - espn_player_ids
 
             # Apply sample_size limit if specified
             if self.sample_size is not None:
-                self.logger.info(f"Limiting to sample_size of {self.sample_size} players")
+                self.logger.info(
+                    f"Limiting to sample_size of {self.sample_size} players"
+                )
                 # Limit new players to sample size
-                new_player_ids = set(list(new_player_ids)[:self.sample_size])
+                new_player_id_list = new_player_id_list[: self.sample_size]
+                new_player_ids = set(new_player_id_list)
                 # Don't update existing players if we're sampling
                 existing_to_update = set()
 
@@ -105,7 +133,7 @@ class PlayerController:
                 self.logger.info("Processing existing player updates")
                 try:
                     updated_players = await self.update_handler.execute(
-                        existing_to_update, pro_players_data=espn_players_response
+                        existing_to_update, pro_players_data=pro_players_data
                     )
                     all_players.extend(updated_players)
                     self.logger.info(
@@ -121,7 +149,7 @@ class PlayerController:
                 self.logger.info("Processing new player hydration")
                 try:
                     new_players = await self.full_hydration_handler.execute(
-                        new_player_ids, pro_players_data=espn_players_response
+                        new_player_ids, pro_players_data=pro_players_data
                     )
                     all_players.extend(new_players)
                     self.logger.info(

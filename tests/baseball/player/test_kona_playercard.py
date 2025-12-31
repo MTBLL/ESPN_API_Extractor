@@ -1,9 +1,10 @@
 import json
-
-import pytest
 from datetime import datetime
 
+import pytest
+
 from espn_api_extractor.baseball.player import Player
+from espn_api_extractor.models.player_model import PlayerModel
 
 
 # Helper function to get the dynamic previous_season key
@@ -12,7 +13,6 @@ def get_previous_season_key():
     current_year = datetime.now().year
     previous_year = current_year - 1
     return f"previous_season_{str(previous_year)[-2:]}"
-from espn_api_extractor.models.player_model import PlayerModel
 
 
 class TestPlayerKonaPlayercard:
@@ -129,8 +129,12 @@ class TestPlayerKonaPlayercard:
         # Test previous season stats mapping (2024) under stats namespace
         assert "AB" in player.stats[get_previous_season_key()]
         assert "HR" in player.stats[get_previous_season_key()]
-        assert player.stats[get_previous_season_key()]["AB"] == 636.0  # From 002024 in fixture
-        assert player.stats[get_previous_season_key()]["HR"] == 54.0  # From 002024 in fixture
+        assert (
+            player.stats[get_previous_season_key()]["AB"] == 636.0
+        )  # From 002024 in fixture
+        assert (
+            player.stats[get_previous_season_key()]["HR"] == 54.0
+        )  # From 002024 in fixture
 
     def test_player_hydrate_projections_handles_missing_stats_gracefully(self):
         """Test that hydrate_projections handles missing or incomplete stats gracefully"""
@@ -339,7 +343,7 @@ class TestPlayerKonaPlayercard:
     def test_hydrate_kona_playercard_extracts_draft_auction_value(
         self, carroll_player_data
     ):
-        """Test that hydrate_kona_playercard extracts draftAuctionValue from top-level"""
+        """Test that hydrate_kona_playercard falls back to transaction bidAmount."""
         player = Player({"id": 42404, "fullName": "Corbin Carroll"})
 
         # Hydrate with complete player dict from API response
@@ -347,7 +351,7 @@ class TestPlayerKonaPlayercard:
 
         # Verify draft auction value was extracted
         assert hasattr(player, "draft_auction_value")
-        assert player.draft_auction_value == 0  # type: ignore[attr-defined]  # From fixture
+        assert player.draft_auction_value == 42  # type: ignore[attr-defined]  # From fixture
 
     def test_hydrate_kona_playercard_extracts_on_team_id(self, carroll_player_data):
         """Test that hydrate_kona_playercard extracts onTeamId from top-level"""
@@ -358,7 +362,19 @@ class TestPlayerKonaPlayercard:
 
         # Verify on team ID was extracted
         assert hasattr(player, "on_team_id")
-        assert player.on_team_id == 0  # type: ignore[attr-defined]  # From fixture
+        assert player.on_team_id == 8  # type: ignore[attr-defined]  # From fixture
+
+    def test_hydrate_kona_playercard_extracts_transactions(self, carroll_player_data):
+        """Test that hydrate_kona_playercard extracts transactions from top-level"""
+        player = Player({"id": 42404, "fullName": "Corbin Carroll"})
+
+        # Hydrate with complete player dict from API response
+        player.hydrate_kona_playercard(carroll_player_data)
+
+        # Verify transactions were extracted
+        assert hasattr(player, "transactions")
+        assert isinstance(player.transactions, list)  # type: ignore[attr-defined]
+        assert player.transactions == carroll_player_data["transactions"]  # type: ignore[attr-defined]
 
     def test_hydrate_kona_playercard_extracts_draft_ranks(self, carroll_player_data):
         """Test that hydrate_kona_playercard extracts draftRanksByRankType"""
@@ -494,6 +510,7 @@ class TestPlayerKonaPlayercard:
             restored_player.auction_value_average  # type: ignore[attr-defined]
             == original_player.auction_value_average  # type: ignore[attr-defined]
         )
+        assert restored_player.transactions == original_player.transactions  # type: ignore[attr-defined]
 
     def test_comprehensive_kona_playercard_data_extraction(self, ohtani_player_data):
         """Test comprehensive extraction of all kona_playercard data from Ohtani fixture"""

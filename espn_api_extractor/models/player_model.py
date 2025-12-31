@@ -108,13 +108,14 @@ class PlayerModel(BaseModel):
     season_outlook: Optional[str] = Field(None, alias="seasonOutlook")
 
     # Fantasy and draft information from kona_playercard
-    draft_auction_value: Optional[float] = Field(None, alias="draftAuctionValue")
+    draft_auction_value: Optional[int] = Field(None, alias="draftAuctionValue")
     on_team_id: Optional[int] = Field(None, alias="onTeamId")
     draft_ranks: Dict[str, Any] = Field(default_factory=dict, alias="draftRanks")
     games_played_by_position: Dict[str, int] = Field(
         default_factory=dict, alias="gamesPlayedByPosition"
     )
     auction_value_average: Optional[float] = Field(None, alias="auctionValueAverage")
+    transactions: List[Dict[str, Any]] = Field(default_factory=list)
 
     # Statistics - kona stats with semantic keys: projections, current_season, previous_season, last_7_games, last_15_games, last_30_games
     # Also includes split_id, split_name, split_abbreviation, split_type, categories from season stats

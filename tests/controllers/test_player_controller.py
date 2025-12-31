@@ -7,7 +7,7 @@ from espn_api_extractor.controllers.player_controller import PlayerController
 
 def _build_controller(monkeypatch, espn_players):
     espn_request = MagicMock()
-    espn_request.get_pro_players.return_value = espn_players
+    espn_request.get_player_cards.return_value = {"players": espn_players}
 
     update_handler = MagicMock()
     update_handler.execute = AsyncMock(return_value=[])
@@ -59,7 +59,7 @@ def test_player_controller_updates_and_hydrates(monkeypatch):
 
     result = asyncio.run(controller.execute(existing_players))
 
-    espn_request.get_pro_players.assert_called_once_with()
+    espn_request.get_player_cards.assert_called_once_with(player_ids=[])
     update_handler.execute.assert_awaited_once_with(
         {1, 2}, pro_players_data=espn_players
     )
@@ -128,7 +128,7 @@ def test_player_controller_handles_full_hydration_failure(monkeypatch):
 
 def test_player_controller_handles_critical_failure(monkeypatch):
     espn_request = MagicMock()
-    espn_request.get_pro_players.side_effect = RuntimeError("boom")
+    espn_request.get_player_cards.side_effect = RuntimeError("boom")
 
     update_handler = MagicMock()
     update_handler.execute = AsyncMock()

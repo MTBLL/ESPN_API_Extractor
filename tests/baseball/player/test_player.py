@@ -321,7 +321,7 @@ def test_player_from_model_with_hasura_fixture(hasura_fixture_data):
         assert isinstance(player_model.season_outlook, (str, type(None)))
         
         # Fantasy and draft information from kona_playercard
-        assert isinstance(player_model.draft_auction_value, (float, type(None)))
+        assert isinstance(player_model.draft_auction_value, (int, type(None)))
         assert isinstance(player_model.on_team_id, (int, type(None)))
         assert isinstance(player_model.draft_ranks, dict)
         assert isinstance(player_model.games_played_by_position, dict)
