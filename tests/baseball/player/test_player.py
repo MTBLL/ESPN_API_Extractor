@@ -9,30 +9,21 @@ from espn_api_extractor.baseball.player import Player
 
 
 @pytest.fixture
-def player_data():
-    """
-    Fixture providing sample player data in the format returned by the ESPN API.
-    """
-    return {
-        "defaultPositionId": 8,
-        "droppable": False,
-        "eligibleSlots": [9, 10, 5, 12, 16, 17],
-        "firstName": "Corbin",
-        "fullName": "Corbin Carroll",
-        "id": 42404,
-        "lastName": "Carroll",
-        "ownership": {"percentOwned": 99.86736311557726},
-        "proTeamId": 29,
-        "universeId": 2,
-    }
+def corbin_carroll_data(projections_fixture_data):
+    # parse out the json object for corbin carroll
+    return next(
+        player
+        for player in projections_fixture_data["players"]
+        if player.get("id") == 42404
+    )
 
 
-def test_player_initialization(player_data):
+def test_player_initialization(corbin_carroll_data):
     """
     Test the Player class initialization with fixture data.
     """
     # Initialize a Player with the sample data
-    player = Player(player_data)
+    player = Player(corbin_carroll_data)
 
     # Verify basic player info
     assert player.name == "Corbin Carroll"
@@ -58,17 +49,14 @@ def test_player_initialization(player_data):
     assert player.pro_team == expected_team
 
     # Verify ownership percentage
-    assert player.percent_owned == 99.87
-
-    # The following are not present in our test data but should have default values
-    assert player.stats == {}
+    assert player.percent_owned == 99.75
 
 
-def test_player_repr(player_data):
+def test_player_repr(corbin_carroll_data):
     """
     Test the Player's string representation.
     """
-    player = Player(player_data)
+    player = Player(corbin_carroll_data)
     assert repr(player) == "Player(Corbin Carroll)"
 
 
@@ -89,50 +77,12 @@ def test_player_missing_data():
     assert player.percent_owned == -1  # Default when ownership data is missing
 
 
-@pytest.fixture
-def player_details_data():
-    """
-    Fixture providing sample player details data in the format returned by the ESPN API.
-    """
-    return {
-        "id": "42404",
-        "firstName": "Corbin",
-        "lastName": "Carroll",
-        "fullName": "Corbin Carroll",
-        "displayName": "Corbin Carroll",
-        "shortName": "C. Carroll",
-        "nickname": "Clutch Corbin",
-        "weight": 165,
-        "displayWeight": "165 lbs",
-        "height": 69,
-        "displayHeight": "5' 9\"",
-        "age": 24,
-        "dateOfBirth": "2000-08-21T07:00Z",
-        "birthPlace": {"city": "Seattle", "country": "USA"},
-        "debutYear": 2022,
-        "jersey": "7",
-        "position": {
-            "name": "Center Fielder",
-            "displayName": "Center Fielder",
-            "abbreviation": "CF",
-        },
-        "bats": {"displayValue": "Left"},
-        "throws": {"displayValue": "Left"},
-        "active": True,
-        "status": {"name": "Active", "type": "active"},
-        "experience": {"years": 3},
-        "headshot": {
-            "href": "https://a.espncdn.com/i/headshots/mlb/players/full/42404.png"
-        },
-    }
-
-
-def test_player_hydration(player_data, player_details_data):
+def test_player_hydration(corbin_carroll_data, athlete_fixture_data):
     """
     Test the Player hydration with additional details data.
     """
     # Initialize a player
-    player = Player(player_data)
+    player = Player(corbin_carroll_data)
 
     # Initial state should have fields initialized to None
     assert player.display_name is None
@@ -140,28 +90,31 @@ def test_player_hydration(player_data, player_details_data):
     assert player.date_of_birth is None
 
     # Hydrate the player
-    player.hydrate_bio(player_details_data)
+    player.hydrate_bio(athlete_fixture_data)
 
     # Verify basic attributes are now set
     assert player.display_name == "Corbin Carroll"
     assert player.short_name == "C. Carroll"
-    assert player.nickname == "Clutch Corbin"
 
     # Verify physical attributes
     assert player.weight == 165
     assert player.display_weight == "165 lbs"
-    assert player.height == 69
-    assert player.display_height == "5' 9\""
+    assert player.height == 70
+    assert player.display_height == "5' 10\""
 
     # Verify biographical information
     assert player.date_of_birth == "2000-08-21"
-    assert player.birth_place == {"city": "Seattle", "country": "USA"}
+    assert player.birth_place == {
+        "city": "Seattle",
+        "state": "WA",
+        "country": "United States",
+    }
     assert player.debut_year == 2022
 
     # Verify jersey and position
     assert player.jersey == "7"
-    assert player.position_name == "Center Fielder"
-    assert player.pos == "CF"
+    assert player.position_name == "Right Field"
+    assert player.pos == "RF"
 
     # Verify playing characteristics
     assert player.bats == "Left"
@@ -178,13 +131,13 @@ def test_player_hydration(player_data, player_details_data):
     )
 
 
-def test_player_model_conversion(player_data, player_details_data):
+def test_player_model_conversion(corbin_carroll_data, athlete_fixture_data):
     """
     Test converting between Player and PlayerModel instances.
     """
     # Initialize and hydrate a player
-    player = Player(player_data)
-    player.hydrate_bio(player_details_data)
+    player = Player(corbin_carroll_data)
+    player.hydrate_bio(athlete_fixture_data)
 
     # Add some stats for testing (using semantic keys as expected by PlayerModel)
     player.stats = {
@@ -253,25 +206,24 @@ def test_player_from_model_with_hasura_fixture(hasura_fixture_data):
 
     # Test each PlayerModel field with correct data types
     for i, (player_model, player) in enumerate(zip(player_models, players)):
-        
         # Basic player info
         assert isinstance(player_model.id, (int, type(None)))
         if player_model.id is not None:
             assert player.id == player_model.id
-            
+
         assert isinstance(player_model.name, (str, type(None)))
         if player_model.name is not None:
             assert player.name == player_model.name
-            
+
         assert isinstance(player_model.first_name, (str, type(None)))
         assert isinstance(player_model.last_name, (str, type(None)))
-        
+
         # Display information
         assert isinstance(player_model.display_name, (str, type(None)))
         assert isinstance(player_model.short_name, (str, type(None)))
         assert isinstance(player_model.nickname, (str, type(None)))
         assert isinstance(player_model.slug, (str, type(None)))
-        
+
         # Position information
         assert isinstance(player_model.primary_position, (str, type(None)))
         assert isinstance(player_model.eligible_slots, list)
@@ -279,29 +231,29 @@ def test_player_from_model_with_hasura_fixture(hasura_fixture_data):
             assert isinstance(slot, str)
         assert isinstance(player_model.position_name, (str, type(None)))
         assert isinstance(player_model.pos, (str, type(None)))
-        
+
         # Team information
         assert isinstance(player_model.pro_team, (str, type(None)))
-        
+
         # Status information
         assert isinstance(player_model.injury_status, (str, type(None)))
         assert isinstance(player_model.status, (str, type(None)))
         assert isinstance(player_model.injured, bool)
         assert isinstance(player_model.active, bool)
-        
+
         # Ownership statistics
         assert isinstance(player_model.percent_owned, (int, float))
-        
+
         # Physical attributes
         assert isinstance(player_model.weight, (float, type(None)))
         assert isinstance(player_model.display_weight, (str, type(None)))
         assert isinstance(player_model.height, (int, type(None)))
         assert isinstance(player_model.display_height, (str, type(None)))
-        
+
         # Playing characteristics
         assert isinstance(player_model.bats, (str, type(None)))
         assert isinstance(player_model.throws, (str, type(None)))
-        
+
         # Biographical information
         assert isinstance(player_model.date_of_birth, (str, type(None)))
         assert isinstance(player_model.birth_place, (BirthPlace, type(None)))
@@ -310,16 +262,16 @@ def test_player_from_model_with_hasura_fixture(hasura_fixture_data):
             assert isinstance(player_model.birth_place.state, (str, type(None)))
             assert isinstance(player_model.birth_place.country, (str, type(None)))
         assert isinstance(player_model.debut_year, (int, type(None)))
-        
+
         # Jersey information
         assert isinstance(player_model.jersey, str)  # Always string due to validator
-        
+
         # Media information
         assert isinstance(player_model.headshot, (str, type(None)))
-        
+
         # Projections and outlook
         assert isinstance(player_model.season_outlook, (str, type(None)))
-        
+
         # Fantasy and draft information from kona_playercard
         assert isinstance(player_model.draft_auction_value, (int, type(None)))
         assert isinstance(player_model.on_team_id, (int, type(None)))
@@ -329,22 +281,31 @@ def test_player_from_model_with_hasura_fixture(hasura_fixture_data):
             assert isinstance(position, str)
             assert isinstance(games, int)
         assert isinstance(player_model.auction_value_average, (float, type(None)))
-        
+
         # Statistics - kona stats with semantic keys
         assert isinstance(player_model.stats, dict)
-        expected_stat_keys = {"projections", "current_season", "previous_season", "last_7_games", "last_15_games", "last_30_games"}
+        expected_stat_keys = {
+            "projections",
+            "current_season",
+            "previous_season",
+            "last_7_games",
+            "last_15_games",
+            "last_30_games",
+        }
         for key in player_model.stats.keys():
             assert key in expected_stat_keys or isinstance(key, str)
             assert isinstance(player_model.stats[key], dict)
-        
+
         # Season statistics from the statistics endpoint
         if player_model.season_stats is not None:
             assert isinstance(player_model.season_stats.split_id, (str, type(None)))
             assert isinstance(player_model.season_stats.split_name, (str, type(None)))
-            assert isinstance(player_model.season_stats.split_abbreviation, (str, type(None)))
+            assert isinstance(
+                player_model.season_stats.split_abbreviation, (str, type(None))
+            )
             assert isinstance(player_model.season_stats.split_type, (str, type(None)))
             assert isinstance(player_model.season_stats.categories, dict)
-        
+
         # Verify the conversion worked and players are functional
         assert isinstance(player, Player)
         assert hasattr(player, "from_model")
@@ -353,7 +314,7 @@ def test_player_from_model_with_hasura_fixture(hasura_fixture_data):
         assert callable(getattr(player, "from_model"))
         assert callable(getattr(player, "to_model"))
         assert callable(getattr(player, "hydrate_bio"))
-        
+
         # Test specific values from fixture data
         if i == 0:  # First player (Test Player 1)
             assert player_model.id == 12345
@@ -366,7 +327,7 @@ def test_player_from_model_with_hasura_fixture(hasura_fixture_data):
             assert player_model.weight == 220.0
             assert player_model.bats == "Right"
             assert player_model.throws == "Right"
-            
+
         elif i == 2:  # Third player (Test Player 3 - inactive/injured)
             assert player_model.id == 11111
             assert player_model.active is False
@@ -379,6 +340,7 @@ class TestPlayerEdgeCasesAndSadPaths:
     def test_player_with_split_type_5_individual_game_stats(self):
         """Test that split type 5 (individual game stats) are skipped."""
         from datetime import datetime
+
         current_year = datetime.now().year
 
         player_data = {
@@ -393,8 +355,8 @@ class TestPlayerEdgeCasesAndSadPaths:
                             "statSourceId": 0,
                             "stats": {
                                 "0": 100,  # AB
-                                "1": 30,   # H
-                            }
+                                "1": 30,  # H
+                            },
                         },
                         {
                             "seasonId": current_year,
@@ -402,24 +364,27 @@ class TestPlayerEdgeCasesAndSadPaths:
                             "statSourceId": 0,
                             "stats": {
                                 "0": 200,  # AB
-                                "1": 60,   # H
-                            }
-                        }
+                                "1": 60,  # H
+                            },
+                        },
                     ]
                 }
-            }
+            },
         }
 
         player = Player(player_data)
 
         # Verify that split type 5 was skipped and only split type 0 was processed
         assert "current_season" in player.stats
-        assert player.stats["current_season"]["AB"] == 200  # From split type 0, not 100 from split type 5
+        assert (
+            player.stats["current_season"]["AB"] == 200
+        )  # From split type 0, not 100 from split type 5
         assert player.stats["current_season"]["H"] == 60
 
     def test_player_with_unmapped_stat_key(self):
         """Test that stats with unmapped season/split combinations are skipped."""
         from datetime import datetime
+
         current_year = datetime.now().year
         future_year = current_year + 1
 
@@ -436,7 +401,7 @@ class TestPlayerEdgeCasesAndSadPaths:
                             "stats": {
                                 "0": 100,
                                 "1": 30,
-                            }
+                            },
                         },
                         {
                             "seasonId": current_year,
@@ -445,7 +410,7 @@ class TestPlayerEdgeCasesAndSadPaths:
                             "stats": {
                                 "0": 150,
                                 "1": 45,
-                            }
+                            },
                         },
                         {
                             "seasonId": current_year,
@@ -454,11 +419,11 @@ class TestPlayerEdgeCasesAndSadPaths:
                             "stats": {
                                 "0": 200,
                                 "1": 60,
-                            }
-                        }
+                            },
+                        },
                     ]
                 }
-            }
+            },
         }
 
         player = Player(player_data)
@@ -468,9 +433,10 @@ class TestPlayerEdgeCasesAndSadPaths:
         assert player.stats["current_season"]["AB"] == 200
         assert player.stats["current_season"]["H"] == 60
 
-    def test_player_projections_with_applied_average(self):
-        """Test that projections include appliedAverage when present."""
+    def test_player_projections_ignore_applied_scoring(self):
+        """Test that projections ignore applied stats and scoring fields."""
         from datetime import datetime
+
         current_year = datetime.now().year
 
         player_data = {
@@ -483,6 +449,10 @@ class TestPlayerEdgeCasesAndSadPaths:
                             "seasonId": current_year,
                             "statSplitTypeId": 0,
                             "statSourceId": 1,  # Projected stats
+                            "stats": {
+                                "0": 600,  # AB
+                                "1": 180,  # H
+                            },
                             "appliedStats": {
                                 "0": 600,  # AB
                                 "1": 180,  # H
@@ -492,20 +462,21 @@ class TestPlayerEdgeCasesAndSadPaths:
                         }
                     ]
                 }
-            }
+            },
         }
 
         player = Player(player_data)
 
-        # Verify projections were created with both appliedTotal and appliedAverage
+        # Verify projections use stats and ignore applied scoring fields
         assert "projections" in player.stats
-        assert "_fantasy_scoring" in player.stats["projections"]
-        assert player.stats["projections"]["_fantasy_scoring"]["applied_total"] == 450.5
-        assert player.stats["projections"]["_fantasy_scoring"]["applied_average"] == 7.8
+        assert player.stats["projections"]["AB"] == 600
+        assert player.stats["projections"]["H"] == 180
+        assert "_fantasy_scoring" not in player.stats["projections"]
 
     def test_player_with_previous_year_non_season_stats(self):
         """Test that previous year stats with non-zero split type are skipped."""
         from datetime import datetime
+
         current_year = datetime.now().year
         previous_year = current_year - 1
 
@@ -522,7 +493,7 @@ class TestPlayerEdgeCasesAndSadPaths:
                             "stats": {
                                 "0": 20,
                                 "1": 5,
-                            }
+                            },
                         },
                         {
                             "seasonId": previous_year,
@@ -531,11 +502,11 @@ class TestPlayerEdgeCasesAndSadPaths:
                             "stats": {
                                 "0": 500,
                                 "1": 150,
-                            }
-                        }
+                            },
+                        },
                     ]
                 }
-            }
+            },
         }
 
         player = Player(player_data)
