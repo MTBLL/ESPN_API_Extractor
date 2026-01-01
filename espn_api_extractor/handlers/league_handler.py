@@ -216,6 +216,7 @@ class LeagueHandler:
             return away_team_id
         if winner == "TIE":
             return "TIE"
+        return None
 
     def _drop_roster_entry_stats(self, entry: dict) -> dict:
         updated_entry = dict(entry)
