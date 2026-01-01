@@ -52,10 +52,26 @@ class FullHydrationHandler:
         """
         self.logger.logging.info(f"Fully hydrating {len(player_ids)} new players")
 
-        # Step 1: Create Player objects from pro_players data
+        # Step 1: Create Player objects from player card data
         if pro_players_data is None:
-            self.logger.logging.info("Fetching pro_players data from ESPN")
-            pro_players_data = self.fantasy_requests.get_pro_players()
+            self.logger.logging.info("Fetching player cards from ESPN")
+            pro_players_data = []
+            kona_batch_size = 100
+            player_ids_list = list(player_ids)
+            for i in range(0, len(player_ids_list), kona_batch_size):
+                batch = player_ids_list[i : i + kona_batch_size]
+                self.logger.logging.info(
+                    f"Fetching kona_playercard batch {i // kona_batch_size + 1}/{(len(player_ids_list) + kona_batch_size - 1) // kona_batch_size} "
+                    f"({len(batch)} players)"
+                )
+                try:
+                    kona_data = self.fantasy_requests.get_player_cards(batch)
+                    if kona_data and "players" in kona_data:
+                        pro_players_data.extend(kona_data["players"])
+                except Exception as e:
+                    self.logger.logging.warning(
+                        f"Failed to fetch kona_playercard batch starting at index {i}: {e}"
+                    )
 
         # Filter to only the players we need to hydrate
         players_to_hydrate = []
@@ -77,40 +93,7 @@ class FullHydrationHandler:
         if not players_to_hydrate:
             return []
 
-        # Step 2: Hydrate with kona_playercard data (projections, outlook, etc.)
-        # Batch requests to avoid HTTP 494 (Request header too large) errors
-        self.logger.logging.info("Hydrating with kona_playercard data")
-        kona_batch_size = 100  # ESPN can handle ~100 player IDs per request
-        player_ids_list = list(player_ids)
-        kona_players_map = {}
-
-        for i in range(0, len(player_ids_list), kona_batch_size):
-            batch = player_ids_list[i : i + kona_batch_size]
-            self.logger.logging.info(
-                f"Fetching kona_playercard batch {i // kona_batch_size + 1}/{(len(player_ids_list) + kona_batch_size - 1) // kona_batch_size} "
-                f"({len(batch)} players)"
-            )
-            try:
-                kona_data = self.fantasy_requests.get_player_cards(batch)
-                if kona_data and "players" in kona_data:
-                    for p in kona_data["players"]:
-                        kona_players_map[p["id"]] = p
-            except Exception as e:
-                self.logger.logging.warning(
-                    f"Failed to fetch kona_playercard batch starting at index {i}: {e}"
-                )
-
-        # Hydrate players with kona data
-        for player in players_to_hydrate:
-            if player.id in kona_players_map:
-                try:
-                    player.hydrate_kona_playercard(kona_players_map[player.id])
-                except Exception as e:
-                    self.logger.logging.warning(
-                        f"Failed to hydrate player {player.id} with kona data: {e}"
-                    )
-
-        # Step 3: Multi-threaded hydration with bio + stats from Core API
+        # Step 2: Multi-threaded hydration with bio + stats from Core API
         self.logger.logging.info("Hydrating with bio and stats data from Core API")
         hydrated_players, failed_players = self.core_requests.hydrate_players(
             players_to_hydrate, batch_size=self.batch_size, include_stats=True

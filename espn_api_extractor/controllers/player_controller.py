@@ -88,9 +88,7 @@ class PlayerController:
             ]
             espn_player_ids = set(espn_player_id_list)
             pro_players_data = [
-                player.get("player", player)
-                for player in espn_player_cards
-                if isinstance(player, dict)
+                player for player in espn_player_cards if isinstance(player, dict)
             ]
 
             self.logger.info(f"Found {len(espn_player_ids)} current ESPN players")

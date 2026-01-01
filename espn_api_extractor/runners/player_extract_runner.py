@@ -105,7 +105,9 @@ class PlayerExtractRunner:
             self.args.output_dir, f"espn_batters_{self.args.year}_{timestamp}.json"
         )
 
-        pitchers_data = [player.to_model().model_dump() for player in pitchers]
+        pitchers_data = [
+            self._prepare_pitcher_output(player) for player in pitchers
+        ]
         batters_data = [player.to_model().model_dump() for player in batters]
 
         with open(pitchers_file, "w") as f:
@@ -133,6 +135,13 @@ class PlayerExtractRunner:
             reverse=True,
         )
 
+    def _prepare_pitcher_output(self, player: Player) -> dict:
+        data = dict(player.to_model().model_dump())
+        if self._is_two_way_player(player):
+            self._override_pitcher_positions(data)
+        self._add_pitching_rate_stats(data)
+        return data
+
     def _split_players_by_role(
         self, players: List[Player]
     ) -> tuple[List[Player], List[Player]]:
@@ -155,8 +164,46 @@ class PlayerExtractRunner:
 
         return pitchers, batters
 
+    def _is_two_way_player(self, player: Player) -> bool:
+        slots = self._normalize_eligible_slots(player)
+        if not slots:
+            return False
+        has_pitcher_slot = any("P" in slot for slot in slots)
+        has_non_pitcher_slot = any("P" not in slot for slot in slots)
+        return has_pitcher_slot and has_non_pitcher_slot
+
     def _normalize_eligible_slots(self, player: Player) -> List[str]:
         slots = getattr(player, "eligible_slots", None)
         if not slots:
             return []
         return [str(slot) for slot in slots if slot is not None]
+
+    def _override_pitcher_positions(self, data: Dict[str, Any]) -> None:
+        data["primary_position"] = "SP"
+        data["pos"] = "SP"
+        data["position_name"] = "Starting Pitcher"
+
+    def _add_pitching_rate_stats(self, data: Dict[str, Any]) -> None:
+        stats = data.get("stats")
+        if not isinstance(stats, dict):
+            return
+
+        for stat_dict in stats.values():
+            if not isinstance(stat_dict, dict):
+                continue
+            outs = stat_dict.get("OUTS")
+            if not isinstance(outs, (int, float)):
+                continue
+            outs_int = int(outs)
+            if "IP" not in stat_dict:
+                innings = outs_int // 3
+                remainder = outs_int % 3
+                stat_dict["IP"] = innings + remainder / 10
+            ip_real = outs_int / 3
+            strikeouts = stat_dict.get("K")
+            if (
+                ip_real > 0
+                and "K/9" not in stat_dict
+                and isinstance(strikeouts, (int, float))
+            ):
+                stat_dict["K/9"] = (strikeouts / ip_real) * 9

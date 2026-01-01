@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 from espn_api_extractor.models.player_model import PlayerModel
-from espn_api_extractor.utils.utils import json_parsing, safe_get, safe_get_nested
+from espn_api_extractor.utils.utils import json_parsing, safe_get_nested
 
 from .constants import LINEUP_SLOT_MAP, NOMINAL_POSITION_MAP, PRO_TEAM_MAP, STATS_MAP
 
@@ -68,6 +68,32 @@ class Player(object):
         player = data.get("playerPoolEntry", {}).get("player") or data.get("player", {})
         self.injury_status = player.get("injuryStatus", self.injury_status)
         self.injured = player.get("injured", False)
+        self.season_outlook = player.get("seasonOutlook", self.season_outlook)
+        self.draft_ranks = (
+            player.get("draftRanksByRankType", {}) if isinstance(player, dict) else {}
+        )
+        games_by_pos = (
+            player.get("gamesPlayedByPosition", {}) if isinstance(player, dict) else {}
+        )
+        if isinstance(games_by_pos, dict) and games_by_pos:
+            self.games_played_by_position = {
+                str(NOMINAL_POSITION_MAP.get(int(pos_id), pos_id)): games
+                for pos_id, games in games_by_pos.items()
+            }
+        self.on_team_id = data.get("onTeamId", self.on_team_id)
+        transactions = data.get("transactions", [])
+        self.transactions = transactions if isinstance(transactions, list) else []
+        self.auction_value_average = safe_get_nested(
+            player, "ownership", "auctionValueAverage", default=None
+        )
+
+        self.draft_auction_value = data.get("draftAuctionValue")
+        if self.draft_auction_value is not None:
+            self.draft_auction_value = int(self.draft_auction_value)
+        if self.draft_auction_value in (None, 0):
+            transaction_value = self._extract_draft_auction_value(self.transactions)
+            if transaction_value is not None:
+                self.draft_auction_value = transaction_value
 
         self.current_season = current_season or datetime.now().year
 
@@ -175,9 +201,6 @@ class Player(object):
         # Create a new Player instance using the converted data
         season = current_season or player_data.get("current_season")
         player = cls(player_data, current_season=season)
-
-        # Initialize kona fields to ensure they exist
-        player._initialize_kona_fields()
 
         # Handle additional fields that the constructor doesn't set automatically
         # These are fields that come from PlayerModel but aren't in the basic player_data
@@ -360,180 +383,6 @@ class Player(object):
                     "rank_display_value": stat.get("rankDisplayValue", ""),
                 }
 
-    def _initialize_kona_fields(
-        self, stats: List[Dict[str, Any]] | None = None
-    ) -> None:
-        """Initialize all kona_playercard fields with default values."""
-        field_defaults: Dict[str, Any] = {
-            "season_outlook": None,
-            "draft_auction_value": None,
-            "on_team_id": None,
-            "draft_ranks": {},
-            "games_played_by_position": {},
-            "auction_value_average": None,
-            "transactions": [],
-        }
-
-        for field, default in field_defaults.items():
-            if not hasattr(self, field):
-                setattr(self, field, default)
-
-        # Initialize stats structure with semantic stat keys
-        if not hasattr(self, "stats") or not isinstance(self.stats, dict):
-            self.stats = {}
-
-        # Ensure semantic stat keys exist
-        # Note: previous_season uses dynamic year suffix (e.g., "previous_season_24")
-        current_year, previous_year = self._get_kona_stat_years(stats or [])
-        stat_keys = [
-            "projections",
-            "current_season",
-            f"previous_season_{str(previous_year)[-2:]}",
-            "last_7_games",
-            "last_15_games",
-            "last_30_games",
-        ]
-        for key in stat_keys:
-            if key not in self.stats:
-                self.stats[key] = {}
-
-    def _extract_games_by_position(self, kona_data: Dict[str, Any]) -> None:
-        """Extract and map games played by position.
-
-        Note: gamesPlayedByPosition uses NOMINAL_POSITION_MAP (position ids),
-        not LINEUP_SLOT_MAP (lineup slot ids).
-        """
-        games_by_pos = safe_get(kona_data, "gamesPlayedByPosition", {})
-        if games_by_pos:
-            self.games_played_by_position = {
-                str(NOMINAL_POSITION_MAP.get(int(pos_id), pos_id)): games
-                for pos_id, games in games_by_pos.items()
-            }
-
-    def _get_kona_stat_years(self, stats: List[Dict[str, Any]]) -> tuple[int, int]:
-        season_ids: list[int] = [
-            season_id
-            for entry in stats
-            for season_id in [entry.get("seasonId")]
-            if isinstance(season_id, int)
-        ]
-        current_year = max(season_ids) if season_ids else datetime.now().year
-        return current_year, current_year - 1
-
-    def _hydrate_kona_stats(self, stats: List[Dict[str, Any]]) -> None:
-        """
-        Process stats array from kona_playercard to extract projections and seasonal stats.
-
-        Stat entries are mapped using seasonId, statSourceId, and statSplitTypeId.
-        - Projections: statSourceId=1, statSplitTypeId=0
-        - Current season: statSourceId=0, statSplitTypeId=0, seasonId=current_year
-        - Previous season: statSourceId=0, statSplitTypeId=0, seasonId=previous_year
-        - Last 7/15/30: statSourceId=0, statSplitTypeId=1/2/3, seasonId=current_year
-
-        Note: Split type 5 (individual games) is skipped due to ambiguity with two-way players.
-        """
-        current_year, previous_year = self._get_kona_stat_years(stats)
-
-        for stat_entry in stats:
-            stat_id = stat_entry.get("id", "")
-            season_id = stat_entry.get("seasonId")
-            stat_source = stat_entry.get("statSourceId")
-            split_type = stat_entry.get("statSplitTypeId")
-            if not isinstance(season_id, int) and isinstance(stat_id, str):
-                tail = stat_id[-4:]
-                if tail.isdigit():
-                    season_id = int(tail)
-            stats_data = stat_entry.get("stats", {})
-            # Map numeric stat keys to readable names, skip unknown keys
-            mapped_stats = {}
-            for key, value in stats_data.items():
-                numeric_key = int(key)
-                if numeric_key in STATS_MAP:
-                    mapped_stats[STATS_MAP[numeric_key]] = value
-
-            # Determine stat key based on stat ID pattern
-            stat_key: str | None = None
-
-            if stat_source == 1 and split_type == 0:
-                stat_key = "projections"
-                self.stats[stat_key] = mapped_stats
-
-            elif stat_source == 0 and split_type == 0:
-                if season_id == current_year:
-                    stat_key = "current_season"
-                    self.stats[stat_key] = mapped_stats
-                elif season_id == previous_year:
-                    stat_key = f"previous_season_{str(previous_year)[-2:]}"
-                    self.stats[stat_key] = mapped_stats
-
-            elif stat_source == 0 and split_type == 1 and season_id == current_year:
-                stat_key = "last_7_games"
-                self.stats[stat_key] = mapped_stats
-
-            elif stat_source == 0 and split_type == 2 and season_id == current_year:
-                stat_key = "last_15_games"
-                self.stats[stat_key] = mapped_stats
-
-            elif stat_source == 0 and split_type == 3 and season_id == current_year:
-                stat_key = "last_30_games"
-                self.stats[stat_key] = mapped_stats
-
-            # Skip split type 5 (individual games) - ambiguous for two-way players
-
-    def hydrate_kona_playercard(self, player_dict: Dict[str, Any]) -> None:
-        """
-        Hydrates the player object with comprehensive kona_playercard data including projections,
-        seasonal stats, fantasy information, and player outlook from the ESPN kona_playercard API.
-
-        Args:
-            player_dict (dict): The complete player dictionary from kona_playercard API response
-                              containing top-level fields (draftAuctionValue, onTeamId) and
-                              nested 'player' object with seasonOutlook, stats array, etc.
-        """
-        # Initialize all fields first
-        self._initialize_kona_fields(player_dict.get("player", {}).get("stats", []))
-
-        # Extract nested player data
-        player_data = player_dict.get("player", {})
-
-        # Define field mappings: (attribute_name, json_key, data_source, default_value)
-        field_mappings: List[tuple[str, str, Dict[str, Any], Any]] = [
-            (
-                "draft_auction_value",
-                "draftAuctionValue",
-                player_dict,
-                None,
-            ),  # top-level
-            ("on_team_id", "onTeamId", player_dict, None),  # top-level
-            ("season_outlook", "seasonOutlook", player_data, None),  # nested in player
-            (
-                "draft_ranks",
-                "draftRanksByRankType",
-                player_data,
-                {},
-            ),  # nested in player
-            ("injured", "injured", player_data, None),  # nested in player
-            ("injury_status", "injuryStatus", player_data, None),  # nested in player
-        ]
-
-        # Apply field mappings
-        for attr_name, json_key, source, default in field_mappings:
-            setattr(self, attr_name, safe_get(source, json_key, default))
-
-        self.auction_value_average = safe_get_nested(
-            player_data, "ownership", "auctionValueAverage", default=None
-        )
-        if self.draft_auction_value is not None:
-            self.draft_auction_value = int(self.draft_auction_value)
-        self.transactions = safe_get(player_dict, "transactions", [])
-        if self.draft_auction_value in (None, 0):
-            transaction_value = self._extract_draft_auction_value(self.transactions)
-            if transaction_value is not None:
-                self.draft_auction_value = transaction_value
-        self._extract_games_by_position(player_data)
-
-        if "stats" in player_data:
-            self._hydrate_kona_stats(player_data["stats"])
 
     def _extract_draft_auction_value(
         self, transactions: List[Dict[str, Any]]

@@ -152,17 +152,32 @@ def test_player_extract_runner_saves_sorted_players_and_failures(tmp_path):
     high = MagicMock()
     high.percent_owned = 50
     high.eligible_slots = ["P"]
-    high.to_model.return_value.model_dump.return_value = {"id": "high"}
+    high.to_model.return_value.model_dump.return_value = {
+        "id": "high",
+        "primary_position": "SP",
+        "pos": "SP",
+        "position_name": "Starting Pitcher",
+    }
 
     low = MagicMock()
     low.percent_owned = 10
     low.eligible_slots = ["OF"]
-    low.to_model.return_value.model_dump.return_value = {"id": "low"}
+    low.to_model.return_value.model_dump.return_value = {
+        "id": "low",
+        "primary_position": "OF",
+        "pos": "OF",
+        "position_name": "Outfield",
+    }
 
     zero = MagicMock()
     zero.percent_owned = 0
     zero.eligible_slots = ["P", "UTIL"]
-    zero.to_model.return_value.model_dump.return_value = {"id": "zero"}
+    zero.to_model.return_value.model_dump.return_value = {
+        "id": "zero",
+        "primary_position": "DH",
+        "pos": "DH",
+        "position_name": "Designated Hitter",
+    }
 
     runner._save_extraction_results([low, zero, high], ["oops"])
 
@@ -171,19 +186,53 @@ def test_player_extract_runner_saves_sorted_players_and_failures(tmp_path):
     with pitchers_files[0].open() as f:
         pitchers_data = json.load(f)
     assert [player["id"] for player in pitchers_data] == ["high", "zero"]
+    assert pitchers_data[1]["primary_position"] == "SP"
+    assert pitchers_data[1]["pos"] == "SP"
+    assert pitchers_data[1]["position_name"] == "Starting Pitcher"
 
     batters_files = list(tmp_path.glob("espn_batters_2025_*.json"))
     assert len(batters_files) == 1
     with batters_files[0].open() as f:
         batters_data = json.load(f)
     assert [player["id"] for player in batters_data] == ["low", "zero"]
+    assert batters_data[1]["primary_position"] == "DH"
+    assert batters_data[1]["pos"] == "DH"
+    assert batters_data[1]["position_name"] == "Designated Hitter"
+
+
+def test_player_extract_runner_adds_pitching_rate_stats(tmp_path):
+    runner = PlayerExtractRunner.__new__(PlayerExtractRunner)
+    runner.args = SimpleNamespace(output_dir=str(tmp_path), year=2025)
+    runner.logger = MagicMock()
+
+    pitcher = MagicMock()
+    pitcher.percent_owned = 10
+    pitcher.eligible_slots = ["P"]
+    pitcher.to_model.return_value.model_dump.return_value = {
+        "id": "pitcher",
+        "stats": {
+            "projections": {"OUTS": 16, "K": 9},
+            "current_season": {"OUTS": 30, "K": 10},
+        },
+    }
+
+    runner._save_extraction_results([pitcher], [])
+
+    pitchers_files = list(tmp_path.glob("espn_pitchers_2025_*.json"))
+    assert len(pitchers_files) == 1
+    with pitchers_files[0].open() as f:
+        pitchers_data = json.load(f)
+
+    current_season = pitchers_data[0]["stats"]["current_season"]
+    assert current_season["IP"] == 10.0
+    assert current_season["K/9"] == pytest.approx(9.0, rel=1e-3)
+
+    projections = pitchers_data[0]["stats"]["projections"]
+    assert projections["IP"] == 5.1
+    assert projections["K/9"] == pytest.approx(15.1875, rel=1e-3)
 
     failures_files = list(tmp_path.glob("failures_2025_*.json"))
-    assert len(failures_files) == 1
-    with failures_files[0].open() as f:
-        failures_data = json.load(f)
-    assert failures_data["failures"] == ["oops"]
-    assert failures_data["count"] == 1
+    assert len(failures_files) == 0
 
 
 def test_player_extract_runner_raises_on_execute_error(monkeypatch, tmp_path):
