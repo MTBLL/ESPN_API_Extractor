@@ -377,7 +377,9 @@ class Player(object):
                     "rank_display_value": stat.get("rankDisplayValue", ""),
                 }
 
-    def _initialize_kona_fields(self) -> None:
+    def _initialize_kona_fields(
+        self, stats: List[Dict[str, Any]] | None = None
+    ) -> None:
         """Initialize all kona_playercard fields with default values."""
         field_defaults: Dict[str, Any] = {
             "season_outlook": None,
@@ -399,8 +401,7 @@ class Player(object):
 
         # Ensure semantic stat keys exist
         # Note: previous_season uses dynamic year suffix (e.g., "previous_season_24")
-        current_year = datetime.now().year
-        previous_year = current_year - 1
+        current_year, previous_year = self._get_kona_stat_years(stats or [])
         stat_keys = [
             "projections",
             "current_season",
@@ -426,25 +427,38 @@ class Player(object):
                 for pos_id, games in games_by_pos.items()
             }
 
+    def _get_kona_stat_years(self, stats: List[Dict[str, Any]]) -> tuple[int, int]:
+        season_ids = [
+            entry.get("seasonId")
+            for entry in stats
+            if isinstance(entry.get("seasonId"), int)
+        ]
+        current_year = max(season_ids) if season_ids else datetime.now().year
+        return current_year, current_year - 1
+
     def _hydrate_kona_stats(self, stats: List[Dict[str, Any]]) -> None:
         """
         Process stats array from kona_playercard to extract projections and seasonal stats.
 
-        Stat ID format: {splitTypeId}{year}
-        - 102025: Projections (statSourceId: 1, statSplitTypeId: 0)
-        - 002025: Current season full stats (split type 0)
-        - 002024: Previous season full stats (split type 0)
-        - 012025: Last 7 games (split type 1)
-        - 022025: Last 15 games (split type 2)
-        - 032025: Last 30 games (split type 3)
+        Stat entries are mapped using seasonId, statSourceId, and statSplitTypeId.
+        - Projections: statSourceId=1, statSplitTypeId=0
+        - Current season: statSourceId=0, statSplitTypeId=0, seasonId=current_year
+        - Previous season: statSourceId=0, statSplitTypeId=0, seasonId=previous_year
+        - Last 7/15/30: statSourceId=0, statSplitTypeId=1/2/3, seasonId=current_year
 
         Note: Split type 5 (individual games) is skipped due to ambiguity with two-way players.
         """
-        current_year = str(datetime.now().year)
-        previous_year = str(int(current_year) - 1)
+        current_year, previous_year = self._get_kona_stat_years(stats)
 
         for stat_entry in stats:
             stat_id = stat_entry.get("id", "")
+            season_id = stat_entry.get("seasonId")
+            stat_source = stat_entry.get("statSourceId")
+            split_type = stat_entry.get("statSplitTypeId")
+            if not isinstance(season_id, int) and isinstance(stat_id, str):
+                tail = stat_id[-4:]
+                if tail.isdigit():
+                    season_id = int(tail)
             stats_data = stat_entry.get("stats", {})
             applied_stats = stat_entry.get("appliedStats", {})
             applied_total = stat_entry.get("appliedTotal")
@@ -467,7 +481,7 @@ class Player(object):
             # Determine stat key based on stat ID pattern
             stat_key: str | None = None
 
-            if stat_id == f"10{current_year}":  # Projections (102025)
+            if stat_source == 1 and split_type == 0:
                 stat_key = "projections"
                 # Use appliedStats for projections (more detailed than stats)
                 if mapped_applied_stats:
@@ -489,24 +503,23 @@ class Player(object):
                             applied_average
                         )
 
-            elif stat_id == f"00{current_year}":  # Current season full stats (002025)
-                stat_key = "current_season"
-                self.stats[stat_key] = mapped_stats
+            elif stat_source == 0 and split_type == 0:
+                if season_id == current_year:
+                    stat_key = "current_season"
+                    self.stats[stat_key] = mapped_stats
+                elif season_id == previous_year:
+                    stat_key = f"previous_season_{str(previous_year)[-2:]}"
+                    self.stats[stat_key] = mapped_stats
 
-            elif stat_id == f"00{previous_year}":  # Previous season full stats (002024)
-                # Use 2-digit year suffix (e.g., "previous_season_24" for 2024)
-                stat_key = f"previous_season_{str(previous_year)[-2:]}"
-                self.stats[stat_key] = mapped_stats
-
-            elif stat_id == f"01{current_year}":  # Last 7 games (012025)
+            elif stat_source == 0 and split_type == 1 and season_id == current_year:
                 stat_key = "last_7_games"
                 self.stats[stat_key] = mapped_stats
 
-            elif stat_id == f"02{current_year}":  # Last 15 games (022025)
+            elif stat_source == 0 and split_type == 2 and season_id == current_year:
                 stat_key = "last_15_games"
                 self.stats[stat_key] = mapped_stats
 
-            elif stat_id == f"03{current_year}":  # Last 30 games (032025)
+            elif stat_source == 0 and split_type == 3 and season_id == current_year:
                 stat_key = "last_30_games"
                 self.stats[stat_key] = mapped_stats
 
@@ -531,7 +544,7 @@ class Player(object):
                               nested 'player' object with seasonOutlook, stats array, etc.
         """
         # Initialize all fields first
-        self._initialize_kona_fields()
+        self._initialize_kona_fields(player_dict.get("player", {}).get("stats", []))
 
         # Extract nested player data
         player_data = player_dict.get("player", {})

@@ -8,9 +8,20 @@ from espn_api_extractor.models.player_model import PlayerModel
 
 
 # Helper function to get the dynamic previous_season key
-def get_previous_season_key():
+def get_previous_season_key(stats=None):
     """Returns the previous_season key with year suffix (e.g., 'previous_season_24')"""
-    current_year = datetime.now().year
+    if stats:
+        season_ids = [
+            entry.get("seasonId")
+            for entry in stats
+            if isinstance(entry.get("seasonId"), int)
+        ]
+        if season_ids:
+            current_year = max(season_ids)
+        else:
+            current_year = datetime.now().year
+    else:
+        current_year = datetime.now().year
     previous_year = current_year - 1
     return f"previous_season_{str(previous_year)[-2:]}"
 
@@ -92,21 +103,22 @@ class TestPlayerKonaPlayercard:
 
         # Hydrate with projections
         player.hydrate_kona_playercard(carroll_player_data)
+        prev_key = get_previous_season_key(carroll_player_data["player"]["stats"])
 
         # Verify all seasonal stats were set under stats namespace
         assert hasattr(player, "stats")
         assert "last_7_games" in player.stats
         assert "current_season" in player.stats
-        assert get_previous_season_key() in player.stats
+        assert prev_key in player.stats
 
         # Verify they are dictionaries with data
         assert isinstance(player.stats["last_7_games"], dict)
         assert isinstance(player.stats["current_season"], dict)
-        assert isinstance(player.stats[get_previous_season_key()], dict)
+        assert isinstance(player.stats[prev_key], dict)
 
         assert len(player.stats["last_7_games"]) > 0
         assert len(player.stats["current_season"]) > 0
-        assert len(player.stats[get_previous_season_key()]) > 0
+        assert len(player.stats[prev_key]) > 0
 
     def test_player_hydrate_projections_maps_stat_keys_correctly(
         self, ohtani_player_data
@@ -117,6 +129,7 @@ class TestPlayerKonaPlayercard:
 
         # Hydrate with complete player dict from API response
         player.hydrate_kona_playercard(ohtani_player_data)
+        prev_key = get_previous_season_key(ohtani_player_data["player"]["stats"])
 
         # Test last_7_games stats mapping under stats namespace
         assert "AB" in player.stats["last_7_games"]
@@ -127,13 +140,13 @@ class TestPlayerKonaPlayercard:
         assert player.stats["current_season"]["AB"] == 611.0  # From 002025 in fixture
 
         # Test previous season stats mapping (2024) under stats namespace
-        assert "AB" in player.stats[get_previous_season_key()]
-        assert "HR" in player.stats[get_previous_season_key()]
+        assert "AB" in player.stats[prev_key]
+        assert "HR" in player.stats[prev_key]
         assert (
-            player.stats[get_previous_season_key()]["AB"] == 636.0
+            player.stats[prev_key]["AB"] == 636.0
         )  # From 002024 in fixture
         assert (
-            player.stats[get_previous_season_key()]["HR"] == 54.0
+            player.stats[prev_key]["HR"] == 54.0
         )  # From 002024 in fixture
 
     def test_player_hydrate_projections_handles_missing_stats_gracefully(self):
@@ -192,6 +205,7 @@ class TestPlayerKonaPlayercard:
 
         # Convert to model
         model = player.to_model()
+        prev_key = get_previous_season_key(carroll_player_data["player"]["stats"])
 
         # Verify model includes all projection data through stats namespace
         assert isinstance(model, PlayerModel)
@@ -209,8 +223,8 @@ class TestPlayerKonaPlayercard:
         assert "current_season" in model.stats
         assert len(model.stats["current_season"]) > 0
 
-        assert get_previous_season_key() in model.stats
-        assert len(model.stats[get_previous_season_key()]) > 0
+        assert prev_key in model.stats
+        assert len(model.stats[prev_key]) > 0
 
     def test_player_from_model_preserves_kona_playercard_data(
         self, carroll_player_data
@@ -224,6 +238,7 @@ class TestPlayerKonaPlayercard:
         # Convert to model and back to player
         model = original_player.to_model()
         restored_player = Player.from_model(model)
+        prev_key = get_previous_season_key(carroll_player_data["player"]["stats"])
 
         # Verify projection data is preserved through stats namespace
         assert restored_player.season_outlook == original_player.season_outlook
@@ -239,8 +254,7 @@ class TestPlayerKonaPlayercard:
             == original_player.stats["current_season"]
         )
         assert (
-            restored_player.stats[get_previous_season_key()]
-            == original_player.stats[get_previous_season_key()]
+            restored_player.stats[prev_key] == original_player.stats[prev_key]
         )
 
     def test_player_model_serialization_and_deserialization(self, ohtani_player_data):
@@ -251,6 +265,7 @@ class TestPlayerKonaPlayercard:
 
         # Convert to model
         model = player.to_model()
+        prev_key = get_previous_season_key(ohtani_player_data["player"]["stats"])
 
         # Serialize to JSON
         json_data = model.model_dump_json()
@@ -267,8 +282,7 @@ class TestPlayerKonaPlayercard:
             deserialized_model.stats["current_season"] == model.stats["current_season"]
         )
         assert (
-            deserialized_model.stats[get_previous_season_key()]
-            == model.stats[get_previous_season_key()]
+            deserialized_model.stats[prev_key] == model.stats[prev_key]
         )
 
     def test_both_players_in_fixture_process_correctly(
@@ -296,13 +310,14 @@ class TestPlayerKonaPlayercard:
         assert ohtani.id == 39832
         assert ohtani.season_outlook is not None
         assert "MVP honors" in ohtani.season_outlook
+        prev_key = get_previous_season_key(players[0]["player"]["stats"])
 
         # Verify Carroll (second player)
         carroll = processed_players[1]
         assert carroll.id == 42404
         assert ohtani.season_outlook is not None
-        assert ohtani.stats[get_previous_season_key()]["HR"] == 54.0  # 2024 stats
-        assert ohtani.stats[get_previous_season_key()]["AB"] == 636.0
+        assert ohtani.stats[prev_key]["HR"] == 54.0  # 2024 stats
+        assert ohtani.stats[prev_key]["AB"] == 636.0
 
     def test_model_conversion_preserves_all_existing_player_data(
         self, carroll_player_data
@@ -410,6 +425,7 @@ class TestPlayerKonaPlayercard:
         # Hydrate with kona_playercard data
         merged_data = {**carroll_player_data["player"], **carroll_player_data}
         player.hydrate_kona_playercard(merged_data)
+        prev_key = get_previous_season_key(carroll_player_data["player"]["stats"])
 
         # Verify games played by position was extracted and mapped
         assert hasattr(player, "games_played_by_position")
@@ -454,6 +470,7 @@ class TestPlayerKonaPlayercard:
         # Hydrate with kona_playercard data
         merged_data = {**carroll_player_data["player"], **carroll_player_data}
         player.hydrate_kona_playercard(merged_data)
+        prev_key = get_previous_season_key(carroll_player_data["player"]["stats"])
 
         # Verify projections use readable stat names, not numeric keys (under stats namespace)
         assert hasattr(player, "stats")
@@ -477,7 +494,7 @@ class TestPlayerKonaPlayercard:
         for stat_dict in [
             player.stats["last_7_games"],
             player.stats["current_season"],
-            player.stats[get_previous_season_key()],
+            player.stats[prev_key],
         ]:
             if stat_dict:
                 for key in stat_dict.keys():
@@ -516,6 +533,7 @@ class TestPlayerKonaPlayercard:
         """Test comprehensive extraction of all kona_playercard data from Ohtani fixture"""
         player = Player({"id": 39832, "fullName": "Shohei Ohtani"})
         player.hydrate_kona_playercard(ohtani_player_data)
+        prev_key = get_previous_season_key(ohtani_player_data["player"]["stats"])
 
         # Verify season outlook
         assert hasattr(player, "season_outlook")
@@ -524,7 +542,7 @@ class TestPlayerKonaPlayercard:
 
         # Verify projections and seasonal stats (under stats namespace)
         assert len(player.stats["projections"]) > 0
-        assert len(player.stats[get_previous_season_key()]) > 0
+        assert len(player.stats[prev_key]) > 0
 
         # Verify fantasy data
         assert player.draft_auction_value is not None  # type: ignore[attr-defined]
@@ -539,7 +557,7 @@ class TestPlayerKonaPlayercard:
             player.stats["projections"],
             player.stats["last_7_games"],
             player.stats["current_season"],
-            player.stats[get_previous_season_key()],
+            player.stats[prev_key],
         ]
 
         for stat_dict in all_stat_dicts:
