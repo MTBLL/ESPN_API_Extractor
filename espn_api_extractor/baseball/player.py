@@ -428,10 +428,11 @@ class Player(object):
             }
 
     def _get_kona_stat_years(self, stats: List[Dict[str, Any]]) -> tuple[int, int]:
-        season_ids = [
-            entry.get("seasonId")
+        season_ids: list[int] = [
+            season_id
             for entry in stats
-            if isinstance(entry.get("seasonId"), int)
+            for season_id in [entry.get("seasonId")]
+            if isinstance(season_id, int)
         ]
         current_year = max(season_ids) if season_ids else datetime.now().year
         return current_year, current_year - 1
