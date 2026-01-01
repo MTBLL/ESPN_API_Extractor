@@ -2,7 +2,7 @@
 
 ## Playercard Fixture
 **API Endpoint:**
-https://lm-api-reads.fantasy.espn.com/apis/v3/games/flb/seasons/2025/segments/0/leaguedefaults/1?scoringPeriodId=1&view=kona_playercard
+https://lm-api-reads.fantasy.espn.com/apis/v3/games/flb/seasons/2025/segments/0/leagues/10998?scoringPeriodId=1&view=kona_playercard
 **Headers:**
 X-Fantasy-Filter: {
   "players":{
@@ -12,7 +12,7 @@ X-Fantasy-Filter: {
       "value":[0,1,2,3,4,5,6,7,8,9,10,11,12,19]},
     "filterStatsForExternalIds":{"value":[2024,2025]},
     "filterStatsForSourceIds":{"value":[0,1]},
-    "sortAppliedStatTotal":{"sortAsc":false,"sortPriority":3,"value":"102025"},
+    "sortAppliedStatTotal":{"sortAsc":false,"sortPriority":1,"value":"102025"},
     "sortDraftRanks":{"sortPriority":2,"sortAsc":true,"value":"ROTO"},
     "sortPercOwned":{"sortAsc":false,"sortPriority":4},
     "limit":100,

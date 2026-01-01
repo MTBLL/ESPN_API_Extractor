@@ -34,7 +34,7 @@ class TestProjectionsExtraction:
         """Test that get_player_cards builds the correct API filters"""
         player_ids = [42404, 39832]
 
-        with patch.object(fantasy_requests, "_get") as mock_get:
+        with patch.object(fantasy_requests, "league_get") as mock_get:
             mock_get.return_value = {"players": []}
 
             fantasy_requests.get_player_cards(player_ids)
@@ -46,7 +46,7 @@ class TestProjectionsExtraction:
             # Check params
             assert call_args[1]["params"] == {
                 "view": "kona_playercard",
-                "scoringPeriodId": 0,
+                "scoringPeriodId": 1,
             }
 
             # Check headers contain the correct filter

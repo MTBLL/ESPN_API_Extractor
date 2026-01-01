@@ -1,5 +1,5 @@
 import json
-from typing import List
+from typing import List, Optional
 
 import requests
 
@@ -44,6 +44,7 @@ class EspnFantasyRequests(object):
             self.SPORT_ENDPOINT += (
                 "/seasons/" + self.year + "/segments/0/leaguedefaults/1"
             )
+        self.LEAGUE_ENDPOINT = self.SPORT_ENDPOINT
 
     def _checkRequestStatus(
         self,
@@ -131,7 +132,15 @@ class EspnFantasyRequests(object):
 
     def get_league(self):
         """Gets all of the leagues initial data (teams, roster, matchups, settings)"""
-        params = {"view": ["mTeam", "mRoster", "mMatchup", "mSettings", "mStandings"]}
+        params = {
+            "view": ["mTeam", "mRoster", "mMatchupScore", "mSettings", "mStandings"]
+        }
+        data = self.league_get(params=params)
+        return data
+
+    def get_league_data(self, views: List[str]):
+        """Gets league data using custom views."""
+        params = {"view": views}
         data = self.league_get(params=params)
         return data
 
@@ -151,12 +160,14 @@ class EspnFantasyRequests(object):
 
         return data
 
-    def get_player_cards(self, player_ids: List[int]):
+    def get_player_cards(
+        self, player_ids: Optional[List[int]], scoring_period_id: int = 1
+    ):
         """Gets player cards with projections, seasonal stats, and outlook data"""
-        params = {"view": "kona_playercard", "scoringPeriodId": 0}
+        params = {"view": "kona_playercard", "scoringPeriodId": scoring_period_id}
 
         # Build filters for projections with preseason and regular season stats
-        additional_value = [
+        additional_values = [
             f"00{self.year}",  # current year stats
             f"10{self.year}",  # projections
             f"00{int(self.year) - 1}",  # previous year stats
@@ -176,15 +187,13 @@ class EspnFantasyRequests(object):
                 "sortPercOwned": {"sortAsc": False, "sortPriority": 2},
                 "filterStatsForTopScoringPeriodIds": {
                     "value": 1,
-                    "additionalValue": additional_value,
+                    "additionalValue": additional_values,
                 },
             }
         }
 
         headers = {"x-fantasy-filter": json.dumps(filters)}
-        data = self._get(
-            extend="/segments/0/leaguedefaults/1", params=params, headers=headers
-        )
+        data = self.league_get(params=params, headers=headers)
         return data
 
     def get_league_draft(self):

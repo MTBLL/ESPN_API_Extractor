@@ -1,6 +1,7 @@
 from typing import Dict
 
-POSITION_MAP: Dict[int, str] = {
+# Lineup slot ids (not position ids)
+LINEUP_SLOT_MAP: Dict[int, str] = {
     0: "C",
     1: "1B",
     2: "2B",
@@ -78,6 +79,7 @@ PRO_TEAM_MAP = {
 # P_ = pitcher stat
 
 STATS_MAP = {
+    # start batting categories
     0: "AB",
     1: "H",
     2: "AVG",
@@ -103,13 +105,14 @@ STATS_MAP = {
     # 22: '',
     23: "SB",
     24: "CS",
-    25: "SB-CS",  # net steals
+    25: "SBN",  # net steals
     26: "GDP",
     27: "B_SO",  # batter strike-outs
     28: "PS",  # pitches seen
     29: "PPA",  # pitches per plate appearance = PS / PA
     # 30: '',
     31: "CYC",
+    # start pitching categories
     32: "GP",  # pitcher games pitched
     33: "GS",  # games started
     34: "OUTS",  # divide by 3 for IP

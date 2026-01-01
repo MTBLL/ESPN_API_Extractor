@@ -1,6 +1,6 @@
 [project]
 name = "espn-api-extractor"
-version = "0.3.0"
+version = "0.4.0"
 description = "API for Extracting ESPN API Data"
 authors = [{ name = "Taylor \"TP\" Pubins", email = "tpubz@icloud.com" }]
 readme = "README.md"
@@ -22,7 +22,7 @@ dev = [
 ]
 
 [project.scripts]
-espn-extract = "espn_api_extractor.__main__:cli_main"
+espn = "espn_api_extractor.__main__:cli_main"
 
 [build-system]
 requires = ["hatchling"]
@@ -37,3 +37,11 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+
+[tool.coverage.run]
+omit = [
+    "espn_api_extractor/__main__.py"
+]
+
+[tool.mypy]
+ignore_missing_imports = false

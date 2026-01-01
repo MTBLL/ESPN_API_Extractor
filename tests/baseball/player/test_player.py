@@ -1,8 +1,8 @@
 import pytest
 
 from espn_api_extractor.baseball.constants import (
+    LINEUP_SLOT_MAP,
     NOMINAL_POSITION_MAP,
-    POSITION_MAP,
     PRO_TEAM_MAP,
 )
 from espn_api_extractor.baseball.player import Player
@@ -45,10 +45,10 @@ def test_player_initialization(player_data):
     # Verify eligible slots
     # Now correctly filtering out bench (BE) and injured list (IL) slots
     expected_slots = [
-        POSITION_MAP.get(9),  # CF
-        POSITION_MAP.get(10),  # RF
-        POSITION_MAP.get(5),  # OF
-        POSITION_MAP.get(12),  # UTIL
+        LINEUP_SLOT_MAP.get(9),  # CF
+        LINEUP_SLOT_MAP.get(10),  # RF
+        LINEUP_SLOT_MAP.get(5),  # OF
+        LINEUP_SLOT_MAP.get(12),  # UTIL
         # BE and IL are excluded
     ]
     assert set(player.eligible_slots) == set(expected_slots)
@@ -321,7 +321,7 @@ def test_player_from_model_with_hasura_fixture(hasura_fixture_data):
         assert isinstance(player_model.season_outlook, (str, type(None)))
         
         # Fantasy and draft information from kona_playercard
-        assert isinstance(player_model.draft_auction_value, (float, type(None)))
+        assert isinstance(player_model.draft_auction_value, (int, type(None)))
         assert isinstance(player_model.on_team_id, (int, type(None)))
         assert isinstance(player_model.draft_ranks, dict)
         assert isinstance(player_model.games_played_by_position, dict)

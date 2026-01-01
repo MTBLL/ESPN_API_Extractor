@@ -1,8 +1,15 @@
-import datetime
+import os
+
+import requests
 
 import pytest
 
 from espn_api_extractor.requests.constants import FantasySports
+from espn_api_extractor.requests.exceptions import (
+    ESPNAccessDenied,
+    ESPNInvalidLeague,
+    ESPNUnknownError,
+)
 from espn_api_extractor.requests.fantasy_requests import EspnFantasyRequests
 
 
@@ -11,24 +18,33 @@ def espn_request():
     # Using empty cookies since we're doing an actual API call
     # You may need to modify this if authentication is required
     cookies = {}
-    # Get the current year
-    current_year = datetime.datetime.now().year
+    year = int(os.getenv("ESPN_TEST_YEAR", "2025"))
+    league_id = int(os.getenv("ESPN_TEST_LEAGUE_ID", "10998"))
 
     return EspnFantasyRequests(
         sport=FantasySports.MLB,  # Use mlb instead of baseball
-        year=current_year,  # Use the current year
-        league_id=10998,  # Not needed for get_pro_players
+        year=year,
+        league_id=league_id,
         cookies=cookies,
     )
 
 
+@pytest.mark.integration
 def test_get_pro_players_structure(espn_request):
     """
     End-to-end test that calls the actual ESPN API to verify
     that the player data structure contains the expected fields.
     """
     # Make the actual API call
-    players = espn_request.get_pro_players()
+    try:
+        players = espn_request.get_pro_players()
+    except (
+        ESPNAccessDenied,
+        ESPNInvalidLeague,
+        ESPNUnknownError,
+        requests.exceptions.RequestException,
+    ) as exc:
+        pytest.skip(f"ESPN API not accessible: {exc}")
 
     # Verify we got a response with players
     assert isinstance(players, list), "Expected a list of players"
@@ -75,8 +91,17 @@ def test_get_pro_players_structure(espn_request):
     print(f"Total players retrieved: {len(players)}")
 
 
+@pytest.mark.integration
 def test_get_player_cards_structure(espn_request):
-    players = espn_request.get_player_cards(player_ids=[39832, 42404])
+    try:
+        players = espn_request.get_player_cards(player_ids=[39832, 42404])
+    except (
+        ESPNAccessDenied,
+        ESPNInvalidLeague,
+        ESPNUnknownError,
+        requests.exceptions.RequestException,
+    ) as exc:
+        pytest.skip(f"ESPN API not accessible: {exc}")
     assert len(players) > 0, "Expected at least one player in the response"
 
     # Get the first player to validate structure

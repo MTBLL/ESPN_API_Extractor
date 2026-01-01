@@ -1,4 +1,5 @@
 **__pycache__**
+coverage**
 .coverage**
 .coverage/**
 .venv
@@ -7,6 +8,7 @@
 .mypy_cache/
 
 # Output files
+.temp/
 test.json
 debug_output/
 output/

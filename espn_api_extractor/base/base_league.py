@@ -31,6 +31,7 @@ class BaseLeague(ABC):
         self.members: List[Dict[str, Any]] = []
         self.draft: List[BasePick] = []
         self.player_map: Dict[Union[int, str], Union[str, int]] = {}
+        self.settings: BaseSettings = BaseSettings({})
 
         cookies = {}
         if espn_s2 and swid:

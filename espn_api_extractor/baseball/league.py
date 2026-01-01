@@ -7,7 +7,7 @@ from espn_api_extractor.requests.constants import FantasySports
 
 from .activity import Activity
 from .box_score import BoxScore, H2HCategoryBoxScore, H2HPointsBoxScore
-from .constants import ACTIVITY_MAP, POSITION_MAP
+from .constants import ACTIVITY_MAP, LINEUP_SLOT_MAP
 from .matchup import Matchup
 from .player import Player
 from .team import Team
@@ -162,7 +162,7 @@ class League(BaseLeague):
         # Convert position string to position_id
         if position:
             # Find the position_id (key) for the given position name (value)
-            position_id_list = [k for k, v in POSITION_MAP.items() if v == position]
+            position_id_list = [k for k, v in LINEUP_SLOT_MAP.items() if v == position]
             if position_id_list:
                 slot_filter = [position_id_list[0]]
         if position_id:

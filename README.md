@@ -133,7 +133,7 @@ There are multiple ways to run the player extractor:
 
 ```bash
 # Option 1: Using the installed command-line script
-espn-extract players-extract --year 2025 --threads 32 --batch-size 100
+espn player-extract --year 2025 --threads 32 --batch-size 100
 
 # Option 2: Using the Python module directly
 python -m espn_api_extractor.players --year 2025 --threads 32 --batch-size 100
@@ -155,6 +155,29 @@ This script:
 3. Fetches comprehensive kona_playercard data (projections, seasonal stats, fantasy info, outlook) for all players
 4. Hydrates those objects with detailed player information via the Core API using multi-threading
 5. Returns the fully hydrated player objects with complete data
+
+#### League Runner
+
+Use the league extractor to pull league-level data (settings, teams, rosters, etc.).
+
+```bash
+# Using the installed command-line script
+espn league-extract --league_id 10998 --year 2025 --output_dir output
+
+# Include private league cookies if needed
+espn league-extract --league_id 10998 --year 2025 --espn_s2 "<cookie>" --swid "{SWID}" --output_dir output
+
+# Provide custom views (repeatable)
+espn league-extract --league_id 10998 --year 2025 --view mSettings --view mRoster --view mTeam --view modular --view mNav --output_dir output
+```
+
+Command-line options:
+- `--league_id`: ESPN Fantasy League ID (default: 10998)
+- `--year`: League year (default: 2025)
+- `--espn_s2`: ESPN S2 cookie for private league access
+- `--swid`: ESPN SWID cookie for private league access
+- `--output_dir`: Directory to write JSON output
+- `--view`: ESPN league view to include (repeatable)
 
 ## Usage Examples
 
@@ -494,7 +517,7 @@ The repository includes debug scripts to help test functionality:
 
 ```bash
 # Test player statistics fetching
-poetry run python debug_stats_fetch.py
+uv run python debug_stats_fetch.py
 ```
 
 This script:
@@ -510,10 +533,10 @@ This project uses mypy for static type checking to catch potential type-related 
 
 ```bash
 # Run mypy on the codebase
-poetry run mypy espn_api_extractor
+uv run mypy espn_api_extractor
 
 # Run mypy with stricter checking of untyped function bodies
-poetry run mypy --check-untyped-defs espn_api_extractor
+uv run mypy --check-untyped-defs espn_api_extractor
 ```
 
 Type checking is enforced via GitHub Actions on all pull requests to ensure type consistency. All code must pass mypy checks before it can be merged to the main branch.
