@@ -1,4 +1,4 @@
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence
 
 from pydantic import Json
 
@@ -46,6 +46,7 @@ class LeagueHandler:
         filtered = self._filter_settings(filtered)
         filtered = self._filter_status(filtered)
         filtered = self._filter_schedule(filtered)
+        filtered = self._filter_team_rosters(filtered)
         return filtered
 
     def _drop_excluded_keys(self, data: dict) -> dict:
@@ -55,6 +56,8 @@ class LeagueHandler:
 
     def _filter_settings(self, data: dict) -> dict:
         settings = data.get("settings")
+        if not isinstance(settings, dict):
+            return data
 
         settings = self._drop_settings_keys(settings)
         settings = self._filter_acquisition_settings(settings)
@@ -64,7 +67,7 @@ class LeagueHandler:
         updated["settings"] = settings
         return updated
 
-    def _drop_settings_keys(self, settings: dict) -> dict:
+    def _drop_settings_keys(self, settings: dict[str, Any]) -> dict[str, Any]:
         return {
             key: value
             for key, value in settings.items()
@@ -99,12 +102,12 @@ class LeagueHandler:
         return updated
 
     def _build_scoring_categories(self, scoring_items: list[dict]) -> dict:
-        categories = {"batting": [], "pitching": []}
+        categories: dict[str, list[dict[str, Any]]] = {"batting": [], "pitching": []}
         for item in scoring_items:
             stat_id = item.get("statId")
             entry = {
                 "statId": stat_id,
-                "name": STATS_MAP.get(stat_id),
+                "name": STATS_MAP.get(stat_id) if isinstance(stat_id, int) else None,
                 "isReverseItem": item.get("isReverseItem"),
             }
             if isinstance(stat_id, int) and stat_id >= 32:
@@ -121,6 +124,37 @@ class LeagueHandler:
         updated_status = dict(status)
         updated_status.pop("waiverProcessStatus", None)
         updated["status"] = updated_status
+        return updated
+
+    def _filter_team_rosters(self, data: dict) -> dict:
+        teams = data.get("teams")
+        if not isinstance(teams, list):
+            return data
+
+        updated_teams = []
+        for team in teams:
+            roster = team.get("roster")
+            if not isinstance(roster, dict):
+                updated_teams.append(team)
+                continue
+
+            entries = roster.get("entries")
+            if not isinstance(entries, list):
+                updated_teams.append(team)
+                continue
+
+            updated_entries = [
+                self._drop_roster_entry_stats(entry) for entry in entries
+            ]
+            updated_roster = dict(roster)
+            updated_roster["entries"] = updated_entries
+
+            updated_team = dict(team)
+            updated_team["roster"] = updated_roster
+            updated_teams.append(updated_team)
+
+        updated = dict(data)
+        updated["teams"] = updated_teams
         return updated
 
     def _filter_schedule(self, data: dict) -> dict:
@@ -161,8 +195,7 @@ class LeagueHandler:
         }
 
     def _format_record(self, cumulative_score: Optional[dict]) -> str:
-        if not isinstance(cumulative_score, dict):
-            cumulative_score = {}
+        assert isinstance(cumulative_score, dict)
         wins = cumulative_score.get("wins", 0)
         losses = cumulative_score.get("losses", 0)
         ties = cumulative_score.get("ties", 0)
@@ -183,4 +216,27 @@ class LeagueHandler:
             return away_team_id
         if winner == "TIE":
             return "TIE"
-        return None
+
+    def _drop_roster_entry_stats(self, entry: dict) -> dict:
+        updated_entry = dict(entry)
+
+        player_pool_entry = entry.get("playerPoolEntry")
+        if isinstance(player_pool_entry, dict):
+            updated_ppe = dict(player_pool_entry)
+            updated_ppe.pop("ratings", None)
+            player = player_pool_entry.get("player")
+            if isinstance(player, dict):
+                updated_player = dict(player)
+                updated_player.pop("stats", None)
+                updated_player.pop("draftRanksByRankType", None)
+                updated_ppe["player"] = updated_player
+            updated_entry["playerPoolEntry"] = updated_ppe
+
+        player = entry.get("player")
+        if isinstance(player, dict):
+            updated_player = dict(player)
+            updated_player.pop("stats", None)
+            updated_player.pop("draftRanksByRankType", None)
+            updated_entry["player"] = updated_player
+
+        return updated_entry

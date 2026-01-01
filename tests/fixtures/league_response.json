@@ -7482,7 +7482,19 @@
       "keeperOrderType": "TRADITIONAL",
       "leagueSubType": "NONE",
       "orderType": "DRAFT_START",
-      "pickOrder": [7, 1, 36, 18, 41, 8, 40, 31, 17, 39, 35],
+      "pickOrder": [
+        7,
+        1,
+        36,
+        18,
+        41,
+        8,
+        40,
+        31,
+        17,
+        39,
+        35
+      ],
       "timePerSelection": 120,
       "type": "AUCTION"
     },
@@ -7551,7 +7563,9 @@
         "13": 0
       },
       "rosterLocktimeType": "FIRSTGAME_SCORINGPERIOD",
-      "universeIds": [0]
+      "universeIds": [
+        0
+      ]
     },
     "scheduleSettings": {
       "consolationLadderDisabled": false,
@@ -7565,24 +7579,64 @@
       "matchupPeriodCount": 14,
       "matchupPeriodLength": 1,
       "matchupPeriods": {
-        "1": [1],
-        "2": [2],
-        "3": [3],
-        "4": [4],
-        "5": [5],
-        "6": [6],
-        "7": [7],
-        "8": [8],
-        "9": [9],
-        "10": [10],
-        "11": [11],
-        "12": [12],
-        "13": [13],
-        "14": [14],
-        "15": [16, 15],
-        "16": [17, 18],
-        "17": [19, 20],
-        "18": [21, 22]
+        "1": [
+          1
+        ],
+        "2": [
+          2
+        ],
+        "3": [
+          3
+        ],
+        "4": [
+          4
+        ],
+        "5": [
+          5
+        ],
+        "6": [
+          6
+        ],
+        "7": [
+          7
+        ],
+        "8": [
+          8
+        ],
+        "9": [
+          9
+        ],
+        "10": [
+          10
+        ],
+        "11": [
+          11
+        ],
+        "12": [
+          12
+        ],
+        "13": [
+          13
+        ],
+        "14": [
+          14
+        ],
+        "15": [
+          16,
+          15
+        ],
+        "16": [
+          17,
+          18
+        ],
+        "17": [
+          19,
+          20
+        ],
+        "18": [
+          21,
+          22
+        ]
       },
       "periodTypeId": 2,
       "playoffMatchupPeriodLength": 2,
@@ -7723,7 +7777,18 @@
     },
     "latestScoringPeriod": 196,
     "previousSeasons": [
-      2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024
+      2013,
+      2014,
+      2015,
+      2016,
+      2017,
+      2018,
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024
     ],
     "standingsUpdateDate": 1767122707150,
     "teamsJoined": 11,
@@ -7883,7 +7948,9 @@
       "logo": "https://i.imgur.com/EhYdq2q.jpg",
       "logoType": "CUSTOM_VALID",
       "name": "Hader's Gon Hate",
-      "owners": ["{3D596368-E046-4194-8C20-C0CB4F2E8BBD}"],
+      "owners": [
+        "{3D596368-E046-4194-8C20-C0CB4F2E8BBD}"
+      ],
       "playoffSeed": 11,
       "points": 0,
       "pointsAdjusted": 0,
@@ -7980,7 +8047,56 @@
         "63": 39,
         "83": 35
       },
-      "waiverRank": 1
+      "waiverRank": 1,
+      "roster": {
+        "entries": [
+          {
+            "acquisitionDate": 0,
+            "acquisitionType": "DRAFT",
+            "injuryStatus": "ACTIVE",
+            "lineupSlotId": 5,
+            "pendingTransactionIds": [],
+            "playerId": 999999,
+            "playerPoolEntry": {
+              "player": {
+                "id": 999999,
+                "fullName": "Fixture Player",
+                "firstName": "Fixture",
+                "lastName": "Player",
+                "defaultPositionId": 5,
+                "eligibleSlots": [
+                  5,
+                  12
+                ],
+                "proTeamId": 1,
+                "injured": false,
+                "injuryStatus": "ACTIVE",
+                "stats": [
+                  {
+                    "seasonId": 2025,
+                    "statSplitTypeId": 0,
+                    "statSourceId": 0,
+                    "stats": {
+                      "5": 1
+                    }
+                  }
+                ],
+                "draftRanksByRankType": {
+                  "STANDARD": {
+                    "rank": 1
+                  }
+                }
+              },
+              "ratings": {
+                "0": {
+                  "totalRating": 1.0
+                }
+              }
+            },
+            "status": "ACTIVE"
+          }
+        ]
+      }
     },
     {
       "abbrev": "PUCK",
@@ -7996,7 +8112,9 @@
       "logo": "https://ssl.c.photoshelter.com/img-get2/I00004ntiCbTZgIo/fit=1000x750/Puckett-Kirby-1991-WS-05.jpg",
       "logoType": "CUSTOM_VALID",
       "name": "Puckett, We'll  Do it Live",
-      "owners": ["{F1A298C3-795F-4024-A298-C3795F702437}"],
+      "owners": [
+        "{F1A298C3-795F-4024-A298-C3795F702437}"
+      ],
       "playoffSeed": 2,
       "points": 0,
       "pointsAdjusted": 0,
@@ -8127,7 +8245,9 @@
       "logo": "https://pbs.twimg.com/profile_images/437098266979627008/fMSRJa_q.jpeg",
       "logoType": "CUSTOM_VALID",
       "name": "Pablo Sanchez's",
-      "owners": ["{19DDD560-4104-46DA-9DD5-60410426DAAE}"],
+      "owners": [
+        "{19DDD560-4104-46DA-9DD5-60410426DAAE}"
+      ],
       "playoffSeed": 1,
       "points": 0,
       "pointsAdjusted": 0,
@@ -8258,7 +8378,9 @@
       "logo": "http://images.livemixtapes.com/artists/ovo/drake-6_god/cover.jpg",
       "logoType": "CUSTOM_VALID",
       "name": "October's  Very Own",
-      "owners": ["{F1061681-A897-4ECE-8616-81A8979ECE9C}"],
+      "owners": [
+        "{F1061681-A897-4ECE-8616-81A8979ECE9C}"
+      ],
       "playoffSeed": 3,
       "points": 0,
       "pointsAdjusted": 0,
@@ -8397,7 +8519,9 @@
       "logo": "http://content.sportslogos.net/logos/53/65/full/h7yvwsji2bngl8v6n0o4o3x9k.gif",
       "logoType": "CUSTOM_VALID",
       "name": "Toner from Minnesota",
-      "owners": ["{C5F77F3F-DAC8-4789-90C9-FFA32717D186}"],
+      "owners": [
+        "{C5F77F3F-DAC8-4789-90C9-FFA32717D186}"
+      ],
       "playoffSeed": 7,
       "points": 0,
       "pointsAdjusted": 0,
@@ -8524,7 +8648,9 @@
       "logo": "https://g.espncdn.com/lm-static/logo-packs/core/BobsBurgers/Teddy_OnModel.svg",
       "logoType": "VECTOR",
       "name": "Bucco Bandwagon",
-      "owners": ["{F31FB5F9-495B-48FF-91A4-60C72ED1BACA}"],
+      "owners": [
+        "{F31FB5F9-495B-48FF-91A4-60C72ED1BACA}"
+      ],
       "playoffSeed": 9,
       "points": 0,
       "pointsAdjusted": 0,
@@ -8645,7 +8771,9 @@
       "logo": "https://images.thestar.com/CNReGkpfAWxBv1qtQ0t8gzkOQpY=/1200x943/smart/filters:cb(1618587876855)/https://www.thestar.com/content/dam/thestar/sports/baseball/2021/04/16/ronald-acua-jr-is-a-new-terrifying-type-of-leadoff-hitter/ronald_acuna.jpg",
       "logoType": "CUSTOM_VALID",
       "name": "Acuna Matata",
-      "owners": ["{0EB8972F-5410-438E-8EA2-C9EC084EE00D}"],
+      "owners": [
+        "{0EB8972F-5410-438E-8EA2-C9EC084EE00D}"
+      ],
       "playoffSeed": 5,
       "points": 0,
       "pointsAdjusted": 0,
@@ -8767,7 +8895,9 @@
       "logo": "https://i.postimg.cc/1XFVrSgx/IMG-2153.jpg",
       "logoType": "CUSTOM_VALID",
       "name": "Campus  Popo",
-      "owners": ["{8022B53E-AAEA-476E-A2B5-3EAAEAD76ED8}"],
+      "owners": [
+        "{8022B53E-AAEA-476E-A2B5-3EAAEAD76ED8}"
+      ],
       "playoffSeed": 4,
       "points": 0,
       "pointsAdjusted": 0,
@@ -8903,7 +9033,9 @@
       "logo": "https://g.espncdn.com/lm-static/logo-packs/flb/Sheilds-of-Glory-L-Dopa/L-Dopa_FantasyBasebal-11.svg",
       "logoType": "VECTOR",
       "name": "Wolfey's Miracle Makers",
-      "owners": ["{BB088355-F395-4C3E-B7E7-A2D475B80F8F}"],
+      "owners": [
+        "{BB088355-F395-4C3E-B7E7-A2D475B80F8F}"
+      ],
       "playoffSeed": 6,
       "points": 0,
       "pointsAdjusted": 0,
@@ -9021,7 +9153,9 @@
       "logo": "https://g.espncdn.com/lm-static/logo-packs/flb/team-kinney-martin-laksman/kinny_Baseball-01.svg",
       "logoType": "VECTOR",
       "name": "john's Finest Team",
-      "owners": ["{987E572A-5B28-4A44-BE57-2A5B28EA44D4}"],
+      "owners": [
+        "{987E572A-5B28-4A44-BE57-2A5B28EA44D4}"
+      ],
       "playoffSeed": 10,
       "points": 0,
       "pointsAdjusted": 0,
@@ -9149,7 +9283,9 @@
       "logo": "https://www-tubefilter-com.cdn.ampproject.org/i/s/www.tubefilter.com/wp-content/uploads/2024/08/costco-guys.jpg",
       "logoType": "CUSTOM_VALID",
       "name": "We Bring The Boom-bas ",
-      "owners": ["{7DD46215-145A-49A6-928A-2C124E71304D}"],
+      "owners": [
+        "{7DD46215-145A-49A6-928A-2C124E71304D}"
+      ],
       "playoffSeed": 8,
       "points": 0,
       "pointsAdjusted": 0,
