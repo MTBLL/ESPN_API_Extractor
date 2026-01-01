@@ -65,7 +65,7 @@ class FullHydrationHandler:
 
         for player_id in player_ids:
             if player_id in pro_players_map:
-                player = Player(pro_players_map[player_id])
+                player = Player(pro_players_map[player_id], current_season=self.year)
                 players_to_hydrate.append(player)
             else:
                 self.logger.logging.warning(

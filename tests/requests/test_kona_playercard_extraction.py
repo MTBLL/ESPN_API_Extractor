@@ -24,12 +24,6 @@ class TestProjectionsExtraction:
             cookies={},
         )
 
-    @pytest.fixture
-    def projections_fixture_data(self):
-        """Load the kona_playercard projections fixture"""
-        with open("tests/fixtures/kona_playercard_projections_fixture.json", "r") as f:
-            return json.load(f)
-
     def test_get_player_cards_builds_correct_filters(self, fantasy_requests):
         """Test that get_player_cards builds the correct API filters"""
         player_ids = [42404, 39832]

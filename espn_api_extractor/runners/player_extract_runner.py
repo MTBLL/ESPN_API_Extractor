@@ -50,7 +50,10 @@ class PlayerExtractRunner:
                 player_models: List[PlayerModel] = (
                     self.graphql_client.get_existing_players()
                 )
-                existing_players = [Player.from_model(model) for model in player_models]
+                existing_players = [
+                    Player.from_model(model, current_season=self.args.year)
+                    for model in player_models
+                ]
                 self.logger.info(f"Found {len(existing_players)} existing players")
             else:
                 self.logger.info("GraphQL not available - performing full extraction")
@@ -90,21 +93,28 @@ class PlayerExtractRunner:
         os.makedirs(self.args.output_dir, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        # Save players to JSON
-        players_file = os.path.join(
-            self.args.output_dir, f"espn_players_{self.args.year}_{timestamp}.json"
+        pitchers, batters = self._split_players_by_role(players)
+
+        pitchers = self._sort_players(pitchers)
+        batters = self._sort_players(batters)
+
+        pitchers_file = os.path.join(
+            self.args.output_dir, f"espn_pitchers_{self.args.year}_{timestamp}.json"
+        )
+        batters_file = os.path.join(
+            self.args.output_dir, f"espn_batters_{self.args.year}_{timestamp}.json"
         )
 
-        # Sort players by percent owned (descending) before saving
-        sorted_players = sorted(
-            players, key=lambda p: p.percent_owned if p.percent_owned > 0 else -1, reverse=True
-        )
-        players_data = [player.to_model().model_dump() for player in sorted_players]
+        pitchers_data = [player.to_model().model_dump() for player in pitchers]
+        batters_data = [player.to_model().model_dump() for player in batters]
 
-        with open(players_file, "w") as f:
-            json.dump(players_data, f, indent=2)
+        with open(pitchers_file, "w") as f:
+            json.dump(pitchers_data, f, indent=2)
+        with open(batters_file, "w") as f:
+            json.dump(batters_data, f, indent=2)
 
-        self.logger.info(f"Saved {len(players)} players to {players_file}")
+        self.logger.info(f"Saved {len(pitchers)} pitchers to {pitchers_file}")
+        self.logger.info(f"Saved {len(batters)} batters to {batters_file}")
 
         # Save failures if any
         if failures:
@@ -115,3 +125,38 @@ class PlayerExtractRunner:
                 json.dump({"failures": failures, "count": len(failures)}, f, indent=2)
 
             self.logger.warning(f"Saved {len(failures)} failures to {failures_file}")
+
+    def _sort_players(self, players: List[Player]) -> List[Player]:
+        return sorted(
+            players,
+            key=lambda p: p.percent_owned if p.percent_owned > 0 else -1,
+            reverse=True,
+        )
+
+    def _split_players_by_role(
+        self, players: List[Player]
+    ) -> tuple[List[Player], List[Player]]:
+        pitchers: List[Player] = []
+        batters: List[Player] = []
+
+        for player in players:
+            slots = self._normalize_eligible_slots(player)
+            if not slots:
+                batters.append(player)
+                continue
+
+            has_pitcher_slot = any("P" in slot for slot in slots)
+            has_non_pitcher_slot = any("P" not in slot for slot in slots)
+
+            if has_pitcher_slot:
+                pitchers.append(player)
+            if has_non_pitcher_slot or not has_pitcher_slot:
+                batters.append(player)
+
+        return pitchers, batters
+
+    def _normalize_eligible_slots(self, player: Player) -> List[str]:
+        slots = getattr(player, "eligible_slots", None)
+        if not slots:
+            return []
+        return [str(slot) for slot in slots if slot is not None]

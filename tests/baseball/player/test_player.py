@@ -8,22 +8,12 @@ from espn_api_extractor.baseball.constants import (
 from espn_api_extractor.baseball.player import Player
 
 
-@pytest.fixture
-def corbin_carroll_data(projections_fixture_data):
-    # parse out the json object for corbin carroll
-    return next(
-        player
-        for player in projections_fixture_data["players"]
-        if player.get("id") == 42404
-    )
-
-
-def test_player_initialization(corbin_carroll_data):
+def test_player_initialization(corbin_carroll_kona_card, corbin_carroll_season):
     """
     Test the Player class initialization with fixture data.
     """
     # Initialize a Player with the sample data
-    player = Player(corbin_carroll_data)
+    player = Player(corbin_carroll_kona_card, corbin_carroll_season)
 
     # Verify basic player info
     assert player.name == "Corbin Carroll"
@@ -52,21 +42,21 @@ def test_player_initialization(corbin_carroll_data):
     assert player.percent_owned == 99.75
 
 
-def test_player_repr(corbin_carroll_data):
+def test_player_repr(corbin_carroll_kona_card, corbin_carroll_season):
     """
     Test the Player's string representation.
     """
-    player = Player(corbin_carroll_data)
+    player = Player(corbin_carroll_kona_card, corbin_carroll_season)
     assert repr(player) == "Player(Corbin Carroll)"
 
 
-def test_player_missing_data():
+def test_player_missing_data(corbin_carroll_season):
     """
     Test creating a Player with minimal data.
     """
     minimal_data = {"fullName": "Test Player", "id": 12345}
 
-    player = Player(minimal_data)
+    player = Player(minimal_data, corbin_carroll_season)
     assert player.name == "Test Player"
     assert player.id == 12345
 
@@ -77,12 +67,14 @@ def test_player_missing_data():
     assert player.percent_owned == -1  # Default when ownership data is missing
 
 
-def test_player_hydration(corbin_carroll_data, athlete_fixture_data):
+def test_player_hydration(
+    corbin_carroll_kona_card, corbin_carroll_season, athlete_fixture_data
+):
     """
     Test the Player hydration with additional details data.
     """
     # Initialize a player
-    player = Player(corbin_carroll_data)
+    player = Player(corbin_carroll_kona_card, corbin_carroll_season)
 
     # Initial state should have fields initialized to None
     assert player.display_name is None
@@ -131,12 +123,14 @@ def test_player_hydration(corbin_carroll_data, athlete_fixture_data):
     )
 
 
-def test_player_model_conversion(corbin_carroll_data, athlete_fixture_data):
+def test_player_model_conversion(
+    corbin_carroll_kona_card, corbin_carroll_season, athlete_fixture_data
+):
     """
     Test converting between Player and PlayerModel instances.
     """
     # Initialize and hydrate a player
-    player = Player(corbin_carroll_data)
+    player = Player(corbin_carroll_kona_card, corbin_carroll_season)
     player.hydrate_bio(athlete_fixture_data)
 
     # Add some stats for testing (using semantic keys as expected by PlayerModel)
@@ -372,7 +366,7 @@ class TestPlayerEdgeCasesAndSadPaths:
             },
         }
 
-        player = Player(player_data)
+        player = Player(player_data, current_year)
 
         # Verify that split type 5 was skipped and only split type 0 was processed
         assert "current_season" in player.stats
@@ -426,7 +420,7 @@ class TestPlayerEdgeCasesAndSadPaths:
             },
         }
 
-        player = Player(player_data)
+        player = Player(player_data, current_year)
 
         # Verify that only valid stats were processed
         assert "current_season" in player.stats
@@ -465,7 +459,7 @@ class TestPlayerEdgeCasesAndSadPaths:
             },
         }
 
-        player = Player(player_data)
+        player = Player(player_data, current_year)
 
         # Verify projections use stats and ignore applied scoring fields
         assert "projections" in player.stats
@@ -509,7 +503,7 @@ class TestPlayerEdgeCasesAndSadPaths:
             },
         }
 
-        player = Player(player_data)
+        player = Player(player_data, current_year)
 
         # Verify that only split type 0 from previous year was processed
         # Use dynamic key with year suffix (e.g., "previous_season_24")

@@ -70,7 +70,7 @@ class UpdatePlayerHandler:
         for player_id in player_ids:
             if player_id in pro_players_map:
                 player_data = pro_players_map[player_id]
-                player = Player(player_data)
+                player = Player(player_data, current_season=self.year)
                 updated_players.append(player)
             else:
                 self.logger.logging.warning(

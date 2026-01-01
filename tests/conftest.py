@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 import sys
 from pathlib import Path
 
@@ -19,10 +20,31 @@ def league_response_fixture():
 
 
 @pytest.fixture
-def projections_fixture_data():
+def kona_playercard_fixture_data():
     """Load the kona_playercard projections fixture"""
     with open("tests/fixtures/kona_playercard_projections_fixture.json", "r") as f:
         return json.load(f)
+
+
+@pytest.fixture
+def corbin_carroll_kona_card(kona_playercard_fixture_data):
+    # parse out the json object for corbin carroll
+    return next(
+        player
+        for player in kona_playercard_fixture_data["players"]
+        if player.get("id") == 42404
+    )
+
+
+@pytest.fixture
+def corbin_carroll_season(corbin_carroll_kona_card):
+    stats = corbin_carroll_kona_card.get("player", {}).get("stats", [])
+    season_ids = [
+        entry.get("seasonId")
+        for entry in stats
+        if isinstance(entry.get("seasonId"), int)
+    ]
+    return max(season_ids) if season_ids else datetime.now().year
 
 
 @pytest.fixture

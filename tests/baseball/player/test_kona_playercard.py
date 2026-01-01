@@ -142,12 +142,8 @@ class TestPlayerKonaPlayercard:
         # Test previous season stats mapping (2024) under stats namespace
         assert "AB" in player.stats[prev_key]
         assert "HR" in player.stats[prev_key]
-        assert (
-            player.stats[prev_key]["AB"] == 636.0
-        )  # From 002024 in fixture
-        assert (
-            player.stats[prev_key]["HR"] == 54.0
-        )  # From 002024 in fixture
+        assert player.stats[prev_key]["AB"] == 636.0  # From 002024 in fixture
+        assert player.stats[prev_key]["HR"] == 54.0  # From 002024 in fixture
 
     def test_player_hydrate_projections_handles_missing_stats_gracefully(self):
         """Test that hydrate_projections handles missing or incomplete stats gracefully"""
@@ -253,9 +249,7 @@ class TestPlayerKonaPlayercard:
             restored_player.stats["current_season"]
             == original_player.stats["current_season"]
         )
-        assert (
-            restored_player.stats[prev_key] == original_player.stats[prev_key]
-        )
+        assert restored_player.stats[prev_key] == original_player.stats[prev_key]
 
     def test_player_model_serialization_and_deserialization(self, ohtani_player_data):
         """Test PlayerModel JSON serialization and deserialization with kona_playercard data"""
@@ -281,9 +275,7 @@ class TestPlayerKonaPlayercard:
         assert (
             deserialized_model.stats["current_season"] == model.stats["current_season"]
         )
-        assert (
-            deserialized_model.stats[prev_key] == model.stats[prev_key]
-        )
+        assert deserialized_model.stats[prev_key] == model.stats[prev_key]
 
     def test_both_players_in_fixture_process_correctly(
         self, kona_playercard_fixture_data
@@ -425,7 +417,6 @@ class TestPlayerKonaPlayercard:
         # Hydrate with kona_playercard data
         merged_data = {**carroll_player_data["player"], **carroll_player_data}
         player.hydrate_kona_playercard(merged_data)
-        prev_key = get_previous_season_key(carroll_player_data["player"]["stats"])
 
         # Verify games played by position was extracted and mapped
         assert hasattr(player, "games_played_by_position")

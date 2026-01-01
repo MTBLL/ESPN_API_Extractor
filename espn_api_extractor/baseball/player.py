@@ -10,7 +10,7 @@ from .constants import LINEUP_SLOT_MAP, NOMINAL_POSITION_MAP, PRO_TEAM_MAP, STAT
 class Player(object):
     """Player are part of team"""
 
-    def __init__(self, data):
+    def __init__(self, data, current_season: int | None = None):
         self.id: int | None = json_parsing(data, "id")
         self.name: str | None = json_parsing(data, "fullName")
         self.first_name: str | None = json_parsing(data, "firstName")
@@ -53,7 +53,6 @@ class Player(object):
         self.transactions: List[Dict[str, Any]] = []
         self.display_name: str | None = None
         self.short_name: str | None = None
-        self.nickname: str | None = None
         self.weight: int | None = None
         self.height: str | None = None
         self.date_of_birth: str | None = None
@@ -70,10 +69,11 @@ class Player(object):
         self.injury_status = player.get("injuryStatus", self.injury_status)
         self.injured = player.get("injured", False)
 
+        self.current_season = current_season or datetime.now().year
+
         # Process stats from player data if available
         if "stats" in player and isinstance(player["stats"], list):
-            current_year = datetime.now().year
-            previous_year = current_year - 1
+            previous_year = self.current_season - 1
 
             for stat_entry in player["stats"]:
                 season_id = stat_entry.get("seasonId")
@@ -87,7 +87,7 @@ class Player(object):
                 # Determine stat key based on split type and season
                 stat_key = None
 
-                if season_id == current_year:
+                if season_id == self.current_season:
                     # Current year stats
                     stat_type_map = {
                         0: "current_season",
@@ -119,37 +119,17 @@ class Player(object):
                     }
                     self.stats[stat_key].update(mapped_stats)
 
-                    # Add fantasy scoring if available
-                    if "appliedTotal" in stat_entry:
-                        if "_fantasy_scoring" not in self.stats[stat_key]:
-                            self.stats[stat_key]["_fantasy_scoring"] = {}
-                        self.stats[stat_key]["_fantasy_scoring"]["applied_total"] = (
-                            stat_entry.get("appliedTotal", 0)
-                        )
-
                 elif stat_source == 1:
                     # Projected stats - store separately under "projections" key
                     if "projections" not in self.stats:
                         self.stats["projections"] = {}
 
-                    raw_projected = stat_entry.get("appliedStats", {})
+                    raw_projected = stat_entry.get("stats", {})
                     mapped_projected = {
                         STATS_MAP.get(int(k), str(k)): v
                         for k, v in raw_projected.items()
                     }
                     self.stats["projections"].update(mapped_projected)
-
-                    # Add fantasy scoring for projections
-                    if "_fantasy_scoring" not in self.stats["projections"]:
-                        self.stats["projections"]["_fantasy_scoring"] = {}
-                    if "appliedTotal" in stat_entry:
-                        self.stats["projections"]["_fantasy_scoring"][
-                            "applied_total"
-                        ] = stat_entry.get("appliedTotal", 0)
-                    if "appliedAverage" in stat_entry:
-                        self.stats["projections"]["_fantasy_scoring"][
-                            "applied_average"
-                        ] = stat_entry.get("appliedAverage", 0)
 
     def __repr__(self) -> str:
         return "Player(%s)" % (self.name,)
@@ -173,7 +153,9 @@ class Player(object):
         return PlayerModel.from_player(self)
 
     @classmethod
-    def from_model(cls, player_model: PlayerModel) -> "Player":
+    def from_model(
+        cls, player_model: PlayerModel, current_season: int | None = None
+    ) -> "Player":
         """
         Create a Player instance from a PlayerModel.
 
@@ -191,7 +173,8 @@ class Player(object):
         player_data = player_model.to_player_dict()
 
         # Create a new Player instance using the converted data
-        player = cls(player_data)
+        season = current_season or player_data.get("current_season")
+        player = cls(player_data, current_season=season)
 
         # Initialize kona fields to ensure they exist
         player._initialize_kona_fields()
@@ -461,10 +444,6 @@ class Player(object):
                 if tail.isdigit():
                     season_id = int(tail)
             stats_data = stat_entry.get("stats", {})
-            applied_stats = stat_entry.get("appliedStats", {})
-            applied_total = stat_entry.get("appliedTotal")
-            applied_average = stat_entry.get("appliedAverage")
-
             # Map numeric stat keys to readable names, skip unknown keys
             mapped_stats = {}
             for key, value in stats_data.items():
@@ -472,37 +451,12 @@ class Player(object):
                 if numeric_key in STATS_MAP:
                     mapped_stats[STATS_MAP[numeric_key]] = value
 
-            # Map applied stats for projections (uses appliedStats instead of stats)
-            mapped_applied_stats = {}
-            for key, value in applied_stats.items():
-                numeric_key = int(key)
-                if numeric_key in STATS_MAP:
-                    mapped_applied_stats[STATS_MAP[numeric_key]] = value
-
             # Determine stat key based on stat ID pattern
             stat_key: str | None = None
 
             if stat_source == 1 and split_type == 0:
                 stat_key = "projections"
-                # Use appliedStats for projections (more detailed than stats)
-                if mapped_applied_stats:
-                    self.stats[stat_key] = mapped_applied_stats
-                elif mapped_stats:
-                    self.stats[stat_key] = mapped_stats
-                else:
-                    self.stats[stat_key] = {}
-
-                # Add fantasy scoring for projections
-                if applied_total is not None or applied_average is not None:
-                    self.stats[stat_key]["_fantasy_scoring"] = {}
-                    if applied_total is not None:
-                        self.stats[stat_key]["_fantasy_scoring"]["applied_total"] = (
-                            applied_total
-                        )
-                    if applied_average is not None:
-                        self.stats[stat_key]["_fantasy_scoring"]["applied_average"] = (
-                            applied_average
-                        )
+                self.stats[stat_key] = mapped_stats
 
             elif stat_source == 0 and split_type == 0:
                 if season_id == current_year:
@@ -525,14 +479,6 @@ class Player(object):
                 self.stats[stat_key] = mapped_stats
 
             # Skip split type 5 (individual games) - ambiguous for two-way players
-
-            # Add fantasy scoring for non-projection stats if available
-            if stat_key and stat_key != "projections" and applied_total is not None:
-                if "_fantasy_scoring" not in self.stats[stat_key]:
-                    self.stats[stat_key]["_fantasy_scoring"] = {}
-                self.stats[stat_key]["_fantasy_scoring"]["applied_total"] = (
-                    applied_total
-                )
 
     def hydrate_kona_playercard(self, player_dict: Dict[str, Any]) -> None:
         """
