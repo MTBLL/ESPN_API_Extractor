@@ -40,7 +40,7 @@ class Team(object):
         roster = data["entries"]
 
         for player in roster:
-            self.roster.append(Player(player))
+            self.roster.append(Player(player, current_season=year))
 
     def _fetch_schedule(self, data):
         """Fetch schedule and scores for team"""

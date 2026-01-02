@@ -2,7 +2,10 @@
 Unit tests for player statistics functionality.
 """
 
+from datetime import datetime
 from unittest.mock import patch
+
+import pytest
 
 from espn_api_extractor.baseball.player import Player
 from espn_api_extractor.requests.core_requests import EspnCoreRequests
@@ -93,9 +96,61 @@ class TestPlayerStatistics:
         assert "split_id" in player2.stats
         assert player2.stats["split_id"] == "0"
         assert (
-            player2.stats["categories"]["batting"]["stats"]["homeRuns"]["value"]
-            == 14.0
+            player2.stats["categories"]["batting"]["stats"]["homeRuns"]["value"] == 14.0
         )
+
+    def test_relief_pitcher_advanced_stats_plus_computed_properties(
+        self, josh_hader_kona_card
+    ):
+        # checking to see if SVHDs is mapped correctly and if IP and K/9 are computed correctly
+        stats_entries = josh_hader_kona_card["player"]["stats"]
+        season_ids = [
+            entry.get("seasonId")
+            for entry in stats_entries
+            if isinstance(entry.get("seasonId"), int)
+        ]
+        current_season = max(season_ids) if season_ids else datetime.now().year
+
+        player = Player(josh_hader_kona_card, current_season)
+        projections_entry = next(
+            entry
+            for entry in stats_entries
+            if entry.get("seasonId") == current_season
+            and entry.get("statSourceId") == 1
+            and entry.get("statSplitTypeId") == 0
+        )
+        raw_stats = projections_entry.get("stats", {})
+        expected_svhd = raw_stats.get("83")
+        outs = raw_stats.get("34")
+        strikeouts = raw_stats.get("48")
+
+        assert expected_svhd is not None
+        assert player.stats["projections"]["SVHD"] == expected_svhd
+        assert isinstance(outs, (int, float))
+        assert isinstance(strikeouts, (int, float))
+
+        outs_int = int(outs)
+        expected_ip = outs_int // 3 + (outs_int % 3) / 10
+        expected_k9 = (strikeouts / (outs_int / 3)) * 9 if outs_int else 0
+
+        projections = player.stats["projections"]
+        assert projections["IP"] == expected_ip
+        assert projections["K/9"] == pytest.approx(expected_k9, rel=1e-3)
+
+        ordered_keys = list(player.stats.keys())
+        expected_order = []
+        if "projections" in player.stats:
+            expected_order.append("projections")
+        if "current_season" in player.stats:
+            expected_order.append("current_season")
+        expected_order.extend(
+            [key for key in ordered_keys if key.startswith("previous_season")]
+        )
+        for key in ("last_7_games", "last_15_games", "last_30_games"):
+            if key in player.stats:
+                expected_order.append(key)
+
+        assert ordered_keys[: len(expected_order)] == expected_order
 
     @patch(
         "espn_api_extractor.requests.core_requests.EspnCoreRequests._fetch_player_stats"
@@ -119,9 +174,7 @@ class TestPlayerStatistics:
         assert "split_name" in hydrated_player.stats
         assert hydrated_player.stats["split_name"] == "All Splits"
         assert (
-            hydrated_player.stats["categories"]["batting"]["stats"]["homeRuns"][
-                "value"
-            ]
+            hydrated_player.stats["categories"]["batting"]["stats"]["homeRuns"]["value"]
             == 14.0
         )
 

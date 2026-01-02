@@ -2,10 +2,8 @@ from typing import Any, Dict, List
 
 from espn_api_extractor.baseball.player import Player
 from espn_api_extractor.handlers.full_hydration_handler import FullHydrationHandler
-from espn_api_extractor.handlers.pro_players_handler import ProPlayersHandler
+from espn_api_extractor.handlers.player_extract_handler import PlayerExtractHandler
 from espn_api_extractor.handlers.update_player_handler import UpdatePlayerHandler
-from espn_api_extractor.requests.constants import FantasySports
-from espn_api_extractor.requests.fantasy_requests import EspnFantasyRequests
 from espn_api_extractor.utils.logger import Logger
 
 
@@ -26,10 +24,8 @@ class PlayerController:
         self.batch_size = args.batch_size
         self.sample_size = args.sample_size
         self.logger = Logger("PlayerController").logging
-        self.fantasy_requests = EspnFantasyRequests(
-            league_id=self.league_id, sport=FantasySports.MLB, year=self.year
-        )
-        self.pro_players_handler = ProPlayersHandler(
+
+        self.extract_handler = PlayerExtractHandler(
             league_id=self.league_id, year=self.year
         )
         self.update_handler = UpdatePlayerHandler(
@@ -70,14 +66,7 @@ class PlayerController:
         try:
             # 1. Get all current ESPN players (single API call)
             self.logger.info("Fetching all current ESPN players")
-            espn_players_response = self.fantasy_requests.get_player_cards(
-                player_ids=[]
-            )
-            espn_player_cards = (
-                espn_players_response.get("players", [])
-                if isinstance(espn_players_response, dict)
-                else espn_players_response
-            )
+            espn_player_cards = self.extract_handler.fetch_player_cards()
             espn_player_id_list = [
                 player.get("id") or player.get("player", {}).get("id")
                 for player in espn_player_cards
@@ -88,9 +77,7 @@ class PlayerController:
             ]
             espn_player_ids = set(espn_player_id_list)
             pro_players_data = [
-                player.get("player", player)
-                for player in espn_player_cards
-                if isinstance(player, dict)
+                player for player in espn_player_cards if isinstance(player, dict)
             ]
 
             self.logger.info(f"Found {len(espn_player_ids)} current ESPN players")
@@ -131,9 +118,19 @@ class PlayerController:
             # 4. Process existing player updates first
             if existing_to_update:
                 self.logger.info("Processing existing player updates")
+                existing_players_map = {
+                    player.id: player
+                    for player in existing_players
+                    if player.id is not None
+                }
+                players_to_update = [
+                    existing_players_map[player_id]
+                    for player_id in existing_to_update
+                    if player_id in existing_players_map
+                ]
                 try:
                     updated_players = await self.update_handler.execute(
-                        existing_to_update, pro_players_data=pro_players_data
+                        players_to_update, pro_players_data=pro_players_data
                     )
                     all_players.extend(updated_players)
                     self.logger.info(
@@ -164,9 +161,34 @@ class PlayerController:
                 f"Extraction complete: {len(all_players)} total players, {len(failures)} failures"
             )
 
-            return {"players": all_players, "failures": failures}
+            pitchers, batters = self._split_players_by_role(all_players)
+
+            return {
+                "players": all_players,
+                "pitchers": pitchers,
+                "batters": batters,
+                "failures": failures,
+            }
 
         except Exception as e:
             error_msg = f"Critical failure in player extraction: {str(e)}"
             self.logger.error(error_msg)
-            return {"players": [], "failures": [error_msg]}
+            return {"players": [], "pitchers": [], "batters": [], "failures": [error_msg]}
+
+    def _split_players_by_role(
+        self, players: List[Player]
+    ) -> tuple[List[Player], List[Player]]:
+        pitchers: List[Player] = []
+        batters: List[Player] = []
+
+        for player in players:
+            has_pitcher_slot, has_non_pitcher_slot = (
+                self.extract_handler.get_slot_flags(player)
+            )
+
+            if has_pitcher_slot:
+                pitchers.append(player)
+            if has_non_pitcher_slot or not has_pitcher_slot:
+                batters.append(player)
+
+        return pitchers, batters

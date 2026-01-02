@@ -24,12 +24,6 @@ class TestProjectionsExtraction:
             cookies={},
         )
 
-    @pytest.fixture
-    def projections_fixture_data(self):
-        """Load the kona_playercard projections fixture"""
-        with open("tests/fixtures/kona_playercard_projections_fixture.json", "r") as f:
-            return json.load(f)
-
     def test_get_player_cards_builds_correct_filters(self, fantasy_requests):
         """Test that get_player_cards builds the correct API filters"""
         player_ids = [42404, 39832]
@@ -70,9 +64,9 @@ class TestProjectionsExtraction:
             assert "012025" in additional_values  # last_7_games stats
             assert "022025" in additional_values  # regular season stats
 
-    def test_extract_projections_from_fixture(self, projections_fixture_data):
+    def test_extract_projections_from_fixture(self, kona_playercard_fixture_data):
         """Test extracting projection data from the fixture"""
-        players = projections_fixture_data["players"]
+        players = kona_playercard_fixture_data["players"]
 
         # Test first player (Corbin Carroll)
         carroll = players[1]
@@ -128,10 +122,10 @@ class TestProjectionsExtraction:
         assert proj_stats["23"] == 21.0  # SB
 
     def test_extract_last_7_games_regular_and_previous_season_stats(
-        self, projections_fixture_data
+        self, kona_playercard_fixture_data
     ):
         """Test extracting last_7_games, regular season, and previous season stats from fixture"""
-        players = projections_fixture_data["players"]
+        players = kona_playercard_fixture_data["players"]
         ohtani = players[0]  # Shohei Ohtani
 
         assert ohtani["id"] == 39832
@@ -171,10 +165,9 @@ class TestProjectionsExtraction:
         assert "5" in prev_stats  # HR
         assert prev_stats["5"] == 54.0  # 2024 season HR
 
-    def test_stat_key_mapping_with_constants(self, projections_fixture_data):
+    def test_stat_key_mapping_with_constants(self, corbin_carroll_kona_card):
         """Test that stat keys can be mapped using STATS_MAP constants"""
-        players = projections_fixture_data["players"]
-        carroll = players[1]
+        carroll = corbin_carroll_kona_card
 
         # Find projection stats
         projection_stats = None
@@ -212,10 +205,10 @@ class TestProjectionsExtraction:
         assert mapped_stats["HR"] == 19.0
         assert mapped_stats["SB"] == 21.0
 
-    def test_multiple_players_data_structure(self, projections_fixture_data):
+    def test_multiple_players_data_structure(self, kona_playercard_fixture_data):
         """Test that the fixture contains multiple players with consistent structure"""
-        players = projections_fixture_data["players"]
-        assert len(players) == 2  # Should have Carroll and Ohtani
+        players = kona_playercard_fixture_data["players"]
+        assert len(players) == 3  # Should have Carroll, Ohtani, and Hader
 
         for player in players:
             # Test basic structure

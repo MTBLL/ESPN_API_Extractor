@@ -553,9 +553,7 @@ class TestCoreRequestsIntegration:
         for player in hydrated_full:
             assert hasattr(player, "id")
             player_name = getattr(player, "display_name", "Name not loaded")
-            has_stats = (
-                hasattr(player, "season_stats") and player.season_stats is not None
-            )
+            has_stats = bool(getattr(player, "stats", {}))
             print(f"   Full hydrated: {player.id} - {player_name} (stats: {has_stats})")
 
         # At least some hydrations should succeed

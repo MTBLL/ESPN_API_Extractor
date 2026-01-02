@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import copy
 import json
 import os
 from datetime import datetime
@@ -6,6 +7,7 @@ from typing import Any, Dict, List, Union
 
 from espn_api_extractor.baseball.player import Player
 from espn_api_extractor.controllers import PlayerController
+from espn_api_extractor.handlers.player_extract_handler import PlayerExtractHandler
 from espn_api_extractor.models import PlayerModel
 from espn_api_extractor.utils.graphql_client import GraphQLClient
 from espn_api_extractor.utils.logger import Logger
@@ -18,6 +20,7 @@ class PlayerExtractRunner:
 
         # Pass args to controller (controller unwraps and passes to handlers)
         self.controller = PlayerController(args)
+        self.handler = PlayerExtractHandler()
 
         # Initialize GraphQL client for reading existing players (optimization)
         self.graphql_client = GraphQLClient(
@@ -50,7 +53,10 @@ class PlayerExtractRunner:
                 player_models: List[PlayerModel] = (
                     self.graphql_client.get_existing_players()
                 )
-                existing_players = [Player.from_model(model) for model in player_models]
+                existing_players = [
+                    Player.from_model(model, current_season=self.args.year)
+                    for model in player_models
+                ]
                 self.logger.info(f"Found {len(existing_players)} existing players")
             else:
                 self.logger.info("GraphQL not available - performing full extraction")
@@ -58,6 +64,8 @@ class PlayerExtractRunner:
             # Step 2: Execute extraction via controller
             results: Dict[str, Any] = await self.controller.execute(existing_players)
             players: List[Player] = results["players"]
+            pitchers: List[Player] = results["pitchers"]
+            batters: List[Player] = results["batters"]
             failures: List[str] = results["failures"]
 
             self.logger.info(
@@ -65,7 +73,7 @@ class PlayerExtractRunner:
             )
 
             # Step 3: Save extracted data to JSON (for next ETL stage)
-            self._save_extraction_results(players, failures)
+            self._save_extraction_results(pitchers, batters, failures)
 
             # Step 4: Return players (convert to models if requested)
             if self.args.as_models:
@@ -78,7 +86,7 @@ class PlayerExtractRunner:
             raise
 
     def _save_extraction_results(
-        self, players: List[Player], failures: List[str]
+        self, pitchers: List[Player], batters: List[Player], failures: List[str]
     ) -> None:
         """
         Save extracted data to JSON files for next ETL pipeline stage.
@@ -90,21 +98,30 @@ class PlayerExtractRunner:
         os.makedirs(self.args.output_dir, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        # Save players to JSON
-        players_file = os.path.join(
-            self.args.output_dir, f"espn_players_{self.args.year}_{timestamp}.json"
+        pitchers = self._sort_players(pitchers)
+        batters = self._sort_players(batters)
+
+        pitchers_file = os.path.join(
+            self.args.output_dir, f"espn_pitchers_{self.args.year}_{timestamp}.json"
+        )
+        batters_file = os.path.join(
+            self.args.output_dir, f"espn_batters_{self.args.year}_{timestamp}.json"
         )
 
-        # Sort players by percent owned (descending) before saving
-        sorted_players = sorted(
-            players, key=lambda p: p.percent_owned if p.percent_owned > 0 else -1, reverse=True
-        )
-        players_data = [player.to_model().model_dump() for player in sorted_players]
+        pitchers_data = []
+        for player in pitchers:
+            data = copy.deepcopy(player.to_model().model_dump())
+            self.handler.apply_pitcher_transforms(player, data)
+            pitchers_data.append(data)
+        batters_data = [player.to_model().model_dump() for player in batters]
 
-        with open(players_file, "w") as f:
-            json.dump(players_data, f, indent=2)
+        with open(pitchers_file, "w") as f:
+            json.dump(pitchers_data, f, indent=2)
+        with open(batters_file, "w") as f:
+            json.dump(batters_data, f, indent=2)
 
-        self.logger.info(f"Saved {len(players)} players to {players_file}")
+        self.logger.info(f"Saved {len(pitchers)} pitchers to {pitchers_file}")
+        self.logger.info(f"Saved {len(batters)} batters to {batters_file}")
 
         # Save failures if any
         if failures:
@@ -115,3 +132,10 @@ class PlayerExtractRunner:
                 json.dump({"failures": failures, "count": len(failures)}, f, indent=2)
 
             self.logger.warning(f"Saved {len(failures)} failures to {failures_file}")
+
+    def _sort_players(self, players: List[Player]) -> List[Player]:
+        return sorted(
+            players,
+            key=lambda p: p.percent_owned if p.percent_owned > 0 else -1,
+            reverse=True,
+        )

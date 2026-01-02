@@ -5,6 +5,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from espn_api_extractor.baseball.player import Player
+from espn_api_extractor.handlers.player_extract_handler import PlayerExtractHandler
 from espn_api_extractor.runners.player_extract_runner import PlayerExtractRunner
 
 
@@ -20,7 +22,12 @@ def test_player_extract_runner_uses_graphql_when_available(monkeypatch, tmp_path
     controller = MagicMock()
     controller_player = MagicMock()
     controller.execute = AsyncMock(
-        return_value={"players": [controller_player], "failures": []}
+        return_value={
+            "players": [controller_player],
+            "pitchers": [],
+            "batters": [controller_player],
+            "failures": [],
+        }
     )
 
     graphql_client = MagicMock()
@@ -60,7 +67,9 @@ def test_player_extract_runner_uses_graphql_when_available(monkeypatch, tmp_path
     )
     graphql_client.get_existing_players.assert_called_once_with()
     controller.execute.assert_awaited_once_with([existing_a, existing_b])
-    runner._save_extraction_results.assert_called_once_with([controller_player], [])
+    runner._save_extraction_results.assert_called_once_with(  # type: ignore
+        [], [controller_player], []
+    )
     assert result == [controller_player]
 
 
@@ -76,7 +85,12 @@ def test_player_extract_runner_skips_graphql_when_unavailable(monkeypatch, tmp_p
     controller = MagicMock()
     controller_player = MagicMock()
     controller.execute = AsyncMock(
-        return_value={"players": [controller_player], "failures": []}
+        return_value={
+            "players": [controller_player],
+            "pitchers": [],
+            "batters": [controller_player],
+            "failures": [],
+        }
     )
 
     graphql_client = MagicMock()
@@ -101,7 +115,7 @@ def test_player_extract_runner_skips_graphql_when_unavailable(monkeypatch, tmp_p
 
     graphql_client.get_existing_players.assert_not_called()
     controller.execute.assert_awaited_once_with([])
-    runner._save_extraction_results.assert_called_once_with([controller_player], [])
+    runner._save_extraction_results.assert_called_once_with([], [controller_player], [])  # type: ignore
     assert result == [controller_player]
 
 
@@ -117,7 +131,14 @@ def test_player_extract_runner_returns_models_when_requested(monkeypatch, tmp_pa
     controller = MagicMock()
     player = MagicMock()
     player.to_model.return_value = {"id": 1}
-    controller.execute = AsyncMock(return_value={"players": [player], "failures": []})
+    controller.execute = AsyncMock(
+        return_value={
+            "players": [player],
+            "pitchers": [],
+            "batters": [player],
+            "failures": [],
+        }
+    )
 
     graphql_client = MagicMock()
     graphql_client.is_available = False
@@ -140,7 +161,7 @@ def test_player_extract_runner_returns_models_when_requested(monkeypatch, tmp_pa
     result = asyncio.run(runner.run())
 
     controller.execute.assert_awaited_once_with([])
-    runner._save_extraction_results.assert_called_once_with([player], [])
+    runner._save_extraction_results.assert_called_once_with([], [player], [])  # type: ignore[reportAttributeAccessIssue]
     assert result == [{"id": 1}]
 
 
@@ -148,33 +169,107 @@ def test_player_extract_runner_saves_sorted_players_and_failures(tmp_path):
     runner = PlayerExtractRunner.__new__(PlayerExtractRunner)
     runner.args = SimpleNamespace(output_dir=str(tmp_path), year=2025)
     runner.logger = MagicMock()
+    runner.handler = PlayerExtractHandler()
 
     high = MagicMock()
     high.percent_owned = 50
-    high.to_model.return_value.model_dump.return_value = {"id": "high"}
+    high.eligible_slots = ["P"]
+    high.to_model.return_value.model_dump.return_value = {
+        "id": "high",
+        "primary_position": "SP",
+        "pos": "SP",
+        "position_name": "Starting Pitcher",
+    }
 
     low = MagicMock()
     low.percent_owned = 10
-    low.to_model.return_value.model_dump.return_value = {"id": "low"}
+    low.eligible_slots = ["OF"]
+    low.to_model.return_value.model_dump.return_value = {
+        "id": "low",
+        "primary_position": "OF",
+        "pos": "OF",
+        "position_name": "Outfield",
+    }
 
     zero = MagicMock()
     zero.percent_owned = 0
-    zero.to_model.return_value.model_dump.return_value = {"id": "zero"}
+    zero.eligible_slots = ["P", "UTIL"]
+    zero.to_model.return_value.model_dump.return_value = {
+        "id": "zero",
+        "primary_position": "DH",
+        "pos": "DH",
+        "position_name": "Designated Hitter",
+    }
 
-    runner._save_extraction_results([low, zero, high], ["oops"])
+    runner._save_extraction_results([high, zero], [low, zero], ["oops"])
 
-    players_files = list(tmp_path.glob("espn_players_2025_*.json"))
-    assert len(players_files) == 1
-    with players_files[0].open() as f:
-        players_data = json.load(f)
-    assert [player["id"] for player in players_data] == ["high", "low", "zero"]
+    pitchers_files = list(tmp_path.glob("espn_pitchers_2025_*.json"))
+    assert len(pitchers_files) == 1
+    with pitchers_files[0].open() as f:
+        pitchers_data = json.load(f)
+    assert [player["id"] for player in pitchers_data] == ["high", "zero"]
+    assert pitchers_data[1]["primary_position"] == "SP"
+    assert pitchers_data[1]["pos"] == "SP"
+    assert pitchers_data[1]["position_name"] == "Starting Pitcher"
+
+    batters_files = list(tmp_path.glob("espn_batters_2025_*.json"))
+    assert len(batters_files) == 1
+    with batters_files[0].open() as f:
+        batters_data = json.load(f)
+    assert [player["id"] for player in batters_data] == ["low", "zero"]
+    assert batters_data[1]["primary_position"] == "DH"
+    assert batters_data[1]["pos"] == "DH"
+    assert batters_data[1]["position_name"] == "Designated Hitter"
+
+
+def test_player_extract_runner_adds_pitching_rate_stats(tmp_path):
+    runner = PlayerExtractRunner.__new__(PlayerExtractRunner)
+    runner.args = SimpleNamespace(output_dir=str(tmp_path), year=2025)
+    runner.logger = MagicMock()
+    runner.handler = PlayerExtractHandler()
+
+    pitcher_data = {
+        "id": 999,
+        "fullName": "Test Pitcher",
+        "eligibleSlots": [13],
+        "player": {
+            "stats": [
+                {
+                    "seasonId": 2025,
+                    "statSourceId": 0,
+                    "statSplitTypeId": 0,
+                    "stats": {"34": 30, "48": 10},
+                },
+                {
+                    "seasonId": 2025,
+                    "statSourceId": 1,
+                    "statSplitTypeId": 0,
+                    "stats": {"34": 16, "48": 9},
+                },
+            ]
+        },
+    }
+    pitcher = Player(pitcher_data, 2025)
+    pitcher.percent_owned = 10
+    pitcher.eligible_slots = ["P"]
+
+    runner._save_extraction_results([pitcher], [], [])
+
+    pitchers_files = list(tmp_path.glob("espn_pitchers_2025_*.json"))
+    assert len(pitchers_files) == 1
+    with pitchers_files[0].open() as f:
+        pitchers_data = json.load(f)
+
+    current_season = pitchers_data[0]["stats"]["current_season"]
+    assert current_season["IP"] == 10.0
+    assert current_season["K/9"] == pytest.approx(9.0, rel=1e-3)
+
+    projections = pitchers_data[0]["stats"]["projections"]
+    assert projections["IP"] == 5.1
+    assert projections["K/9"] == pytest.approx(15.1875, rel=1e-3)
 
     failures_files = list(tmp_path.glob("failures_2025_*.json"))
-    assert len(failures_files) == 1
-    with failures_files[0].open() as f:
-        failures_data = json.load(f)
-    assert failures_data["failures"] == ["oops"]
-    assert failures_data["count"] == 1
+    assert len(failures_files) == 0
 
 
 def test_player_extract_runner_raises_on_execute_error(monkeypatch, tmp_path):
@@ -210,4 +305,4 @@ def test_player_extract_runner_raises_on_execute_error(monkeypatch, tmp_path):
     with pytest.raises(RuntimeError, match="boom"):
         asyncio.run(runner.run())
 
-    runner._save_extraction_results.assert_not_called()
+    runner._save_extraction_results.assert_not_called()  # type: ignore[reportAttributeAccessIssue]

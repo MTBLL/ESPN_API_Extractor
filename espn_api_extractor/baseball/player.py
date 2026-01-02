@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 from espn_api_extractor.models.player_model import PlayerModel
-from espn_api_extractor.utils.utils import json_parsing, safe_get, safe_get_nested
+from espn_api_extractor.utils.utils import json_parsing, safe_get_nested
 
 from .constants import LINEUP_SLOT_MAP, NOMINAL_POSITION_MAP, PRO_TEAM_MAP, STATS_MAP
 
@@ -10,7 +10,16 @@ from .constants import LINEUP_SLOT_MAP, NOMINAL_POSITION_MAP, PRO_TEAM_MAP, STAT
 class Player(object):
     """Player are part of team"""
 
-    def __init__(self, data):
+    STAT_FIELD_ORDER = [
+        "projections",
+        "current_season_stats",
+        "previous_season_stats",
+        "last_7_games",
+        "last_15_games",
+        "last_30_games",
+    ]
+
+    def __init__(self, data, current_season: int | None = None):
         self.id: int | None = json_parsing(data, "id")
         self.name: str | None = json_parsing(data, "fullName")
         self.first_name: str | None = json_parsing(data, "firstName")
@@ -53,7 +62,6 @@ class Player(object):
         self.transactions: List[Dict[str, Any]] = []
         self.display_name: str | None = None
         self.short_name: str | None = None
-        self.nickname: str | None = None
         self.weight: int | None = None
         self.height: str | None = None
         self.date_of_birth: str | None = None
@@ -69,11 +77,38 @@ class Player(object):
         player = data.get("playerPoolEntry", {}).get("player") or data.get("player", {})
         self.injury_status = player.get("injuryStatus", self.injury_status)
         self.injured = player.get("injured", False)
+        self.season_outlook = player.get("seasonOutlook", self.season_outlook)
+        self.draft_ranks = (
+            player.get("draftRanksByRankType", {}) if isinstance(player, dict) else {}
+        )
+        games_by_pos = (
+            player.get("gamesPlayedByPosition", {}) if isinstance(player, dict) else {}
+        )
+        if isinstance(games_by_pos, dict) and games_by_pos:
+            self.games_played_by_position = {
+                str(NOMINAL_POSITION_MAP.get(int(pos_id), pos_id)): games
+                for pos_id, games in games_by_pos.items()
+            }
+        self.on_team_id = data.get("onTeamId", self.on_team_id)
+        transactions = data.get("transactions", [])
+        self.transactions = transactions if isinstance(transactions, list) else []
+        self.auction_value_average = safe_get_nested(
+            player, "ownership", "auctionValueAverage", default=None
+        )
+
+        self.draft_auction_value = data.get("draftAuctionValue")
+        if self.draft_auction_value is not None:
+            self.draft_auction_value = int(self.draft_auction_value)
+        if self.draft_auction_value in (None, 0):
+            transaction_value = self._extract_draft_auction_value(self.transactions)
+            if transaction_value is not None:
+                self.draft_auction_value = transaction_value
+
+        self.current_season = current_season or datetime.now().year
 
         # Process stats from player data if available
         if "stats" in player and isinstance(player["stats"], list):
-            current_year = datetime.now().year
-            previous_year = current_year - 1
+            previous_year = self.current_season - 1
 
             for stat_entry in player["stats"]:
                 season_id = stat_entry.get("seasonId")
@@ -87,7 +122,7 @@ class Player(object):
                 # Determine stat key based on split type and season
                 stat_key = None
 
-                if season_id == current_year:
+                if season_id == self.current_season:
                     # Current year stats
                     stat_type_map = {
                         0: "current_season",
@@ -119,37 +154,20 @@ class Player(object):
                     }
                     self.stats[stat_key].update(mapped_stats)
 
-                    # Add fantasy scoring if available
-                    if "appliedTotal" in stat_entry:
-                        if "_fantasy_scoring" not in self.stats[stat_key]:
-                            self.stats[stat_key]["_fantasy_scoring"] = {}
-                        self.stats[stat_key]["_fantasy_scoring"]["applied_total"] = (
-                            stat_entry.get("appliedTotal", 0)
-                        )
-
                 elif stat_source == 1:
                     # Projected stats - store separately under "projections" key
                     if "projections" not in self.stats:
                         self.stats["projections"] = {}
 
-                    raw_projected = stat_entry.get("appliedStats", {})
+                    raw_projected = stat_entry.get("stats", {})
                     mapped_projected = {
                         STATS_MAP.get(int(k), str(k)): v
                         for k, v in raw_projected.items()
                     }
                     self.stats["projections"].update(mapped_projected)
 
-                    # Add fantasy scoring for projections
-                    if "_fantasy_scoring" not in self.stats["projections"]:
-                        self.stats["projections"]["_fantasy_scoring"] = {}
-                    if "appliedTotal" in stat_entry:
-                        self.stats["projections"]["_fantasy_scoring"][
-                            "applied_total"
-                        ] = stat_entry.get("appliedTotal", 0)
-                    if "appliedAverage" in stat_entry:
-                        self.stats["projections"]["_fantasy_scoring"][
-                            "applied_average"
-                        ] = stat_entry.get("appliedAverage", 0)
+        self._add_pitching_rate_stats()
+        self._reorder_stats()
 
     def __repr__(self) -> str:
         return "Player(%s)" % (self.name,)
@@ -173,7 +191,9 @@ class Player(object):
         return PlayerModel.from_player(self)
 
     @classmethod
-    def from_model(cls, player_model: PlayerModel) -> "Player":
+    def from_model(
+        cls, player_model: PlayerModel, current_season: int | None = None
+    ) -> "Player":
         """
         Create a Player instance from a PlayerModel.
 
@@ -191,10 +211,8 @@ class Player(object):
         player_data = player_model.to_player_dict()
 
         # Create a new Player instance using the converted data
-        player = cls(player_data)
-
-        # Initialize kona fields to ensure they exist
-        player._initialize_kona_fields()
+        season = current_season or player_data.get("current_season")
+        player = cls(player_data, current_season=season)
 
         # Handle additional fields that the constructor doesn't set automatically
         # These are fields that come from PlayerModel but aren't in the basic player_data
@@ -238,21 +256,14 @@ class Player(object):
             player.stats = player_model.stats
 
         # Handle stat fields stored directly in PlayerModel
-        stat_fields = [
-            "projections",
-            "current_season_stats",
-            "previous_season_stats",
-            "last_7_games",
-            "last_15_games",
-            "last_30_games",
-        ]
-
-        for field in stat_fields:
+        for field in cls.STAT_FIELD_ORDER:
             value = getattr(player_model, field, None)
             if value:
                 # Remove _stats suffix to get the stats key
                 stats_key = field.replace("_stats", "")
                 player.stats[stats_key] = value
+
+        player._reorder_stats()
 
         return player
 
@@ -377,217 +388,7 @@ class Player(object):
                     "rank_display_value": stat.get("rankDisplayValue", ""),
                 }
 
-    def _initialize_kona_fields(
-        self, stats: List[Dict[str, Any]] | None = None
-    ) -> None:
-        """Initialize all kona_playercard fields with default values."""
-        field_defaults: Dict[str, Any] = {
-            "season_outlook": None,
-            "draft_auction_value": None,
-            "on_team_id": None,
-            "draft_ranks": {},
-            "games_played_by_position": {},
-            "auction_value_average": None,
-            "transactions": [],
-        }
-
-        for field, default in field_defaults.items():
-            if not hasattr(self, field):
-                setattr(self, field, default)
-
-        # Initialize stats structure with semantic stat keys
-        if not hasattr(self, "stats") or not isinstance(self.stats, dict):
-            self.stats = {}
-
-        # Ensure semantic stat keys exist
-        # Note: previous_season uses dynamic year suffix (e.g., "previous_season_24")
-        current_year, previous_year = self._get_kona_stat_years(stats or [])
-        stat_keys = [
-            "projections",
-            "current_season",
-            f"previous_season_{str(previous_year)[-2:]}",
-            "last_7_games",
-            "last_15_games",
-            "last_30_games",
-        ]
-        for key in stat_keys:
-            if key not in self.stats:
-                self.stats[key] = {}
-
-    def _extract_games_by_position(self, kona_data: Dict[str, Any]) -> None:
-        """Extract and map games played by position.
-
-        Note: gamesPlayedByPosition uses NOMINAL_POSITION_MAP (position ids),
-        not LINEUP_SLOT_MAP (lineup slot ids).
-        """
-        games_by_pos = safe_get(kona_data, "gamesPlayedByPosition", {})
-        if games_by_pos:
-            self.games_played_by_position = {
-                str(NOMINAL_POSITION_MAP.get(int(pos_id), pos_id)): games
-                for pos_id, games in games_by_pos.items()
-            }
-
-    def _get_kona_stat_years(self, stats: List[Dict[str, Any]]) -> tuple[int, int]:
-        season_ids: list[int] = [
-            season_id
-            for entry in stats
-            for season_id in [entry.get("seasonId")]
-            if isinstance(season_id, int)
-        ]
-        current_year = max(season_ids) if season_ids else datetime.now().year
-        return current_year, current_year - 1
-
-    def _hydrate_kona_stats(self, stats: List[Dict[str, Any]]) -> None:
-        """
-        Process stats array from kona_playercard to extract projections and seasonal stats.
-
-        Stat entries are mapped using seasonId, statSourceId, and statSplitTypeId.
-        - Projections: statSourceId=1, statSplitTypeId=0
-        - Current season: statSourceId=0, statSplitTypeId=0, seasonId=current_year
-        - Previous season: statSourceId=0, statSplitTypeId=0, seasonId=previous_year
-        - Last 7/15/30: statSourceId=0, statSplitTypeId=1/2/3, seasonId=current_year
-
-        Note: Split type 5 (individual games) is skipped due to ambiguity with two-way players.
-        """
-        current_year, previous_year = self._get_kona_stat_years(stats)
-
-        for stat_entry in stats:
-            stat_id = stat_entry.get("id", "")
-            season_id = stat_entry.get("seasonId")
-            stat_source = stat_entry.get("statSourceId")
-            split_type = stat_entry.get("statSplitTypeId")
-            if not isinstance(season_id, int) and isinstance(stat_id, str):
-                tail = stat_id[-4:]
-                if tail.isdigit():
-                    season_id = int(tail)
-            stats_data = stat_entry.get("stats", {})
-            applied_stats = stat_entry.get("appliedStats", {})
-            applied_total = stat_entry.get("appliedTotal")
-            applied_average = stat_entry.get("appliedAverage")
-
-            # Map numeric stat keys to readable names, skip unknown keys
-            mapped_stats = {}
-            for key, value in stats_data.items():
-                numeric_key = int(key)
-                if numeric_key in STATS_MAP:
-                    mapped_stats[STATS_MAP[numeric_key]] = value
-
-            # Map applied stats for projections (uses appliedStats instead of stats)
-            mapped_applied_stats = {}
-            for key, value in applied_stats.items():
-                numeric_key = int(key)
-                if numeric_key in STATS_MAP:
-                    mapped_applied_stats[STATS_MAP[numeric_key]] = value
-
-            # Determine stat key based on stat ID pattern
-            stat_key: str | None = None
-
-            if stat_source == 1 and split_type == 0:
-                stat_key = "projections"
-                # Use appliedStats for projections (more detailed than stats)
-                if mapped_applied_stats:
-                    self.stats[stat_key] = mapped_applied_stats
-                elif mapped_stats:
-                    self.stats[stat_key] = mapped_stats
-                else:
-                    self.stats[stat_key] = {}
-
-                # Add fantasy scoring for projections
-                if applied_total is not None or applied_average is not None:
-                    self.stats[stat_key]["_fantasy_scoring"] = {}
-                    if applied_total is not None:
-                        self.stats[stat_key]["_fantasy_scoring"]["applied_total"] = (
-                            applied_total
-                        )
-                    if applied_average is not None:
-                        self.stats[stat_key]["_fantasy_scoring"]["applied_average"] = (
-                            applied_average
-                        )
-
-            elif stat_source == 0 and split_type == 0:
-                if season_id == current_year:
-                    stat_key = "current_season"
-                    self.stats[stat_key] = mapped_stats
-                elif season_id == previous_year:
-                    stat_key = f"previous_season_{str(previous_year)[-2:]}"
-                    self.stats[stat_key] = mapped_stats
-
-            elif stat_source == 0 and split_type == 1 and season_id == current_year:
-                stat_key = "last_7_games"
-                self.stats[stat_key] = mapped_stats
-
-            elif stat_source == 0 and split_type == 2 and season_id == current_year:
-                stat_key = "last_15_games"
-                self.stats[stat_key] = mapped_stats
-
-            elif stat_source == 0 and split_type == 3 and season_id == current_year:
-                stat_key = "last_30_games"
-                self.stats[stat_key] = mapped_stats
-
-            # Skip split type 5 (individual games) - ambiguous for two-way players
-
-            # Add fantasy scoring for non-projection stats if available
-            if stat_key and stat_key != "projections" and applied_total is not None:
-                if "_fantasy_scoring" not in self.stats[stat_key]:
-                    self.stats[stat_key]["_fantasy_scoring"] = {}
-                self.stats[stat_key]["_fantasy_scoring"]["applied_total"] = (
-                    applied_total
-                )
-
-    def hydrate_kona_playercard(self, player_dict: Dict[str, Any]) -> None:
-        """
-        Hydrates the player object with comprehensive kona_playercard data including projections,
-        seasonal stats, fantasy information, and player outlook from the ESPN kona_playercard API.
-
-        Args:
-            player_dict (dict): The complete player dictionary from kona_playercard API response
-                              containing top-level fields (draftAuctionValue, onTeamId) and
-                              nested 'player' object with seasonOutlook, stats array, etc.
-        """
-        # Initialize all fields first
-        self._initialize_kona_fields(player_dict.get("player", {}).get("stats", []))
-
-        # Extract nested player data
-        player_data = player_dict.get("player", {})
-
-        # Define field mappings: (attribute_name, json_key, data_source, default_value)
-        field_mappings: List[tuple[str, str, Dict[str, Any], Any]] = [
-            (
-                "draft_auction_value",
-                "draftAuctionValue",
-                player_dict,
-                None,
-            ),  # top-level
-            ("on_team_id", "onTeamId", player_dict, None),  # top-level
-            ("season_outlook", "seasonOutlook", player_data, None),  # nested in player
-            (
-                "draft_ranks",
-                "draftRanksByRankType",
-                player_data,
-                {},
-            ),  # nested in player
-            ("injured", "injured", player_data, None),  # nested in player
-            ("injury_status", "injuryStatus", player_data, None),  # nested in player
-        ]
-
-        # Apply field mappings
-        for attr_name, json_key, source, default in field_mappings:
-            setattr(self, attr_name, safe_get(source, json_key, default))
-
-        self.auction_value_average = safe_get_nested(
-            player_data, "ownership", "auctionValueAverage", default=None
-        )
-        if self.draft_auction_value is not None:
-            self.draft_auction_value = int(self.draft_auction_value)
-        self.transactions = safe_get(player_dict, "transactions", [])
-        if self.draft_auction_value in (None, 0):
-            transaction_value = self._extract_draft_auction_value(self.transactions)
-            if transaction_value is not None:
-                self.draft_auction_value = transaction_value
-        self._extract_games_by_position(player_data)
-
-        if "stats" in player_data:
-            self._hydrate_kona_stats(player_data["stats"])
+        self._reorder_stats()
 
     def _extract_draft_auction_value(
         self, transactions: List[Dict[str, Any]]
@@ -603,3 +404,52 @@ class Player(object):
             if bid_amount is not None:
                 return int(bid_amount)
         return None
+
+    def _add_pitching_rate_stats(self) -> None:
+        for stat_dict in self.stats.values():
+            if not isinstance(stat_dict, dict):
+                continue
+            outs = stat_dict.get("OUTS")
+            if not isinstance(outs, (int, float)):
+                continue
+            outs_int = int(outs)
+            if "IP" not in stat_dict:
+                innings = outs_int // 3
+                remainder = outs_int % 3
+                stat_dict["IP"] = innings + remainder / 10
+            ip_real = outs_int / 3
+            strikeouts = stat_dict.get("K")
+            if (
+                ip_real > 0
+                and "K/9" not in stat_dict
+                and isinstance(strikeouts, (int, float))
+            ):
+                stat_dict["K/9"] = (strikeouts / ip_real) * 9
+
+    def _reorder_stats(self) -> None:
+        if not isinstance(self.stats, dict):
+            return
+
+        ordered: Dict[str, Any] = {}
+        seen = set()
+
+        def add_key(key: str) -> None:
+            if key in self.stats and key not in seen:
+                ordered[key] = self.stats[key]
+                seen.add(key)
+
+        for field in self.STAT_FIELD_ORDER:
+            stats_key = field.replace("_stats", "")
+            if stats_key == "previous_season":
+                for key in self.stats:
+                    if key.startswith("previous_season"):
+                        add_key(key)
+                continue
+
+            add_key(stats_key)
+
+        for key, value in self.stats.items():
+            if key not in seen:
+                ordered[key] = value
+
+        self.stats = ordered

@@ -1,8 +1,6 @@
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 
 from espn_api_extractor.baseball.player import Player
-from espn_api_extractor.requests import EspnCoreRequests, EspnFantasyRequests
-from espn_api_extractor.requests.constants import FantasySports
 from espn_api_extractor.utils.logger import Logger
 
 
@@ -27,54 +25,39 @@ class UpdatePlayerHandler:
         self.batch_size = batch_size
         self.logger = Logger("UpdatePlayerHandler")
 
-        # Initialize API requestors
-        self.fantasy_requests = EspnFantasyRequests(
-            league_id=self.league_id, sport=FantasySports.MLB, year=self.year
-        )
-        self.core_requests = EspnCoreRequests(
-            sport="mlb", year=self.year, max_workers=self.threads
-        )
-
     async def execute(
         self,
-        player_ids: Set[int | None],
-        pro_players_data: Optional[List[Dict]] = None,
-        include_stats_update: bool = True,
+        existing_players: List[Player],
+        pro_players_data: List[Dict],
     ) -> List[Player]:
         """
         Execute selective updates for existing players.
 
         Args:
-            player_ids: Set of existing player IDs to update
-            pro_players_data: Optional pre-fetched pro_players data (optimization)
-            include_stats_update: Whether to fetch updated stats from Core API (default: True)
+            existing_players: Existing player objects to update
+            pro_players_data: Pre-fetched kona_playercard data (optimization)
 
         Returns:
             List[Player]: Updated player objects with refreshed data
         """
-        assert player_ids is not None, "player_ids cannot be None"
-        self.logger.logging.info(f"Updating {len(player_ids)} existing players")
-
-        # Step 1: Get current pro_players data if not provided
-        if pro_players_data is None:
-            self.logger.logging.info("Fetching pro_players data from ESPN")
-            pro_players_data = self.fantasy_requests.get_pro_players()
+        assert existing_players is not None, "existing_players cannot be None"
+        self.logger.logging.info(f"Updating {len(existing_players)} existing players")
 
         # Create map for quick lookup
         pro_players_map = (
             {p["id"]: p for p in pro_players_data} if pro_players_data else {}
         )
 
-        # Step 2: Create/update Player objects with latest data
+        # Step 2: Update existing Player objects with latest kona data
         updated_players = []
-        for player_id in player_ids:
+        for player in existing_players:
+            player_id = player.id
             if player_id in pro_players_map:
                 player_data = pro_players_map[player_id]
-                player = Player(player_data)
-                updated_players.append(player)
+                updated_players.append(self._apply_kona_updates(player, player_data))
             else:
                 self.logger.logging.warning(
-                    f"Player ID {player_id} not found in current ESPN pro_players"
+                    f"Player ID {player_id} not found in current ESPN player cards"
                 )
 
         if not updated_players:
@@ -82,30 +65,34 @@ class UpdatePlayerHandler:
             return []
 
         self.logger.logging.info(
-            f"Created {len(updated_players)} Player objects from pro_players data"
+            f"Updated {len(updated_players)} Player objects from kona data"
         )
 
-        # Step 3: Optionally update with latest stats from Core API
-        if include_stats_update:
-            self.logger.logging.info("Updating with latest stats from Core API")
-            # Only fetch stats (not bio, since that's mostly static)
-            hydrated_players, failed_players = self.core_requests.hydrate_players(
-                updated_players,
-                batch_size=self.batch_size,
-                include_stats=True,  # Get latest stats
-            )
+        return updated_players
 
-            if failed_players:
-                self.logger.logging.warning(
-                    f"Failed to update stats for {len(failed_players)} players"
-                )
+    def _apply_kona_updates(self, player: Player, player_data: Dict) -> Player:
+        updated = Player(player_data, current_season=self.year)
+        update_fields = [
+            "primary_position",
+            "eligible_slots",
+            "pro_team",
+            "injury_status",
+            "status",
+            "injured",
+            "percent_owned",
+            "season_outlook",
+            "draft_ranks",
+            "games_played_by_position",
+            "draft_auction_value",
+            "on_team_id",
+            "auction_value_average",
+            "stats",
+            "transactions",
+        ]
 
-            self.logger.logging.info(
-                f"Successfully updated {len(hydrated_players)} players with stats"
-            )
-            return hydrated_players
-        else:
-            self.logger.logging.info(
-                f"Successfully updated {len(updated_players)} players (stats update skipped)"
-            )
-            return updated_players
+        for field in update_fields:
+            value = getattr(updated, field, None)
+            if value is not None:
+                setattr(player, field, value)
+
+        return player

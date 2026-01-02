@@ -118,6 +118,7 @@ def create_parser():
 async def main():
     parser = create_parser()
     args = parser.parse_args()
+    runner: PlayerExtractRunner | LeagueExtractRunner
 
     if args.command in {"player-extract", "players-extract"}:
         runner = PlayerExtractRunner(args)

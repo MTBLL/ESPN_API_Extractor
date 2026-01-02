@@ -1,90 +1,11 @@
-from datetime import datetime
-
 import pytest
 
+from espn_api_extractor.baseball.constants import STATS_MAP
 from espn_api_extractor.baseball.player import Player
 
 
 class TestPlayerEnhanced:
     """Enhanced tests for the Player class to improve coverage"""
-
-    @pytest.fixture
-    def basic_player_data(self):
-        """Fixture providing basic player data"""
-        return {
-            "defaultPositionId": 8,
-            "eligibleSlots": [9, 10, 5, 12, 16, 17],
-            "fullName": "Corbin Carroll",
-            "id": 42404,
-            "proTeamId": 29,
-        }
-
-    @pytest.fixture
-    def player_stats_data(self):
-        """Fixture providing player data with stats"""
-        current_year = datetime.now().year
-        return {
-            "defaultPositionId": 8,
-            "eligibleSlots": [9, 10, 5, 12, 16, 17],
-            "fullName": "Corbin Carroll",
-            "id": 42404,
-            "proTeamId": 29,
-            "playerPoolEntry": {
-                "player": {
-                    "injuryStatus": "ACTIVE",
-                    "injured": False,
-                    "ownership": {"percentOwned": 99.8},
-                    "stats": [
-                        {
-                            # Current year, regular season stats
-                            "seasonId": current_year,
-                            "statSplitTypeId": 0,
-                            "stats": {
-                                "0": 145,  # At bats
-                                "1": 42,  # Hits
-                                "2": 8,  # Home runs
-                                "20": 12,  # Stolen bases
-                            },
-                            "appliedTotal": 120.5,
-                            "scoringPeriodId": 0,
-                            "statSourceId": 0,
-                        },
-                        {
-                            # Current year, projected stats
-                            "seasonId": current_year,
-                            "statSplitTypeId": 0,
-                            "appliedStats": {
-                                "0": 600,  # At bats
-                                "1": 165,  # Hits
-                                "2": 28,  # Home runs
-                                "20": 45,  # Stolen bases
-                            },
-                            "appliedTotal": 450.2,
-                            "scoringPeriodId": 0,
-                            "statSourceId": 1,
-                        },
-                        {
-                            # Previous year stats (should be skipped)
-                            "seasonId": current_year - 1,
-                            "statSplitTypeId": 0,
-                            "stats": {"0": 500, "1": 150},
-                            "appliedTotal": 350.0,
-                            "scoringPeriodId": 0,
-                            "statSourceId": 0,
-                        },
-                        {
-                            # Current year, weekly stats
-                            "seasonId": current_year,
-                            "statSplitTypeId": 1,  # Last 7 days
-                            "stats": {"0": 24, "1": 8},
-                            "appliedTotal": 20.5,
-                            "scoringPeriodId": 10,  # Week 10
-                            "statSourceId": 0,
-                        },
-                    ],
-                }
-            },
-        }
 
     @pytest.fixture
     def player_missing_data(self):
@@ -101,15 +22,38 @@ class TestPlayerEnhanced:
             "lineupSlotId": 10,  # RF
         }
 
-    def test_player_with_stats_processing(self, player_stats_data):
+    def test_player_with_stats_processing(
+        self, corbin_carroll_kona_card, corbin_carroll_season
+    ):
         """Test player initialization with stats processing"""
-        from datetime import datetime
-
-        player = Player(player_stats_data)
+        player = Player(corbin_carroll_kona_card, corbin_carroll_season)
+        stats_entries = corbin_carroll_kona_card["player"]["stats"]
+        current_stats_entry = next(
+            entry
+            for entry in stats_entries
+            if entry.get("seasonId") == corbin_carroll_season
+            and entry.get("statSourceId") == 0
+            and entry.get("statSplitTypeId") == 0
+        )
+        projections_entry = next(
+            entry
+            for entry in stats_entries
+            if entry.get("seasonId") == corbin_carroll_season
+            and entry.get("statSourceId") == 1
+            and entry.get("statSplitTypeId") == 0
+        )
+        mapped_current = {
+            STATS_MAP.get(int(k), str(k)): v
+            for k, v in current_stats_entry["stats"].items()
+        }
+        mapped_projections = {
+            STATS_MAP.get(int(k), str(k)): v
+            for k, v in projections_entry["stats"].items()
+        }
 
         # Verify stats are processed correctly with readable keys
         # Use dynamic key for previous_season (e.g., "previous_season_24")
-        current_year = datetime.now().year
+        current_year = corbin_carroll_season
         previous_year = current_year - 1
         previous_season_key = f"previous_season_{str(previous_year)[-2:]}"
 
@@ -121,26 +65,24 @@ class TestPlayerEnhanced:
         # Verify current season stats
         current_season = player.stats["current_season"]
         assert "AB" in current_season
-        assert current_season["AB"] == 145
-        assert current_season["H"] == 42
-        assert current_season["AVG"] == 8
-        assert current_season["R"] == 12
-
-        # Verify fantasy scoring in current_season
-        assert "_fantasy_scoring" in current_season
-        assert current_season["_fantasy_scoring"]["applied_total"] == 120.5
+        assert current_season["AB"] == mapped_current["AB"]
+        assert current_season["H"] == mapped_current["H"]
+        assert current_season["AVG"] == mapped_current["AVG"]
+        assert current_season["R"] == mapped_current["R"]
 
         # Verify projections
         projections = player.stats["projections"]
         assert "AB" in projections
-        assert projections["AB"] == 600
-        assert "_fantasy_scoring" in projections
-        assert projections["_fantasy_scoring"]["applied_total"] == 450.2
+        assert projections["AB"] == mapped_projections["AB"]
+        assert projections["H"] == mapped_projections["H"]
 
         # Verify player info from playerPoolEntry
         assert player.injury_status == "ACTIVE"
         assert player.injured is False
-        assert player.percent_owned == 99.8
+        expected_percent_owned = round(
+            corbin_carroll_kona_card["player"]["ownership"]["percentOwned"], 2
+        )
+        assert player.percent_owned == expected_percent_owned
 
     def test_empty_eligible_slots(self):
         """Test player with empty eligibleSlots field"""
@@ -206,7 +148,9 @@ class TestPlayerEnhanced:
         assert player.bats is None
         assert player.throws is None
         assert not hasattr(player, "status_name")  # This field is not in our init list
-        assert not hasattr(player, "experience_years")  # This field is not in our init list
+        assert not hasattr(
+            player, "experience_years"
+        )  # This field is not in our init list
         assert player.headshot is None
 
         # Default values for certain fields

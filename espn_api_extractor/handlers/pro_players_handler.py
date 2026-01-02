@@ -8,8 +8,6 @@ from espn_api_extractor.requests.constants import FantasySports
 
 class ProPlayersHandler:
     def __init__(self, year: int, league_id: Optional[int] = None):
-        self.league_id = league_id
-        # Get ESPN player universe
         self.fantasy_requestor = EspnFantasyRequests(
             sport=FantasySports.MLB,
             year=year,

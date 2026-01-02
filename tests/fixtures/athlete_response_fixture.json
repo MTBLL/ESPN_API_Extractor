@@ -1,0 +1,163 @@
+{
+  "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/athletes/42404?lang=en&region=us",
+  "id": "42404",
+  "uid": "s:1~l:10~a:42404",
+  "guid": "e87f6474-dacb-3666-a7de-bb59438a830d",
+  "type": "baseball",
+  "alternateIds": {
+    "sdr": "4611951"
+  },
+  "firstName": "Corbin",
+  "lastName": "Carroll",
+  "fullName": "Corbin Carroll",
+  "displayName": "Corbin Carroll",
+  "shortName": "C. Carroll",
+  "weight": 165.0,
+  "displayWeight": "165 lbs",
+  "height": 70.0,
+  "displayHeight": "5' 10\"",
+  "age": 25,
+  "dateOfBirth": "2000-08-21T07:00Z",
+  "debutYear": 2022,
+  "links": [
+    {
+      "language": "en-US",
+      "rel": ["playercard", "desktop", "athlete"],
+      "href": "https://www.espn.com/mlb/player/_/id/42404",
+      "text": "Player Card",
+      "shortText": "Player Card",
+      "isExternal": false,
+      "isPremium": false
+    },
+    {
+      "language": "en-US",
+      "rel": ["stats", "desktop", "athlete"],
+      "href": "https://www.espn.com/mlb/player/stats/_/id/42404/corbin-carroll",
+      "text": "Stats",
+      "shortText": "Stats",
+      "isExternal": false,
+      "isPremium": false
+    },
+    {
+      "language": "en-US",
+      "rel": ["splits", "desktop", "athlete"],
+      "href": "https://www.espn.com/mlb/player/splits/_/id/42404/corbin-carroll",
+      "text": "Splits",
+      "shortText": "Splits",
+      "isExternal": false,
+      "isPremium": false
+    },
+    {
+      "language": "en-US",
+      "rel": ["gamelog", "desktop", "athlete"],
+      "href": "https://www.espn.com/mlb/player/gamelog/_/id/42404/corbin-carroll",
+      "text": "Game Log",
+      "shortText": "Game Log",
+      "isExternal": false,
+      "isPremium": false
+    },
+    {
+      "language": "en-US",
+      "rel": ["news", "desktop", "athlete"],
+      "href": "https://www.espn.com/mlb/player/news/_/id/42404/corbin-carroll",
+      "text": "News",
+      "shortText": "News",
+      "isExternal": false,
+      "isPremium": false
+    },
+    {
+      "language": "en-US",
+      "rel": ["bio", "desktop", "athlete"],
+      "href": "https://www.espn.com/mlb/player/bio/_/id/42404/corbin-carroll",
+      "text": "Bio",
+      "shortText": "Bio",
+      "isExternal": false,
+      "isPremium": false
+    },
+    {
+      "language": "en-US",
+      "rel": ["overview", "desktop", "athlete"],
+      "href": "https://www.espn.com/mlb/player/_/id/42404/corbin-carroll",
+      "text": "Overview",
+      "shortText": "Overview",
+      "isExternal": false,
+      "isPremium": false
+    },
+    {
+      "language": "en-US",
+      "rel": ["batvspitch", "desktop", "athlete"],
+      "href": "https://www.espn.com/mlb/player/batvspitch/_/id/42404/corbin-carroll",
+      "text": "Bat vs Pitch",
+      "shortText": "Bat vs Pitch",
+      "isExternal": false,
+      "isPremium": false
+    }
+  ],
+  "birthPlace": {
+    "city": "Seattle",
+    "state": "WA",
+    "country": "United States"
+  },
+  "slug": "corbin-carroll",
+  "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/mlb/players/full/42404.png",
+    "alt": "Corbin Carroll"
+  },
+  "jersey": "7",
+  "position": {
+    "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/positions/9?lang=en&region=us",
+    "id": "9",
+    "name": "Right Field",
+    "displayName": "Right Fielder",
+    "abbreviation": "RF",
+    "leaf": true,
+    "parent": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/positions/14?lang=en&region=us"
+    }
+  },
+  "linked": true,
+  "team": {
+    "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2025/teams/29?lang=en&region=us"
+  },
+  "statistics": {
+    "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/athletes/42404/statistics?lang=en&region=us"
+  },
+  "contracts": {
+    "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/athletes/42404/contracts?lang=en&region=us"
+  },
+  "experience": {
+    "years": 4
+  },
+  "debut": {
+    "year": 2022,
+    "event": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/events/401356133?lang=en&region=us"
+    },
+    "statistics": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/events/401356133/competitions/401356133/competitors/29/roster/42404/statistics/0?lang=en&region=us"
+    }
+  },
+  "active": true,
+  "status": {
+    "id": "1",
+    "name": "Active",
+    "type": "active",
+    "abbreviation": "Active"
+  },
+  "statisticslog": {
+    "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/athletes/42404/statisticslog?lang=en&region=us"
+  },
+  "awards": {
+    "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/athletes/42404/awards?lang=en&region=us"
+  },
+  "bats": {
+    "type": "LEFT",
+    "abbreviation": "L",
+    "displayValue": "Left"
+  },
+  "throws": {
+    "type": "LEFT",
+    "abbreviation": "L",
+    "displayValue": "Left"
+  }
+}

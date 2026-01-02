@@ -190,7 +190,7 @@ class League(BaseLeague):
         data = self.espn_request.league_get(params=params, headers=headers)
         players = data["players"]
 
-        return [Player(player) for player in players]
+        return [Player(player, current_season=self.year) for player in players]
 
     def box_scores(
         self, matchup_period: int | None = None, scoring_period: int | None = None
