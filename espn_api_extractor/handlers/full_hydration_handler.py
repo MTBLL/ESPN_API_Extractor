@@ -11,7 +11,7 @@ class FullHydrationHandler:
     Handler for complete hydration of new players.
 
     Executes full ESPN API workflow:
-    - Fantasy API calls (get_pro_players, get_player_cards)
+    - Fantasy API calls
     - Multi-threaded Core API hydration (bio + stats)
     - Player object hydration pipeline
     """

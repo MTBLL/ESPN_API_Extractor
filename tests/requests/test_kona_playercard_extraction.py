@@ -208,7 +208,7 @@ class TestProjectionsExtraction:
     def test_multiple_players_data_structure(self, kona_playercard_fixture_data):
         """Test that the fixture contains multiple players with consistent structure"""
         players = kona_playercard_fixture_data["players"]
-        assert len(players) == 2  # Should have Carroll and Ohtani
+        assert len(players) == 3  # Should have Carroll, Ohtani, and Hader
 
         for player in players:
             # Test basic structure

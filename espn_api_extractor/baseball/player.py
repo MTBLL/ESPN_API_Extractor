@@ -157,6 +157,8 @@ class Player(object):
                     }
                     self.stats["projections"].update(mapped_projected)
 
+        self._add_pitching_rate_stats()
+
     def __repr__(self) -> str:
         return "Player(%s)" % (self.name,)
 
@@ -383,7 +385,6 @@ class Player(object):
                     "rank_display_value": stat.get("rankDisplayValue", ""),
                 }
 
-
     def _extract_draft_auction_value(
         self, transactions: List[Dict[str, Any]]
     ) -> int | None:
@@ -398,3 +399,24 @@ class Player(object):
             if bid_amount is not None:
                 return int(bid_amount)
         return None
+
+    def _add_pitching_rate_stats(self) -> None:
+        for stat_dict in self.stats.values():
+            if not isinstance(stat_dict, dict):
+                continue
+            outs = stat_dict.get("OUTS")
+            if not isinstance(outs, (int, float)):
+                continue
+            outs_int = int(outs)
+            if "IP" not in stat_dict:
+                innings = outs_int // 3
+                remainder = outs_int % 3
+                stat_dict["IP"] = innings + remainder / 10
+            ip_real = outs_int / 3
+            strikeouts = stat_dict.get("K")
+            if (
+                ip_real > 0
+                and "K/9" not in stat_dict
+                and isinstance(strikeouts, (int, float))
+            ):
+                stat_dict["K/9"] = (strikeouts / ip_real) * 9

@@ -5,6 +5,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from espn_api_extractor.baseball.player import Player
+from espn_api_extractor.handlers.player_extract_handler import PlayerExtractHandler
 from espn_api_extractor.runners.player_extract_runner import PlayerExtractRunner
 
 
@@ -60,7 +62,7 @@ def test_player_extract_runner_uses_graphql_when_available(monkeypatch, tmp_path
     )
     graphql_client.get_existing_players.assert_called_once_with()
     controller.execute.assert_awaited_once_with([existing_a, existing_b])
-    runner._save_extraction_results.assert_called_once_with([controller_player], [])
+    runner._save_extraction_results.assert_called_once_with([controller_player], [])  # type: ignore
     assert result == [controller_player]
 
 
@@ -101,7 +103,7 @@ def test_player_extract_runner_skips_graphql_when_unavailable(monkeypatch, tmp_p
 
     graphql_client.get_existing_players.assert_not_called()
     controller.execute.assert_awaited_once_with([])
-    runner._save_extraction_results.assert_called_once_with([controller_player], [])
+    runner._save_extraction_results.assert_called_once_with([controller_player], [])  # type: ignore
     assert result == [controller_player]
 
 
@@ -140,7 +142,7 @@ def test_player_extract_runner_returns_models_when_requested(monkeypatch, tmp_pa
     result = asyncio.run(runner.run())
 
     controller.execute.assert_awaited_once_with([])
-    runner._save_extraction_results.assert_called_once_with([player], [])
+    runner._save_extraction_results.assert_called_once_with([player], [])  # type: ignore[reportAttributeAccessIssue]
     assert result == [{"id": 1}]
 
 
@@ -148,6 +150,7 @@ def test_player_extract_runner_saves_sorted_players_and_failures(tmp_path):
     runner = PlayerExtractRunner.__new__(PlayerExtractRunner)
     runner.args = SimpleNamespace(output_dir=str(tmp_path), year=2025)
     runner.logger = MagicMock()
+    runner.output_handler = PlayerExtractHandler()
 
     high = MagicMock()
     high.percent_owned = 50
@@ -204,17 +207,32 @@ def test_player_extract_runner_adds_pitching_rate_stats(tmp_path):
     runner = PlayerExtractRunner.__new__(PlayerExtractRunner)
     runner.args = SimpleNamespace(output_dir=str(tmp_path), year=2025)
     runner.logger = MagicMock()
+    runner.output_handler = PlayerExtractHandler()
 
-    pitcher = MagicMock()
-    pitcher.percent_owned = 10
-    pitcher.eligible_slots = ["P"]
-    pitcher.to_model.return_value.model_dump.return_value = {
-        "id": "pitcher",
-        "stats": {
-            "projections": {"OUTS": 16, "K": 9},
-            "current_season": {"OUTS": 30, "K": 10},
+    pitcher_data = {
+        "id": 999,
+        "fullName": "Test Pitcher",
+        "eligibleSlots": [13],
+        "player": {
+            "stats": [
+                {
+                    "seasonId": 2025,
+                    "statSourceId": 0,
+                    "statSplitTypeId": 0,
+                    "stats": {"34": 30, "48": 10},
+                },
+                {
+                    "seasonId": 2025,
+                    "statSourceId": 1,
+                    "statSplitTypeId": 0,
+                    "stats": {"34": 16, "48": 9},
+                },
+            ]
         },
     }
+    pitcher = Player(pitcher_data, 2025)
+    pitcher.percent_owned = 10
+    pitcher.eligible_slots = ["P"]
 
     runner._save_extraction_results([pitcher], [])
 
@@ -268,4 +286,4 @@ def test_player_extract_runner_raises_on_execute_error(monkeypatch, tmp_path):
     with pytest.raises(RuntimeError, match="boom"):
         asyncio.run(runner.run())
 
-    runner._save_extraction_results.assert_not_called()
+    runner._save_extraction_results.assert_not_called()  # type: ignore[reportAttributeAccessIssue]

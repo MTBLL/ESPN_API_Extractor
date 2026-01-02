@@ -1,6 +1,6 @@
 import json
-from datetime import datetime
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -33,6 +33,16 @@ def corbin_carroll_kona_card(kona_playercard_fixture_data):
         player
         for player in kona_playercard_fixture_data["players"]
         if player.get("id") == 42404
+    )
+
+
+@pytest.fixture
+def josh_hader_kona_card(kona_playercard_fixture_data):
+    # parse out the json object for jeff hader
+    return next(
+        player
+        for player in kona_playercard_fixture_data["players"]
+        if player.get("id") == 32760
     )
 
 
