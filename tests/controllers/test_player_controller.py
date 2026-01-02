@@ -6,8 +6,9 @@ from espn_api_extractor.controllers.player_controller import PlayerController
 
 
 def _build_controller(monkeypatch, espn_players):
-    espn_request = MagicMock()
-    espn_request.get_player_cards.return_value = {"players": espn_players}
+    extract_handler = MagicMock()
+    extract_handler.fetch_player_cards.return_value = espn_players
+    extract_handler.get_slot_flags.return_value = (False, True)
 
     update_handler = MagicMock()
     update_handler.execute = AsyncMock(return_value=[])
@@ -16,12 +17,8 @@ def _build_controller(monkeypatch, espn_players):
     full_handler.execute = AsyncMock(return_value=[])
 
     monkeypatch.setattr(
-        "espn_api_extractor.controllers.player_controller.EspnFantasyRequests",
-        MagicMock(return_value=espn_request),
-    )
-    monkeypatch.setattr(
-        "espn_api_extractor.controllers.player_controller.ProPlayersHandler",
-        MagicMock(),
+        "espn_api_extractor.controllers.player_controller.PlayerExtractHandler",
+        MagicMock(return_value=extract_handler),
     )
     monkeypatch.setattr(
         "espn_api_extractor.controllers.player_controller.UpdatePlayerHandler",
@@ -41,12 +38,12 @@ def _build_controller(monkeypatch, espn_players):
     )
 
     controller = PlayerController(args)
-    return controller, espn_request, update_handler, full_handler
+    return controller, extract_handler, update_handler, full_handler
 
 
 def test_player_controller_updates_and_hydrates(monkeypatch):
     espn_players = [{"id": 1}, {"id": 2}, {"id": 3}, {"id": 4}]
-    controller, espn_request, update_handler, full_handler = _build_controller(
+    controller, extract_handler, update_handler, full_handler = _build_controller(
         monkeypatch, espn_players
     )
 
@@ -59,10 +56,11 @@ def test_player_controller_updates_and_hydrates(monkeypatch):
 
     result = asyncio.run(controller.execute(existing_players))
 
-    espn_request.get_player_cards.assert_called_once_with(player_ids=[])
-    update_handler.execute.assert_awaited_once_with(
-        {1, 2}, pro_players_data=espn_players
-    )
+    extract_handler.fetch_player_cards.assert_called_once_with()
+    update_handler.execute.assert_awaited_once()
+    called_players = update_handler.execute.call_args.args[0]
+    assert {player.id for player in called_players} == {1, 2}
+    assert update_handler.execute.call_args.kwargs["pro_players_data"] == espn_players
     full_handler.execute.assert_awaited_once_with(
         {3, 4}, pro_players_data=espn_players
     )
@@ -127,41 +125,11 @@ def test_player_controller_handles_full_hydration_failure(monkeypatch):
 
 
 def test_player_controller_handles_critical_failure(monkeypatch):
-    espn_request = MagicMock()
-    espn_request.get_player_cards.side_effect = RuntimeError("boom")
-
-    update_handler = MagicMock()
-    update_handler.execute = AsyncMock()
-
-    full_handler = MagicMock()
-    full_handler.execute = AsyncMock()
-
-    monkeypatch.setattr(
-        "espn_api_extractor.controllers.player_controller.EspnFantasyRequests",
-        MagicMock(return_value=espn_request),
+    espn_players = [{"id": 1}]
+    controller, extract_handler, update_handler, full_handler = _build_controller(
+        monkeypatch, espn_players
     )
-    monkeypatch.setattr(
-        "espn_api_extractor.controllers.player_controller.ProPlayersHandler",
-        MagicMock(),
-    )
-    monkeypatch.setattr(
-        "espn_api_extractor.controllers.player_controller.UpdatePlayerHandler",
-        MagicMock(return_value=update_handler),
-    )
-    monkeypatch.setattr(
-        "espn_api_extractor.controllers.player_controller.FullHydrationHandler",
-        MagicMock(return_value=full_handler),
-    )
-
-    args = SimpleNamespace(
-        league_id=10998,
-        year=2025,
-        threads=None,
-        batch_size=100,
-        sample_size=None,
-    )
-
-    controller = PlayerController(args)
+    extract_handler.fetch_player_cards.side_effect = RuntimeError("boom")
 
     result = asyncio.run(controller.execute([SimpleNamespace(id=1)]))
 

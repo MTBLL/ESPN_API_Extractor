@@ -20,7 +20,7 @@ class PlayerExtractRunner:
 
         # Pass args to controller (controller unwraps and passes to handlers)
         self.controller = PlayerController(args)
-        self.output_handler = PlayerExtractHandler()
+        self.handler = PlayerExtractHandler()
 
         # Initialize GraphQL client for reading existing players (optimization)
         self.graphql_client = GraphQLClient(
@@ -64,6 +64,8 @@ class PlayerExtractRunner:
             # Step 2: Execute extraction via controller
             results: Dict[str, Any] = await self.controller.execute(existing_players)
             players: List[Player] = results["players"]
+            pitchers: List[Player] = results["pitchers"]
+            batters: List[Player] = results["batters"]
             failures: List[str] = results["failures"]
 
             self.logger.info(
@@ -71,7 +73,7 @@ class PlayerExtractRunner:
             )
 
             # Step 3: Save extracted data to JSON (for next ETL stage)
-            self._save_extraction_results(players, failures)
+            self._save_extraction_results(pitchers, batters, failures)
 
             # Step 4: Return players (convert to models if requested)
             if self.args.as_models:
@@ -84,7 +86,7 @@ class PlayerExtractRunner:
             raise
 
     def _save_extraction_results(
-        self, players: List[Player], failures: List[str]
+        self, pitchers: List[Player], batters: List[Player], failures: List[str]
     ) -> None:
         """
         Save extracted data to JSON files for next ETL pipeline stage.
@@ -95,8 +97,6 @@ class PlayerExtractRunner:
         """
         os.makedirs(self.args.output_dir, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-        pitchers, batters = self._split_players_by_role(players)
 
         pitchers = self._sort_players(pitchers)
         batters = self._sort_players(batters)
@@ -111,7 +111,7 @@ class PlayerExtractRunner:
         pitchers_data = []
         for player in pitchers:
             data = copy.deepcopy(player.to_model().model_dump())
-            self.output_handler.apply_pitcher_transforms(player, data)
+            self.handler.apply_pitcher_transforms(player, data)
             pitchers_data.append(data)
         batters_data = [player.to_model().model_dump() for player in batters]
 
@@ -139,24 +139,3 @@ class PlayerExtractRunner:
             key=lambda p: p.percent_owned if p.percent_owned > 0 else -1,
             reverse=True,
         )
-
-    def _split_players_by_role(
-        self, players: List[Player]
-    ) -> tuple[List[Player], List[Player]]:
-        pitchers: List[Player] = []
-        batters: List[Player] = []
-
-        for player in players:
-            has_pitcher_slot, has_non_pitcher_slot = (
-                self.output_handler.get_slot_flags(player)
-            )
-            if not has_pitcher_slot and not has_non_pitcher_slot:
-                batters.append(player)
-                continue
-
-            if has_pitcher_slot:
-                pitchers.append(player)
-            if has_non_pitcher_slot or not has_pitcher_slot:
-                batters.append(player)
-
-        return pitchers, batters

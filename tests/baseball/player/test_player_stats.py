@@ -137,6 +137,21 @@ class TestPlayerStatistics:
         assert projections["IP"] == expected_ip
         assert projections["K/9"] == pytest.approx(expected_k9, rel=1e-3)
 
+        ordered_keys = list(player.stats.keys())
+        expected_order = []
+        if "projections" in player.stats:
+            expected_order.append("projections")
+        if "current_season" in player.stats:
+            expected_order.append("current_season")
+        expected_order.extend(
+            [key for key in ordered_keys if key.startswith("previous_season")]
+        )
+        for key in ("last_7_games", "last_15_games", "last_30_games"):
+            if key in player.stats:
+                expected_order.append(key)
+
+        assert ordered_keys[: len(expected_order)] == expected_order
+
     @patch(
         "espn_api_extractor.requests.core_requests.EspnCoreRequests._fetch_player_stats"
     )

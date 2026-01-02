@@ -96,13 +96,11 @@ player.id                    # ESPN player ID
 player.pro_team              # MLB team (now uses snake_case naming)
 player.primary_position      # Position
 player.date_of_birth         # Birth date (YYYY-MM-DD format)
-player.stats                 # Basic player statistics
-player.season_stats          # Detailed player statistics from ESPN Core API
+player.stats                 # All player statistics
 
 # Comprehensive kona_playercard data attributes
 player.season_outlook        # Season outlook narrative text
 player.projections           # 2025 projected statistics (mapped to readable names)
-player.preseason_stats       # 2025 preseason statistics
 player.regular_season_stats  # 2025 regular season statistics  
 player.previous_season_stats # 2024 season statistics
 

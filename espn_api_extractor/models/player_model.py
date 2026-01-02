@@ -17,39 +17,6 @@ class StatPeriod(BaseModel):
     projected_breakdown: Dict[str, Any] = {}
 
 
-class StatDetail(BaseModel):
-    """Model for a single statistic"""
-
-    display_name: Optional[str] = None
-    short_display_name: Optional[str] = None
-    description: Optional[str] = None
-    abbreviation: Optional[str] = None
-    value: Optional[float] = None
-    display_value: Optional[str] = None
-    rank: Optional[int] = None
-    rank_display_value: Optional[str] = None
-
-
-class StatCategory(BaseModel):
-    """Model for a category of statistics (e.g., batting, pitching)"""
-
-    display_name: Optional[str] = None
-    short_display_name: Optional[str] = None
-    abbreviation: Optional[str] = None
-    summary: Optional[str] = None
-    stats: Dict[str, StatDetail] = Field(default_factory=dict)
-
-
-class SeasonStats(BaseModel):
-    """Model for player season statistics"""
-
-    split_id: Optional[str] = None
-    split_name: Optional[str] = None
-    split_abbreviation: Optional[str] = None
-    split_type: Optional[str] = None
-    categories: Dict[str, StatCategory] = Field(default_factory=dict)
-
-
 class PlayerModel(BaseModel):
     """Pydantic model for baseball player data"""
 
@@ -121,10 +88,7 @@ class PlayerModel(BaseModel):
     # Also includes split_id, split_name, split_abbreviation, split_type, categories from season stats
     stats: Dict[str, Any] = Field(default_factory=dict)
 
-    # Season statistics from the statistics endpoint
-    season_stats: Optional[SeasonStats] = None
-
-    @field_validator('eligible_slots', mode='before')
+    @field_validator("eligible_slots", mode="before")
     @classmethod
     def parse_eligible_slots(cls, v):
         """Parse eligible_slots from JSON string if needed"""
@@ -134,30 +98,30 @@ class PlayerModel(BaseModel):
             except json.JSONDecodeError:
                 return []
         return v or []
-    
-    @field_validator('jersey', mode='before')
+
+    @field_validator("jersey", mode="before")
     @classmethod
     def parse_jersey(cls, v):
         """Convert jersey number to string"""
         if v is None:
             return ""
         return str(v)
-    
-    @field_validator('injured', mode='before')
+
+    @field_validator("injured", mode="before")
     @classmethod
     def parse_injured(cls, v):
         """Convert injured to boolean, handling None"""
         if v is None:
             return False
         return bool(v)
-    
-    @field_validator('stats', mode='before')
+
+    @field_validator("stats", mode="before")
     @classmethod
     def parse_stats(cls, v):
         """Convert stats dictionary to use string keys"""
         if not isinstance(v, dict):
             return v
-        
+
         # Convert integer keys to strings
         return {str(key): value for key, value in v.items()}
 
@@ -172,6 +136,8 @@ class PlayerModel(BaseModel):
 
         # Copy all attributes from player object
         for key, value in player.__dict__.items():
+            if key == "season_stats":
+                continue
             # Special handling for date_of_birth to ensure it's always in YYYY-MM-DD format
             if key == "date_of_birth" and value and "T" in value:
                 data[key] = value.split("T")[0]
@@ -181,38 +147,6 @@ class PlayerModel(BaseModel):
         # Convert stats dictionary - contains kona stats with semantic keys
         if hasattr(player, "stats") and player.stats:
             data["stats"] = player.stats
-
-        # Convert season_stats dictionary to use SeasonStats model
-        if hasattr(player, "season_stats") and player.season_stats:
-            season_stats_data = player.season_stats
-
-            # Process categories and their stats
-            categories = {}
-            for cat_name, cat_data in season_stats_data.get("categories", {}).items():
-                # Process stats in this category
-                stats = {}
-                for stat_name, stat_data in cat_data.get("stats", {}).items():
-                    stats[stat_name] = StatDetail(**stat_data)
-
-                # Create the category with its stats
-                cat_dict = {
-                    "display_name": cat_data.get("display_name"),
-                    "short_display_name": cat_data.get("short_display_name"),
-                    "abbreviation": cat_data.get("abbreviation"),
-                    "summary": cat_data.get("summary"),
-                    "stats": stats,
-                }
-                categories[cat_name] = StatCategory(**cat_dict)
-
-            # Create the SeasonStats object
-            season_stats = SeasonStats(
-                split_id=season_stats_data.get("split_id"),
-                split_name=season_stats_data.get("split_name"),
-                split_abbreviation=season_stats_data.get("split_abbreviation"),
-                split_type=season_stats_data.get("split_type"),
-                categories=categories,
-            )
-            data["season_stats"] = season_stats
 
         # Convert camelCase attributes to snake_case to match Player class
         for camel, snake in [
@@ -278,53 +212,5 @@ class PlayerModel(BaseModel):
                     # Keep string keys that aren't numeric (like "projections", "current_season", "last_7_games", etc.)
                     stats_with_int_keys[key] = value
             data["stats"] = stats_with_int_keys
-
-        # Process season_stats into the format expected by Player
-        if "season_stats" in data and data["season_stats"]:
-            season_stats = data["season_stats"]
-            processed_season_stats: Dict[str, Any] = {
-                "split_id": season_stats["split_id"]
-                if "split_id" in season_stats
-                else None,
-                "split_name": season_stats["split_name"]
-                if "split_name" in season_stats
-                else None,
-                "split_abbreviation": season_stats["split_abbreviation"]
-                if "split_abbreviation" in season_stats
-                else None,
-                "split_type": season_stats["split_type"]
-                if "split_type" in season_stats
-                else None,
-                "categories": {},
-            }
-
-            # Process each category
-            if "categories" in season_stats:
-                for cat_name, category in season_stats["categories"].items():
-                    cat_dict = {
-                        "display_name": category.get("display_name"),
-                        "short_display_name": category.get("short_display_name"),
-                        "abbreviation": category.get("abbreviation"),
-                        "summary": category.get("summary"),
-                        "stats": {},
-                    }
-
-                    # Process each stat in the category
-                    if "stats" in category:
-                        for stat_name, stat in category["stats"].items():
-                            cat_dict["stats"][stat_name] = {
-                                "display_name": stat.get("display_name"),
-                                "short_display_name": stat.get("short_display_name"),
-                                "description": stat.get("description"),
-                                "abbreviation": stat.get("abbreviation"),
-                                "value": stat.get("value"),
-                                "display_value": stat.get("display_value"),
-                                "rank": stat.get("rank"),
-                                "rank_display_value": stat.get("rank_display_value"),
-                            }
-
-                    processed_season_stats["categories"][cat_name] = cat_dict
-
-            data["season_stats"] = processed_season_stats
 
         return data

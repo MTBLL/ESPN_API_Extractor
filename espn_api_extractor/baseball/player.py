@@ -10,6 +10,15 @@ from .constants import LINEUP_SLOT_MAP, NOMINAL_POSITION_MAP, PRO_TEAM_MAP, STAT
 class Player(object):
     """Player are part of team"""
 
+    STAT_FIELD_ORDER = [
+        "projections",
+        "current_season_stats",
+        "previous_season_stats",
+        "last_7_games",
+        "last_15_games",
+        "last_30_games",
+    ]
+
     def __init__(self, data, current_season: int | None = None):
         self.id: int | None = json_parsing(data, "id")
         self.name: str | None = json_parsing(data, "fullName")
@@ -158,6 +167,7 @@ class Player(object):
                     self.stats["projections"].update(mapped_projected)
 
         self._add_pitching_rate_stats()
+        self._reorder_stats()
 
     def __repr__(self) -> str:
         return "Player(%s)" % (self.name,)
@@ -246,21 +256,14 @@ class Player(object):
             player.stats = player_model.stats
 
         # Handle stat fields stored directly in PlayerModel
-        stat_fields = [
-            "projections",
-            "current_season_stats",
-            "previous_season_stats",
-            "last_7_games",
-            "last_15_games",
-            "last_30_games",
-        ]
-
-        for field in stat_fields:
+        for field in cls.STAT_FIELD_ORDER:
             value = getattr(player_model, field, None)
             if value:
                 # Remove _stats suffix to get the stats key
                 stats_key = field.replace("_stats", "")
                 player.stats[stats_key] = value
+
+        player._reorder_stats()
 
         return player
 
@@ -385,6 +388,8 @@ class Player(object):
                     "rank_display_value": stat.get("rankDisplayValue", ""),
                 }
 
+        self._reorder_stats()
+
     def _extract_draft_auction_value(
         self, transactions: List[Dict[str, Any]]
     ) -> int | None:
@@ -420,3 +425,31 @@ class Player(object):
                 and isinstance(strikeouts, (int, float))
             ):
                 stat_dict["K/9"] = (strikeouts / ip_real) * 9
+
+    def _reorder_stats(self) -> None:
+        if not isinstance(self.stats, dict):
+            return
+
+        ordered: Dict[str, Any] = {}
+        seen = set()
+
+        def add_key(key: str) -> None:
+            if key in self.stats and key not in seen:
+                ordered[key] = self.stats[key]
+                seen.add(key)
+
+        for field in self.STAT_FIELD_ORDER:
+            stats_key = field.replace("_stats", "")
+            if stats_key == "previous_season":
+                for key in self.stats:
+                    if key.startswith("previous_season"):
+                        add_key(key)
+                continue
+
+            add_key(stats_key)
+
+        for key, value in self.stats.items():
+            if key not in seen:
+                ordered[key] = value
+
+        self.stats = ordered

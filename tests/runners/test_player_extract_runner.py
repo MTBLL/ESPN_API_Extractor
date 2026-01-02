@@ -22,7 +22,12 @@ def test_player_extract_runner_uses_graphql_when_available(monkeypatch, tmp_path
     controller = MagicMock()
     controller_player = MagicMock()
     controller.execute = AsyncMock(
-        return_value={"players": [controller_player], "failures": []}
+        return_value={
+            "players": [controller_player],
+            "pitchers": [],
+            "batters": [controller_player],
+            "failures": [],
+        }
     )
 
     graphql_client = MagicMock()
@@ -62,7 +67,9 @@ def test_player_extract_runner_uses_graphql_when_available(monkeypatch, tmp_path
     )
     graphql_client.get_existing_players.assert_called_once_with()
     controller.execute.assert_awaited_once_with([existing_a, existing_b])
-    runner._save_extraction_results.assert_called_once_with([controller_player], [])  # type: ignore
+    runner._save_extraction_results.assert_called_once_with(  # type: ignore
+        [], [controller_player], []
+    )
     assert result == [controller_player]
 
 
@@ -78,7 +85,12 @@ def test_player_extract_runner_skips_graphql_when_unavailable(monkeypatch, tmp_p
     controller = MagicMock()
     controller_player = MagicMock()
     controller.execute = AsyncMock(
-        return_value={"players": [controller_player], "failures": []}
+        return_value={
+            "players": [controller_player],
+            "pitchers": [],
+            "batters": [controller_player],
+            "failures": [],
+        }
     )
 
     graphql_client = MagicMock()
@@ -103,7 +115,7 @@ def test_player_extract_runner_skips_graphql_when_unavailable(monkeypatch, tmp_p
 
     graphql_client.get_existing_players.assert_not_called()
     controller.execute.assert_awaited_once_with([])
-    runner._save_extraction_results.assert_called_once_with([controller_player], [])  # type: ignore
+    runner._save_extraction_results.assert_called_once_with([], [controller_player], [])  # type: ignore
     assert result == [controller_player]
 
 
@@ -119,7 +131,14 @@ def test_player_extract_runner_returns_models_when_requested(monkeypatch, tmp_pa
     controller = MagicMock()
     player = MagicMock()
     player.to_model.return_value = {"id": 1}
-    controller.execute = AsyncMock(return_value={"players": [player], "failures": []})
+    controller.execute = AsyncMock(
+        return_value={
+            "players": [player],
+            "pitchers": [],
+            "batters": [player],
+            "failures": [],
+        }
+    )
 
     graphql_client = MagicMock()
     graphql_client.is_available = False
@@ -142,7 +161,7 @@ def test_player_extract_runner_returns_models_when_requested(monkeypatch, tmp_pa
     result = asyncio.run(runner.run())
 
     controller.execute.assert_awaited_once_with([])
-    runner._save_extraction_results.assert_called_once_with([player], [])  # type: ignore[reportAttributeAccessIssue]
+    runner._save_extraction_results.assert_called_once_with([], [player], [])  # type: ignore[reportAttributeAccessIssue]
     assert result == [{"id": 1}]
 
 
@@ -150,7 +169,7 @@ def test_player_extract_runner_saves_sorted_players_and_failures(tmp_path):
     runner = PlayerExtractRunner.__new__(PlayerExtractRunner)
     runner.args = SimpleNamespace(output_dir=str(tmp_path), year=2025)
     runner.logger = MagicMock()
-    runner.output_handler = PlayerExtractHandler()
+    runner.handler = PlayerExtractHandler()
 
     high = MagicMock()
     high.percent_owned = 50
@@ -182,7 +201,7 @@ def test_player_extract_runner_saves_sorted_players_and_failures(tmp_path):
         "position_name": "Designated Hitter",
     }
 
-    runner._save_extraction_results([low, zero, high], ["oops"])
+    runner._save_extraction_results([high, zero], [low, zero], ["oops"])
 
     pitchers_files = list(tmp_path.glob("espn_pitchers_2025_*.json"))
     assert len(pitchers_files) == 1
@@ -207,7 +226,7 @@ def test_player_extract_runner_adds_pitching_rate_stats(tmp_path):
     runner = PlayerExtractRunner.__new__(PlayerExtractRunner)
     runner.args = SimpleNamespace(output_dir=str(tmp_path), year=2025)
     runner.logger = MagicMock()
-    runner.output_handler = PlayerExtractHandler()
+    runner.handler = PlayerExtractHandler()
 
     pitcher_data = {
         "id": 999,
@@ -234,7 +253,7 @@ def test_player_extract_runner_adds_pitching_rate_stats(tmp_path):
     pitcher.percent_owned = 10
     pitcher.eligible_slots = ["P"]
 
-    runner._save_extraction_results([pitcher], [])
+    runner._save_extraction_results([pitcher], [], [])
 
     pitchers_files = list(tmp_path.glob("espn_pitchers_2025_*.json"))
     assert len(pitchers_files) == 1

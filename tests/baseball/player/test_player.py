@@ -290,16 +290,6 @@ def test_player_from_model_with_hasura_fixture(hasura_fixture_data):
             assert key in expected_stat_keys or isinstance(key, str)
             assert isinstance(player_model.stats[key], dict)
 
-        # Season statistics from the statistics endpoint
-        if player_model.season_stats is not None:
-            assert isinstance(player_model.season_stats.split_id, (str, type(None)))
-            assert isinstance(player_model.season_stats.split_name, (str, type(None)))
-            assert isinstance(
-                player_model.season_stats.split_abbreviation, (str, type(None))
-            )
-            assert isinstance(player_model.season_stats.split_type, (str, type(None)))
-            assert isinstance(player_model.season_stats.categories, dict)
-
         # Verify the conversion worked and players are functional
         assert isinstance(player, Player)
         assert hasattr(player, "from_model")
