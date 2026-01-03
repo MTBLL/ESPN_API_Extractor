@@ -232,6 +232,7 @@ def test_player_extract_runner_adds_pitching_rate_stats(tmp_path):
         "id": 999,
         "fullName": "Test Pitcher",
         "eligibleSlots": [13],
+        "defaultPositionId": 1,
         "player": {
             "stats": [
                 {

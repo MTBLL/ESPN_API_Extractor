@@ -259,54 +259,21 @@ class EspnCoreRequests:
                 )
             return player, False
 
-    def _hydrate_player_with_stats(self, player: Player) -> Tuple[Player, bool]:
-        """
-        Hydrate a player with statistics data from API.
-        Returns a tuple of (player, success_flag).
-        Thread-safe implementation.
-        """
-        assert player.id is not None, "Player ID is required"
-        stats_data = self._fetch_player_stats(player.id)
-
-        if stats_data is None:
-            return player, False
-
-        try:
-            # Add statistics to the player
-            player.hydrate_stats(stats_data)
-            return player, True
-        except Exception as e:
-            with self.logger_lock:
-                self.logger.logging.error(
-                    f"Error hydrating player {player.id} with statistics: {str(e)}"
-                )
-            return player, False
-
     def _hydrate_player_worker(
-        self, player: Player, include_stats: bool
+        self, player: Player, include_stats: bool = False
     ) -> Tuple[Player, bool]:
         """
         Worker function for ThreadPoolExecutor that handles the hydration logic.
         Calls appropriate hydration methods based on include_stats parameter.
-
-        Note: Stats hydration is best-effort. If stats fail but bio succeeds,
-        the player is still considered successfully hydrated (for prospects/injured players).
+        Stats hydration is no longer performed; include_stats is retained for compatibility.
         """
+        if include_stats:
+            pass
         # First, hydrate with biographical data
         hydrated_player, bio_success = self._hydrate_player_with_bio(player)
 
         if not bio_success:
             return hydrated_player, False
-
-        # If stats are requested and bio hydration succeeded, also get stats
-        # But don't fail the entire hydration if stats fail (best-effort)
-        if include_stats:
-            hydrated_player, stats_success = self._hydrate_player_with_stats(
-                hydrated_player
-            )
-            # Note: We return True (bio_success) even if stats fail
-            # This allows prospects/injured players with projections but no season stats
-            # to still be included in the dataset
 
         return hydrated_player, bio_success
 
@@ -320,8 +287,8 @@ class EspnCoreRequests:
         Args:
             players: List of Player objects to hydrate
             batch_size: Number of players to process in each batch (to manage progress bar)
-            include_stats: If True, includes both biographical and statistical data.
-                          If False, includes only biographical data (default for backward compatibility).
+            include_stats: Ignored. Kona playercard provides stats, so Core API
+                hydration only fetches biographical data.
         """
         hydrated_players: List[Player] = []
         failed_players: List[Player] = []

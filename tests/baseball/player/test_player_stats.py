@@ -3,12 +3,10 @@ Unit tests for player statistics functionality.
 """
 
 from datetime import datetime
-from unittest.mock import patch
 
 import pytest
 
 from espn_api_extractor.baseball.player import Player
-from espn_api_extractor.requests.core_requests import EspnCoreRequests
 from tests.baseball.test_stats_fixtures import (
     SAMPLE_PLAYER_BASIC_INFO,
     SAMPLE_PLAYER_STATS_RESPONSE,
@@ -143,40 +141,11 @@ class TestPlayerStatistics:
             expected_order.append("projections")
         if "current_season" in player.stats:
             expected_order.append("current_season")
-        expected_order.extend(
-            [key for key in ordered_keys if key.startswith("previous_season")]
-        )
         for key in ("last_7_games", "last_15_games", "last_30_games"):
             if key in player.stats:
                 expected_order.append(key)
-
-        assert ordered_keys[: len(expected_order)] == expected_order
-
-    @patch(
-        "espn_api_extractor.requests.core_requests.EspnCoreRequests._fetch_player_stats"
-    )
-    def test_hydrate_player_with_statistics(self, mock_fetch_player_stats):
-        """Test hydrating a player with statistics using the EspnCoreRequests class."""
-        # Setup mock
-        mock_fetch_player_stats.return_value = SAMPLE_PLAYER_STATS_RESPONSE
-
-        # Create a player
-        player = Player(SAMPLE_PLAYER_BASIC_INFO)
-
-        # Create the core requests object
-        core_requests = EspnCoreRequests(sport="mlb", year=2025)
-
-        # Call the method to hydrate a player with statistics
-        hydrated_player, success = core_requests._hydrate_player_with_stats(player)
-
-        # Verify the result
-        assert success is True
-        assert "split_name" in hydrated_player.stats
-        assert hydrated_player.stats["split_name"] == "All Splits"
-        assert (
-            hydrated_player.stats["categories"]["batting"]["stats"]["homeRuns"]["value"]
-            == 14.0
+        expected_order.extend(
+            [key for key in ordered_keys if key.startswith("previous_season")]
         )
 
-        # Verify mock was called
-        mock_fetch_player_stats.assert_called_once_with(42404)
+        assert ordered_keys[: len(expected_order)] == expected_order

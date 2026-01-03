@@ -96,7 +96,7 @@ class FullHydrationHandler:
         # Step 2: Multi-threaded hydration with bio + stats from Core API
         self.logger.logging.info("Hydrating with bio and stats data from Core API")
         hydrated_players, failed_players = self.core_requests.hydrate_players(
-            players_to_hydrate, batch_size=self.batch_size, include_stats=True
+            players_to_hydrate, batch_size=self.batch_size, include_stats=False
         )
 
         if failed_players:
