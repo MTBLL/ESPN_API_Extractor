@@ -87,7 +87,7 @@ This document outlines the user stories for the ESPN API Extractor ETL pipeline,
 > **So that** I don't need different execution strategies for different operational contexts
 
 **Acceptance Criteria:**
-- Single CLI execution: `poetry run espn player-extract --output_dir ./output`
+- Single CLI execution: `poetry run espn player-extract --output-dir ./output`
 - Automatic GraphQL detection with HITL validation for failures
 - Bio+stats extraction hardcoded (no conditional flags needed)
 - Comprehensive logging showing GraphQL status and extraction decisions
@@ -142,11 +142,11 @@ ESPN_API_RATE_LIMIT=100  # requests per minute
 ### CLI Usage
 ```bash
 # Standard execution (auto-detects GraphQL)
-poetry run espn --output_dir ./output
+poetry run espn --output-dir ./output
 
 # Force full extraction (bypass GraphQL even if available)
-poetry run espn --output_dir ./output --force-full-extraction
+poetry run espn --output-dir ./output --force-full-extraction
 
 # Custom batch size
-poetry run espn --output_dir ./output --batch-size 50
+poetry run espn --output-dir ./output --batch-size 50
 ```

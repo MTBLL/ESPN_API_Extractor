@@ -144,7 +144,7 @@ Command-line options:
 - `--year`: League year (default: 2025)
 - `--threads`: Number of threads to use for player hydration (default: 4x CPU cores)
 - `--batch-size`: Number of players to process in each batch for progress tracking (default: 100)
-- `--output_dir`: Directory to write JSON output. If not specified, no file is written
+- `--output-dir`: Directory to write JSON output. If not specified, no file is written
 - `--as-models`: Return Pydantic models instead of Player objects (default: False)
 
 This script:
@@ -160,21 +160,21 @@ Use the league extractor to pull league-level data (settings, teams, rosters, et
 
 ```bash
 # Using the installed command-line script
-espn league-extract --league_id 10998 --year 2025 --output_dir output
+espn league-extract --league-id 10998 --year 2025 --output-dir output
 
 # Include private league cookies if needed
-espn league-extract --league_id 10998 --year 2025 --espn_s2 "<cookie>" --swid "{SWID}" --output_dir output
+espn league-extract --league-id 10998 --year 2025 --espn-s2 "<cookie>" --swid "{SWID}" --output-dir output
 
 # Provide custom views (repeatable)
-espn league-extract --league_id 10998 --year 2025 --view mSettings --view mRoster --view mTeam --view modular --view mNav --output_dir output
+espn league-extract --league-id 10998 --year 2025 --view mSettings --view mRoster --view mTeam --view modular --view mNav --output_dir output
 ```
 
 Command-line options:
 - `--league_id`: ESPN Fantasy League ID (default: 10998)
 - `--year`: League year (default: 2025)
-- `--espn_s2`: ESPN S2 cookie for private league access
+- `--espn-s2`: ESPN S2 cookie for private league access
 - `--swid`: ESPN SWID cookie for private league access
-- `--output_dir`: Directory to write JSON output
+- `--output-dir`: Directory to write JSON output
 - `--view`: ESPN league view to include (repeatable)
 
 ## Usage Examples

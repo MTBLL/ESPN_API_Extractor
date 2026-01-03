@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Run mypy type checking: `uv run mypy espn_api_extractor`
 - Run mypy with stricter checking: `uv run mypy --check-untyped-defs espn_api_extractor`
 - Run the player extractor:
-  - `uv run espn player-extract --output_dir ./output`
+  - `uv run espn player-extract --output-dir ./output`
 - Debug with players dump: `uv run python debug_dump_players.py`
 
 ## Code Style Guidelines
