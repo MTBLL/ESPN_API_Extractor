@@ -61,7 +61,7 @@ def test_player_missing_data(corbin_carroll_season):
     assert player.id == 12345
 
     # These should be empty or default values
-    assert player.primary_position is None  # No defaultPositionId in data
+    assert player.primary_position == "BN"  # No defaultPositionId in data
     assert player.pro_team is None  # No proTeamId in data
     assert player.eligible_slots == []  # No eligibleSlots in data
     assert player.percent_owned == -1  # Default when ownership data is missing

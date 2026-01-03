@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from requests.exceptions import ConnectionError, ConnectTimeout
 
-from espn_api_extractor.utils.graphql_client import GraphQLClient
+from espn_api_extractor.requests.graphql_requests import GraphQLClient
 from espn_api_extractor.utils.logger import Logger
 
 
@@ -64,7 +64,7 @@ class TestGraphQLClient:
         """Test GraphQLClient initialization with defaults"""
         client = GraphQLClient()
         assert client.logger is not None
-        assert hasattr(client.logger, 'logging')
+        assert hasattr(client.logger, "logging")
         assert client.config_path == "hasura_config.json"
         assert client.endpoint is None
         assert client.headers == {}
@@ -96,7 +96,7 @@ class TestGraphQLClient:
         client = GraphQLClient(config_path="nonexistent.json")
 
         # Mock the client's logger
-        with patch.object(client.logger, 'logging') as mock_client_logger:
+        with patch.object(client.logger, "logging") as mock_client_logger:
             result = client._load_config()
 
             assert result is False
@@ -114,7 +114,7 @@ class TestGraphQLClient:
             client = GraphQLClient(config_path=temp_file)
 
             # Mock the client's logger
-            with patch.object(client.logger, 'logging') as mock_client_logger:
+            with patch.object(client.logger, "logging") as mock_client_logger:
                 result = client._load_config()
 
                 assert result is False
@@ -127,7 +127,7 @@ class TestGraphQLClient:
         client = GraphQLClient(config_path=invalid_config_file)
 
         # Mock the client's logger
-        with patch.object(client.logger, 'logging') as mock_client_logger:
+        with patch.object(client.logger, "logging") as mock_client_logger:
             result = client._load_config()
 
             assert result is False
@@ -149,7 +149,7 @@ class TestGraphQLClient:
         client = GraphQLClient(config_path=temp_config_file)
 
         # Mock the client's logger
-        with patch.object(client.logger, 'logging') as mock_client_logger:
+        with patch.object(client.logger, "logging") as mock_client_logger:
             client._load_config()
             success, error = client._test_connection()
 
@@ -272,7 +272,7 @@ class TestGraphQLClient:
         client = GraphQLClient()
 
         # Mock the client's own logger
-        with patch.object(client.logger, 'logging') as mock_client_logger:
+        with patch.object(client.logger, "logging") as mock_client_logger:
             result = client.initialize_with_hitl(force_full_extraction=True)
 
             assert result is client
@@ -341,49 +341,25 @@ class TestGraphQLClient:
         with pytest.raises(SystemExit):
             client.initialize_with_hitl()
 
-    @pytest.fixture
-    def sample_graphql_players_response(self):
-        """Load realistic GraphQL player data from fixture file"""
-        import json
-        import os
-        
-        fixture_path = os.path.join(
-            os.path.dirname(__file__), 
-            "..", 
-            "fixtures", 
-            "graphql_players_response.json"
-        )
-        with open(fixture_path, 'r') as f:
-            return json.load(f)
-
     @patch("requests.Session.post")
-    def test_get_existing_player_ids_success(
-        self, mock_post, mock_logger, temp_config_file, sample_graphql_players_response
-    ):
-        """Test successful retrieval of existing player IDs"""
+    def test_execute_returns_data(self, mock_post, mock_logger, temp_config_file):
+        """Test successful GraphQL query execution"""
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = sample_graphql_players_response
+        mock_response.json.return_value = {"data": {"players": []}}
         mock_post.return_value = mock_response
 
         client = GraphQLClient(config_path=temp_config_file)
         client._load_config()
         client.is_available = True
 
-        # Mock the client's logger
-        with patch.object(client.logger, 'logging') as mock_client_logger:
-            player_ids = client.get_existing_player_ids()
+        data = client.fetch("query { players { idEspn } }")
 
-            assert player_ids == {12345, 67890, 11111}
-            mock_client_logger.info.assert_called_with(
-                "Retrieved and deserialized 3 existing players from GraphQL"
-            )
+        assert data == {"players": []}
 
     @patch("requests.Session.post")
-    def test_get_existing_player_ids_http_error(
-        self, mock_post, mock_logger, temp_config_file
-    ):
-        """Test player ID retrieval with HTTP error"""
+    def test_execute_http_error(self, mock_post, mock_logger, temp_config_file):
+        """Test GraphQL query execution with HTTP error"""
         mock_response = MagicMock()
         mock_response.status_code = 500
         mock_post.return_value = mock_response
@@ -393,17 +369,17 @@ class TestGraphQLClient:
         client.is_available = True
 
         # Mock the client's logger
-        with patch.object(client.logger, 'logging') as mock_client_logger:
-            player_ids = client.get_existing_player_ids()
+        with patch.object(client.logger, "logging") as mock_client_logger:
+            data = client.fetch("query { players { idEspn } }")
 
-            assert player_ids == set()
-            mock_client_logger.error.assert_called_with("GraphQL query failed: HTTP 500")
+            assert data is None
+            mock_client_logger.error.assert_called_with(
+                "GraphQL query failed: HTTP 500"
+            )
 
     @patch("requests.Session.post")
-    def test_get_existing_player_ids_graphql_error(
-        self, mock_post, mock_logger, temp_config_file
-    ):
-        """Test player ID retrieval with GraphQL error"""
+    def test_execute_graphql_error(self, mock_post, mock_logger, temp_config_file):
+        """Test GraphQL query execution with GraphQL error"""
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"errors": [{"message": "Query failed"}]}
@@ -413,24 +389,22 @@ class TestGraphQLClient:
         client._load_config()
         client.is_available = True
 
-        player_ids = client.get_existing_player_ids()
+        data = client.fetch("query { players { idEspn } }")
 
-        assert player_ids == set()
+        assert data is None
 
-    def test_get_existing_player_ids_not_available(self, mock_logger):
-        """Test player ID retrieval when GraphQL not available"""
+    def test_execute_not_available(self, mock_logger):
+        """Test query execution when GraphQL not available"""
         client = GraphQLClient()
         client.is_available = False
 
-        player_ids = client.get_existing_player_ids()
+        data = client.fetch("query { players { idEspn } }")
 
-        assert player_ids == set()
+        assert data is None
 
     @patch("requests.Session.post")
-    def test_get_existing_player_ids_exception(
-        self, mock_post, mock_logger, temp_config_file
-    ):
-        """Test player ID retrieval with exception"""
+    def test_execute_exception(self, mock_post, mock_logger, temp_config_file):
+        """Test GraphQL query execution with exception"""
         mock_post.side_effect = Exception("Network error")
 
         client = GraphQLClient(config_path=temp_config_file)
@@ -438,12 +412,12 @@ class TestGraphQLClient:
         client.is_available = True
 
         # Mock the client's logger
-        with patch.object(client.logger, 'logging') as mock_client_logger:
-            player_ids = client.get_existing_player_ids()
+        with patch.object(client.logger, "logging") as mock_client_logger:
+            data = client.fetch("query { players { idEspn } }")
 
-            assert player_ids == set()
+            assert data is None
             mock_client_logger.error.assert_called_with(
-                "Failed to query existing players: Network error"
+                "Failed to query GraphQL: Network error"
             )
 
 
@@ -487,7 +461,7 @@ class TestGraphQLClientIntegration:
 
     @pytest.mark.integration
     def test_real_player_query(self, hasura_config_path):
-        """Integration test that attempts to query real player data"""
+        """Integration test that attempts a real GraphQL query"""
         client = GraphQLClient(config_path=hasura_config_path)
 
         # Initialize client
@@ -498,16 +472,28 @@ class TestGraphQLClientIntegration:
         if not success:
             pytest.skip(f"Hasura connection failed: {error}")
 
-        # Mark as available and try to query players
+        # Mark as available and try a minimal query
         client.is_available = True
-        player_ids = client.get_existing_player_ids()
+        data = client.fetch(
+            """
+            query IntrospectionQuery {
+                __schema {
+                    types {
+                        name
+                    }
+                }
+            }
+            """
+        )
 
-        print(f"Found {len(player_ids)} existing players in Hasura")
-        if player_ids:
-            print(f"Sample player IDs: {list(player_ids)[:5]}")
+        if data and "__schema" in data:
+            types = data["__schema"]["types"]
+            print(f"Found {len(types)} types in schema")
+        else:
+            print("No schema data returned from GraphQL execute call")
 
-        # Test should pass regardless of whether players exist
-        assert isinstance(player_ids, set)
+        # Test should pass regardless of whether schema data is returned
+        assert data is None or "__schema" in data
 
     @pytest.mark.integration
     def test_full_initialization_flow(self, hasura_config_path):

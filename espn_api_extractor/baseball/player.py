@@ -6,18 +6,18 @@ from espn_api_extractor.utils.utils import json_parsing, safe_get_nested
 
 from .constants import LINEUP_SLOT_MAP, NOMINAL_POSITION_MAP, PRO_TEAM_MAP, STATS_MAP
 
+STAT_FIELD_ORDER = [
+    "projections",
+    "current_season_stats",
+    "last_7_games",
+    "last_15_games",
+    "last_30_games",
+    "previous_season_stats",
+]
+
 
 class Player(object):
     """Player are part of team"""
-
-    STAT_FIELD_ORDER = [
-        "projections",
-        "current_season_stats",
-        "previous_season_stats",
-        "last_7_games",
-        "last_15_games",
-        "last_30_games",
-    ]
 
     def __init__(self, data, current_season: int | None = None):
         self.id: int | None = json_parsing(data, "id")
@@ -27,9 +27,12 @@ class Player(object):
 
         # Handle potential None/empty results from json_parsing
         position_id = json_parsing(data, "defaultPositionId")
-        self.primary_position = (
-            NOMINAL_POSITION_MAP.get(position_id) if position_id is not None else None
-        )
+        if position_id is None:
+            self.primary_position = "BN"
+        elif isinstance(position_id, str):
+            self.primary_position = position_id
+        else:
+            self.primary_position = NOMINAL_POSITION_MAP.get(position_id, "BN")
 
         eligible_slots = json_parsing(data, "eligibleSlots")
         self.eligible_slots = [
@@ -166,8 +169,10 @@ class Player(object):
                     }
                     self.stats["projections"].update(mapped_projected)
 
-        self._add_pitching_rate_stats()
         self._reorder_stats()
+
+        if isinstance(self.primary_position, str) and "P" in self.primary_position:
+            self._add_pitching_rate_stats()
 
     def __repr__(self) -> str:
         return "Player(%s)" % (self.name,)
@@ -256,7 +261,7 @@ class Player(object):
             player.stats = player_model.stats
 
         # Handle stat fields stored directly in PlayerModel
-        for field in cls.STAT_FIELD_ORDER:
+        for field in STAT_FIELD_ORDER:
             value = getattr(player_model, field, None)
             if value:
                 # Remove _stats suffix to get the stats key
@@ -438,7 +443,7 @@ class Player(object):
                 ordered[key] = self.stats[key]
                 seen.add(key)
 
-        for field in self.STAT_FIELD_ORDER:
+        for field in STAT_FIELD_ORDER:
             stats_key = field.replace("_stats", "")
             if stats_key == "previous_season":
                 for key in self.stats:

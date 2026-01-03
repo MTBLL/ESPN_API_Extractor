@@ -16,7 +16,7 @@ def create_player_parser(subparsers):
         "--year", type=int, default=2025, help="League year (default: 2025)"
     )
     player_parser.add_argument(
-        "--league_id",
+        "--league-id",
         type=int,
         default=10998,
         help="ESPN Fantasy League ID (optional, defaults to None for all players)",
@@ -28,35 +28,35 @@ def create_player_parser(subparsers):
         help="Number of threads to use for player hydration (default: 4x CPU cores)",
     )
     player_parser.add_argument(
-        "--batch_size",
+        "--batch-size",
         type=int,
         default=100,
         help="Number of players to process in each batch for progress tracking (default: 100)",
     )
     player_parser.add_argument(
-        "--as_models",
+        "--as-models",
         action="store_true",
         help="Return Pydantic models instead of Player objects (default: False)",
     )
     player_parser.add_argument(
-        "--output_dir",
+        "--output-dir",
         type=str,
         required=True,  # Make required at CLI level
         help="Directory path to write JSON output",
     )
     player_parser.add_argument(
-        "--force_full_extraction",
+        "--force-full-extraction",
         action="store_true",
         help="Force full ESPN extraction, bypassing GraphQL optimization (default: False)",
     )
     player_parser.add_argument(
-        "--graphql_config",
+        "--graphql-config",
         type=str,
         default="hasura_config.json",
         help="Path to GraphQL configuration file (default: hasura_config.json)",
     )
     player_parser.add_argument(
-        "--sample_size",
+        "--sample-size",
         type=int,
         help="Optional maximum number of players to process",
     )
@@ -92,7 +92,7 @@ def create_league_parser(subparsers):
         help="ESPN SWID cookie for private league access",
     )
     league_parser.add_argument(
-        "--output_dir",
+        "--output-dir",
         type=str,
         required=True,
         help="Directory path to write JSON output",

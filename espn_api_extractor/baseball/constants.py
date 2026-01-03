@@ -37,7 +37,7 @@ NOMINAL_POSITION_MAP = {
     9: "RF",
     10: "DH",
     11: "RP",
-    # reverse TODO
+    12: "BN",  # informal allocation
 }
 
 PRO_TEAM_MAP = {

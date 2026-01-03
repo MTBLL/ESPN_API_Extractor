@@ -263,7 +263,6 @@ class TestCoreRequests:
         core_requests._hydrate_player_with_bio = mock.MagicMock(
             return_value=(player, True)
         )
-        core_requests._hydrate_player_with_stats = mock.MagicMock()
 
         # Call _hydrate_player_worker with include_stats=False
         result_player, success = core_requests._hydrate_player_worker(
@@ -277,39 +276,24 @@ class TestCoreRequests:
         # Verify _hydrate_player_with_bio was called
         core_requests._hydrate_player_with_bio.assert_called_once_with(player)
 
-        # Verify _hydrate_player_with_stats was NOT called
-        core_requests._hydrate_player_with_stats.assert_not_called()
-
-    def test_hydrate_player_worker_bio_and_stats_success(self, core_requests):
-        """Test _hydrate_player_worker with include_stats=True (both bio and stats)"""
-        # Create a player with valid ID
+    def test_hydrate_player_worker_ignores_include_stats(self, core_requests):
+        """Test _hydrate_player_worker ignores include_stats flag"""
         player = Player({"id": 123, "fullName": "Test Player"})
         hydrated_player = Player(
             {"id": 123, "fullName": "Test Player", "display_name": "Test Player"}
         )
 
-        # Mock both methods to return success
         core_requests._hydrate_player_with_bio = mock.MagicMock(
             return_value=(hydrated_player, True)
         )
-        core_requests._hydrate_player_with_stats = mock.MagicMock(
-            return_value=(hydrated_player, True)
-        )
 
-        # Call _hydrate_player_worker with include_stats=True
         result_player, success = core_requests._hydrate_player_worker(
             player, include_stats=True
         )
 
-        # Verify results
         assert result_player is hydrated_player
         assert success is True
-
-        # Verify both methods were called in correct order
         core_requests._hydrate_player_with_bio.assert_called_once_with(player)
-        core_requests._hydrate_player_with_stats.assert_called_once_with(
-            hydrated_player
-        )
 
     def test_hydrate_player_worker_bio_fails(self, core_requests):
         """Test _hydrate_player_worker when bio hydration fails"""
@@ -320,8 +304,6 @@ class TestCoreRequests:
         core_requests._hydrate_player_with_bio = mock.MagicMock(
             return_value=(player, False)
         )
-        core_requests._hydrate_player_with_stats = mock.MagicMock()
-
         # Call _hydrate_player_worker with include_stats=True
         result_player, success = core_requests._hydrate_player_worker(
             player, include_stats=True
@@ -333,46 +315,6 @@ class TestCoreRequests:
 
         # Verify _hydrate_player_with_bio was called
         core_requests._hydrate_player_with_bio.assert_called_once_with(player)
-
-        # Verify _hydrate_player_with_stats was NOT called (since bio failed)
-        core_requests._hydrate_player_with_stats.assert_not_called()
-
-    def test_hydrate_player_worker_bio_succeeds_stats_fails(self, core_requests):
-        """Test _hydrate_player_worker when bio succeeds but stats fails
-
-        Note: Stats hydration is best-effort. Even if stats fail, the player
-        is still considered successfully hydrated (for prospects/injured players
-        who have projections but no season stats).
-        """
-        # Create a player with valid ID
-        player = Player({"id": 123, "fullName": "Test Player"})
-        hydrated_player = Player(
-            {"id": 123, "fullName": "Test Player", "display_name": "Test Player"}
-        )
-
-        # Mock bio to succeed, stats to fail
-        core_requests._hydrate_player_with_bio = mock.MagicMock(
-            return_value=(hydrated_player, True)
-        )
-        core_requests._hydrate_player_with_stats = mock.MagicMock(
-            return_value=(hydrated_player, False)
-        )
-
-        # Call _hydrate_player_worker with include_stats=True
-        result_player, success = core_requests._hydrate_player_worker(
-            player, include_stats=True
-        )
-
-        # Verify results - should return the hydrated player with success=True
-        # because bio succeeded (stats are best-effort)
-        assert result_player is hydrated_player
-        assert success is True
-
-        # Verify both methods were called
-        core_requests._hydrate_player_with_bio.assert_called_once_with(player)
-        core_requests._hydrate_player_with_stats.assert_called_once_with(
-            hydrated_player
-        )
 
     def test_hydrate_players_with_include_stats_false(self, core_requests):
         """Test hydrate_players method with include_stats=False"""

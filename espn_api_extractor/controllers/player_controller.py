@@ -2,6 +2,7 @@ from typing import Any, Dict, List
 
 from espn_api_extractor.baseball.player import Player
 from espn_api_extractor.handlers.full_hydration_handler import FullHydrationHandler
+from espn_api_extractor.handlers.graphql_handler import GraphQLHandler
 from espn_api_extractor.handlers.player_extract_handler import PlayerExtractHandler
 from espn_api_extractor.handlers.update_player_handler import UpdatePlayerHandler
 from espn_api_extractor.utils.logger import Logger
@@ -23,8 +24,14 @@ class PlayerController:
         self.threads = args.threads
         self.batch_size = args.batch_size
         self.sample_size = args.sample_size
+        self.force_full_extraction = getattr(args, "force_full_extraction", False)
+        self.graphql_config = getattr(args, "graphql_config", "hasura_config.json")
         self.logger = Logger("PlayerController").logging
 
+        self.graphql_handler = GraphQLHandler(
+            config_path=self.graphql_config,
+            force_full_extraction=self.force_full_extraction,
+        )
         self.extract_handler = PlayerExtractHandler(
             league_id=self.league_id, year=self.year
         )
@@ -41,12 +48,9 @@ class PlayerController:
             batch_size=self.batch_size,
         )
 
-    async def execute(self, existing_players: List[Player]) -> Dict[str, Any]:
+    async def execute(self) -> Dict[str, Any]:
         """
         Execute strategic player data extraction.
-
-        Args:
-            existing_players: List of Player objects currently in Hasura
 
         Returns:
             {
@@ -54,6 +58,14 @@ class PlayerController:
                 "failures": List[str]     # Descriptive failure messages
             }
         """
+        self.logger.info("Fetching existing players from GraphQL (optimization)")
+        player_models = self.graphql_handler.get_existing_players()
+        existing_players = [
+            Player.from_model(model, current_season=self.year)
+            for model in player_models
+        ]
+        self.logger.info(f"Found {len(existing_players)} existing players")
+
         existing_player_ids = {player.id for player in existing_players}
 
         self.logger.info(
@@ -173,7 +185,12 @@ class PlayerController:
         except Exception as e:
             error_msg = f"Critical failure in player extraction: {str(e)}"
             self.logger.error(error_msg)
-            return {"players": [], "pitchers": [], "batters": [], "failures": [error_msg]}
+            return {
+                "players": [],
+                "pitchers": [],
+                "batters": [],
+                "failures": [error_msg],
+            }
 
     def _split_players_by_role(
         self, players: List[Player]
