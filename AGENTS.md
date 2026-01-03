@@ -116,7 +116,7 @@ This branch successfully corrected the data flow and control hierarchy for the E
 
 #### 3. Runner Responsibilities ✅
 - [x] **Hasura Connection Management** ✅
-  - [x] Initialize GraphQL client with config (`utils/graphql_client.py`)
+  - [x] Initialize GraphQL client with config (`requests/graphql_requests.py`)
   - [x] Test connection and HITL fallback handling
   - [x] Maintain connection throughout extraction process
 
@@ -203,7 +203,7 @@ This branch successfully corrected the data flow and control hierarchy for the E
 
 #### 10. Configuration Management ✅
 - [x] **GraphQL Configuration** ✅
-  - [x] GraphQL client with HITL validation (`utils/graphql_client.py`)
+  - [x] GraphQL client with HITL validation (`requests/graphql_requests.py`)
   - [x] Configuration file support (`hasura_config.json`)
   - [x] Document GraphQL endpoint requirements
 
