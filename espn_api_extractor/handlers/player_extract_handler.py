@@ -56,6 +56,7 @@ class PlayerExtractHandler:
     def apply_pitcher_transforms(self, player: Player, data: Dict[str, Any]) -> None:
         if self.is_two_way_player(player):
             self._override_pitcher_positions(data)
+        self._ensure_ip_conversion(data)
 
     def _normalize_eligible_slots(self, player: Player) -> List[str]:
         slots = getattr(player, "eligible_slots", None)
@@ -67,3 +68,27 @@ class PlayerExtractHandler:
         data["primary_position"] = "SP"
         data["pos"] = "SP"
         data["position_name"] = "Starting Pitcher"
+
+    def _ensure_ip_conversion(self, data: Dict[str, Any]) -> None:
+        """
+        Ensure IP (Innings Pitched) is calculated from OUTS for all stat periods.
+        This handles cases where IP wasn't added during Player initialization.
+        """
+        stats = data.get("stats", {})
+        if not isinstance(stats, dict):
+            return
+
+        for stat_dict in stats.values():
+            if not isinstance(stat_dict, dict):
+                continue
+
+            outs = stat_dict.get("OUTS")
+            if not isinstance(outs, (int, float)):
+                continue
+
+            # Only add IP if it doesn't already exist
+            if "IP" not in stat_dict:
+                outs_int = int(outs)
+                innings = outs_int // 3
+                remainder = outs_int % 3
+                stat_dict["IP"] = innings + remainder / 10
