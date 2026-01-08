@@ -29,7 +29,6 @@ class PlayerModel(BaseModel):
     # Display information
     display_name: Optional[str] = Field(None, alias="displayName")
     short_name: Optional[str] = Field(None, alias="shortName")
-    nickname: Optional[str] = None
     slug: Optional[str] = None
 
     # Position information

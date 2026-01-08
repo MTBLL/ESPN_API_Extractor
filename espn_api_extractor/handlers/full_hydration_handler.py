@@ -38,7 +38,7 @@ class FullHydrationHandler:
         )
 
     async def execute(
-        self, player_ids: Set[int], pro_players_data: Optional[List[Dict]] = None
+        self, player_ids: Set[int], pro_players_data: List[Dict]
     ) -> List[Player]:
         """
         Execute complete hydration for new players.
@@ -51,27 +51,6 @@ class FullHydrationHandler:
             List[Player]: Fully hydrated player objects
         """
         self.logger.logging.info(f"Fully hydrating {len(player_ids)} new players")
-
-        # Step 1: Create Player objects from player card data
-        if pro_players_data is None:
-            self.logger.logging.info("Fetching player cards from ESPN")
-            pro_players_data = []
-            kona_batch_size = 100
-            player_ids_list = list(player_ids)
-            for i in range(0, len(player_ids_list), kona_batch_size):
-                batch = player_ids_list[i : i + kona_batch_size]
-                self.logger.logging.info(
-                    f"Fetching kona_playercard batch {i // kona_batch_size + 1}/{(len(player_ids_list) + kona_batch_size - 1) // kona_batch_size} "
-                    f"({len(batch)} players)"
-                )
-                try:
-                    kona_data = self.fantasy_requests.get_player_cards(batch)
-                    if kona_data and "players" in kona_data:
-                        pro_players_data.extend(kona_data["players"])
-                except Exception as e:
-                    self.logger.logging.warning(
-                        f"Failed to fetch kona_playercard batch starting at index {i}: {e}"
-                    )
 
         # Filter to only the players we need to hydrate
         players_to_hydrate = []

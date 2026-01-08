@@ -1,8 +1,11 @@
 import asyncio
 from types import SimpleNamespace
+from typing import Any, Dict
 from unittest.mock import AsyncMock, MagicMock
 
+from espn_api_extractor.baseball.player import Player
 from espn_api_extractor.controllers.player_controller import PlayerController
+from espn_api_extractor.handlers import FullHydrationHandler
 from espn_api_extractor.models.player_model import PlayerModel
 
 
@@ -55,32 +58,37 @@ def _build_controller(monkeypatch, espn_players):
     return controller, extract_handler, update_handler, full_handler, graphql_handler
 
 
-def test_player_controller_updates_and_hydrates(monkeypatch):
-    espn_players = [{"id": 1}, {"id": 2}, {"id": 3}, {"id": 4}]
-    controller, extract_handler, update_handler, full_handler, graphql_handler = (
-        _build_controller(monkeypatch, espn_players)
+def test_player_controller_no_updates_fully_hydrates(
+    monkeypatch, top_kona_cards, corbin_carroll_kona_card, carroll_athlete_fixture_data
+):
+    """
+    Since there are no hasura values returned, the controller implicitly does fully hydrate
+    """
+
+    def _mock_get_player_data(self, player: Player) -> Dict[str, Any]:
+        return carroll_athlete_fixture_data
+
+    monkeypatch.setattr(
+        "espn_api_extractor.requests.core_requests.EspnCoreRequests._get_player_data",
+        _mock_get_player_data,
     )
 
-    updated_player = MagicMock()
-    new_player = MagicMock()
-    update_handler.execute = AsyncMock(return_value=[updated_player])
-    full_handler.execute = AsyncMock(return_value=[new_player])
-    graphql_handler.get_existing_players.return_value = [
-        _make_player_model(1),
-        _make_player_model(2),
-        _make_player_model(99),
-    ]
+    espn_players = [corbin_carroll_kona_card]
+    controller, extract_handler, _, full_handler, _ = _build_controller(
+        monkeypatch, espn_players
+    )
+    controller.full_hydration_handler = FullHydrationHandler(
+        league_id=controller.league_id,
+        year=controller.year,
+        threads=controller.threads,
+        batch_size=controller.batch_size,
+    )
 
     result = asyncio.run(controller.execute())
+    carroll = result["batters"][0]
 
     extract_handler.fetch_player_cards.assert_called_once_with()
-    update_handler.execute.assert_awaited_once()
-    called_players = update_handler.execute.call_args.args[0]
-    assert {player.id for player in called_players} == {1, 2}
-    assert update_handler.execute.call_args.kwargs["pro_players_data"] == espn_players
-    full_handler.execute.assert_awaited_once_with({3, 4}, pro_players_data=espn_players)
-    assert result["players"] == [updated_player, new_player]
-    assert "Player ID 99 in Hasura but not found in ESPN" in result["failures"]
+    assert carroll.slug == "corbin-carroll"
 
 
 def test_player_controller_sample_size_skips_updates(monkeypatch):

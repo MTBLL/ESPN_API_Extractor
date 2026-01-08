@@ -47,6 +47,12 @@ def josh_hader_kona_card(kona_playercard_fixture_data):
 
 
 @pytest.fixture
+def top_kona_cards(kona_playercard_fixture_data):
+    # parse out the json object for top kona cards
+    return kona_playercard_fixture_data.get("players")[0:10]
+
+
+@pytest.fixture
 def corbin_carroll_season(corbin_carroll_kona_card):
     stats = corbin_carroll_kona_card.get("player", {}).get("stats", [])
     season_ids = [
@@ -58,7 +64,7 @@ def corbin_carroll_season(corbin_carroll_kona_card):
 
 
 @pytest.fixture
-def athlete_fixture_data():
+def carroll_athlete_fixture_data():
     """Load the kona_playercard fixture"""
     with open("tests/fixtures/athlete_response_fixture.json", "r") as f:
         return json.load(f)

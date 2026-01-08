@@ -68,7 +68,7 @@ def test_player_missing_data(corbin_carroll_season):
 
 
 def test_player_hydration(
-    corbin_carroll_kona_card, corbin_carroll_season, athlete_fixture_data
+    corbin_carroll_kona_card, corbin_carroll_season, carroll_athlete_fixture_data
 ):
     """
     Test the Player hydration with additional details data.
@@ -82,7 +82,7 @@ def test_player_hydration(
     assert player.date_of_birth is None
 
     # Hydrate the player
-    player.hydrate_bio(athlete_fixture_data)
+    player.hydrate_bio(carroll_athlete_fixture_data)
 
     # Verify basic attributes are now set
     assert player.display_name == "Corbin Carroll"
@@ -124,14 +124,14 @@ def test_player_hydration(
 
 
 def test_player_model_conversion(
-    corbin_carroll_kona_card, corbin_carroll_season, athlete_fixture_data
+    corbin_carroll_kona_card, corbin_carroll_season, carroll_athlete_fixture_data
 ):
     """
     Test converting between Player and PlayerModel instances.
     """
     # Initialize and hydrate a player
     player = Player(corbin_carroll_kona_card, corbin_carroll_season)
-    player.hydrate_bio(athlete_fixture_data)
+    player.hydrate_bio(carroll_athlete_fixture_data)
 
     # Add some stats for testing (using semantic keys as expected by PlayerModel)
     player.stats = {
@@ -215,7 +215,6 @@ def test_player_from_model_with_hasura_fixture(hasura_fixture_data):
         # Display information
         assert isinstance(player_model.display_name, (str, type(None)))
         assert isinstance(player_model.short_name, (str, type(None)))
-        assert isinstance(player_model.nickname, (str, type(None)))
         assert isinstance(player_model.slug, (str, type(None)))
 
         # Position information

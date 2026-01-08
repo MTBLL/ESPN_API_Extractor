@@ -73,24 +73,18 @@ class PlayerController:
         )
 
         failures = []
-        all_players = []
+        all_players: List[Player] = []
 
         try:
             # 1. Get all current ESPN players (single API call)
             self.logger.info("Fetching all current ESPN players")
             espn_player_cards = self.extract_handler.fetch_player_cards()
             espn_player_id_list = [
-                player.get("id") or player.get("player", {}).get("id")
+                player.get("id")
                 for player in espn_player_cards
-                if isinstance(player, dict)
-            ]
-            espn_player_id_list = [
-                player_id for player_id in espn_player_id_list if player_id is not None
+                if isinstance(player, dict) and player.get("id") is not None
             ]
             espn_player_ids = set(espn_player_id_list)
-            pro_players_data = [
-                player for player in espn_player_cards if isinstance(player, dict)
-            ]
 
             self.logger.info(f"Found {len(espn_player_ids)} current ESPN players")
 
@@ -142,7 +136,7 @@ class PlayerController:
                 ]
                 try:
                     updated_players = await self.update_handler.execute(
-                        players_to_update, pro_players_data=pro_players_data
+                        players_to_update, pro_players_data=espn_player_cards
                     )
                     all_players.extend(updated_players)
                     self.logger.info(
@@ -157,8 +151,10 @@ class PlayerController:
             if new_player_ids:
                 self.logger.info("Processing new player hydration")
                 try:
-                    new_players = await self.full_hydration_handler.execute(
-                        new_player_ids, pro_players_data=pro_players_data
+                    new_players: List[
+                        Player
+                    ] = await self.full_hydration_handler.execute(
+                        new_player_ids, pro_players_data=espn_player_cards
                     )
                     all_players.extend(new_players)
                     self.logger.info(
