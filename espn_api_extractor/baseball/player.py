@@ -237,7 +237,7 @@ class Player(object):
             "transactions",
             "display_name",
             "short_name",
-            "nickname",
+            "slug",
             "weight",
             "height",
             "date_of_birth",
@@ -282,7 +282,6 @@ class Player(object):
         # Basic display information
         self.display_name = data.get("displayName", "")
         self.short_name = data.get("shortName", "")
-        self.nickname = data.get("nickname", "")
         self.slug = data.get("slug", "")
 
         # Physical attributes

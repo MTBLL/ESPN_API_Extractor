@@ -54,7 +54,6 @@ class GraphQLHandler:
             name
             nameAscii
             nameNonascii
-            nickname
             primaryPosition
             proTeam
             shortName
