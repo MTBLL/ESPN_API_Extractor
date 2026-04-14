@@ -1,3 +1,4 @@
+import traceback
 from typing import Any, Dict, Optional
 
 from espn_api_extractor.handlers.league_handler import LeagueHandler
@@ -27,6 +28,7 @@ class LeagueController:
             league_data: Optional[dict] = self.league_handler.fetch()
             return {"league": league_data, "failures": []}
         except Exception as e:
-            error_msg = f"League extraction failed: {str(e)}"
+            error_msg = f"League extraction failed: {type(e).__name__}: {e!r}"
             self.logger.error(error_msg)
+            self.logger.error(traceback.format_exc())
             return {"league": None, "failures": [error_msg]}

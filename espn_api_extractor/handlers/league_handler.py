@@ -76,7 +76,8 @@ class LeagueHandler:
 
     def _filter_acquisition_settings(self, settings: dict) -> dict:
         acquisition_settings = settings.get("acquisitionSettings")
-        assert isinstance(acquisition_settings, dict)
+        if not isinstance(acquisition_settings, dict):
+            return settings
 
         updated = dict(settings)
         updated["acquisitionSettings"] = {
@@ -88,7 +89,8 @@ class LeagueHandler:
 
     def _filter_scoring_settings(self, settings: dict) -> dict:
         scoring_settings = settings.get("scoringSettings")
-        assert isinstance(scoring_settings, dict)
+        if not isinstance(scoring_settings, dict):
+            return settings
 
         scoring_settings = dict(scoring_settings)
         scoring_items = scoring_settings.pop("scoringItems", None)
@@ -118,7 +120,8 @@ class LeagueHandler:
 
     def _filter_status(self, data: dict) -> dict:
         status = data.get("status")
-        assert isinstance(status, dict)
+        if not isinstance(status, dict):
+            return data
 
         updated = dict(data)
         updated_status = dict(status)
@@ -195,7 +198,8 @@ class LeagueHandler:
         }
 
     def _format_record(self, cumulative_score: Optional[dict]) -> str:
-        assert isinstance(cumulative_score, dict)
+        if not isinstance(cumulative_score, dict):
+            return "0-0-0"
         wins = cumulative_score.get("wins", 0)
         losses = cumulative_score.get("losses", 0)
         ties = cumulative_score.get("ties", 0)

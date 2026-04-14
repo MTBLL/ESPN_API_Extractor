@@ -71,5 +71,8 @@ def test_league_controller_execute_failure(monkeypatch):
     logger.info.assert_called_once_with(
         "Fetching league data for league 10998 year 2025"
     )
-    logger.error.assert_called_once_with("League extraction failed: boom")
-    assert result == {"league": None, "failures": ["League extraction failed: boom"]}
+    expected_msg = "League extraction failed: RuntimeError: RuntimeError('boom')"
+    assert logger.error.call_count == 2
+    assert logger.error.call_args_list[0].args == (expected_msg,)
+    assert "Traceback" in logger.error.call_args_list[1].args[0]
+    assert result == {"league": None, "failures": [expected_msg]}

@@ -28,12 +28,14 @@ class LeagueExtractRunner:
             league_data = results["league"]
             failures = results["failures"]
 
-            if league_data is not None:
-                self._save_extraction_results(league_data, failures)
+            if league_data is None:
+                detail = "; ".join(failures) if failures else "unknown error"
+                raise RuntimeError(f"League extraction produced no data: {detail}")
 
+            self._save_extraction_results(league_data, failures)
             return league_data
         except Exception as e:
-            self.logger.error(f"League extraction failed: {e}")
+            self.logger.error(f"League extraction failed: {type(e).__name__}: {e!r}")
             raise
 
     def _save_extraction_results(
