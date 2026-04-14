@@ -36,7 +36,7 @@ def test_league_extract_runner_saves_when_data_present(monkeypatch, tmp_path):
     assert result == league_data
 
 
-def test_league_extract_runner_skips_save_when_no_data(monkeypatch, tmp_path):
+def test_league_extract_runner_raises_when_no_data(monkeypatch, tmp_path):
     args = SimpleNamespace(
         league_id=10998,
         year=2025,
@@ -54,11 +54,11 @@ def test_league_extract_runner_skips_save_when_no_data(monkeypatch, tmp_path):
     runner = LeagueExtractRunner(args)
     monkeypatch.setattr(runner, "_save_extraction_results", MagicMock())
 
-    result = asyncio.run(runner.run())
+    with pytest.raises(RuntimeError, match="League extraction produced no data: no"):
+        asyncio.run(runner.run())
 
     controller.execute.assert_awaited_once_with()
     runner._save_extraction_results.assert_not_called()
-    assert result is None
 
 
 def test_league_extract_runner_save_results_writes_files(tmp_path):
