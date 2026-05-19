@@ -6,7 +6,14 @@ from threading import Lock
 
 import requests
 from requests.cookies import RequestsCookieJar
-from tqdm import tqdm
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 from typing_extensions import Any, Dict, List, Optional, Tuple
 
 from espn_api_extractor.baseball.player import Player
@@ -300,26 +307,33 @@ class EspnCoreRequests:
                 f"Starting multi-threaded hydration of {total_players} players with {self.max_workers} workers"
             )
 
-        # Create an overall progress bar
-        with tqdm(
-            total=total_players, desc="Total progress", unit="player", position=0
-        ) as overall_progress:
-            # Process players in batches to provide progress feedback
+        total_batches = (total_players + batch_size - 1) // batch_size
+        hydration_start = time.perf_counter()
+
+        with Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn(),
+            TimeRemainingColumn(),
+            transient=True,
+        ) as progress:
+            overall_task = progress.add_task(
+                "Total progress", total=total_players
+            )
+
             for i in range(0, total_players, batch_size):
                 batch = players[i : i + batch_size]
                 batch_size_actual = len(batch)
+                batch_num = i // batch_size + 1
 
-                # Create progress bar for current batch (position=1 places it below the overall progress bar)
-                with tqdm(
+                batch_task = progress.add_task(
+                    f"Batch {batch_num}/{total_batches}",
                     total=batch_size_actual,
-                    desc=f"Batch {i // batch_size + 1}/{(total_players + batch_size - 1) // batch_size}",
-                    unit="player",
-                    position=1,
-                    leave=False,
-                ) as batch_progress:
-                    # Use thread pool to process players in parallel
+                )
+                try:
                     with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                        # Submit all player hydration tasks to thread pool
                         futures_to_players = {
                             executor.submit(
                                 self._hydrate_player_worker, player, include_stats
@@ -327,14 +341,11 @@ class EspnCoreRequests:
                             for player in batch
                         }
 
-                        # Process results as they complete
                         for future in as_completed(futures_to_players):
                             player = futures_to_players[future]
                             try:
-                                # Get result from the future
                                 hydrated_player, success = future.result()
 
-                                # Update collections based on success
                                 if success:
                                     hydrated_players.append(hydrated_player)
                                 else:
@@ -345,21 +356,22 @@ class EspnCoreRequests:
                                             f"{player.display_name if hasattr(player, 'display_name') else 'Unknown'}"
                                         )
                             except Exception as exc:
-                                # Handle any uncaught exceptions from the thread
                                 with self.logger_lock:
                                     self.logger.logging.error(
                                         f"Player {player.id} generated an exception: {exc}"
                                     )
                                 failed_players.append(player)
 
-                            # Update both progress bars
-                            batch_progress.update(1)
-                            overall_progress.update(1)
+                            progress.advance(batch_task)
+                            progress.advance(overall_task)
+                finally:
+                    progress.remove_task(batch_task)
 
-        # Log summary of hydration results
+        hydration_elapsed = time.perf_counter() - hydration_start
+
         with self.logger_lock:
             self.logger.logging.info(
-                f"Successfully hydrated {len(hydrated_players)} players"
+                f"Successfully hydrated {len(hydrated_players)} players in {hydration_elapsed:.1f}s"
             )
             if failed_players:
                 self.logger.logging.warning(
