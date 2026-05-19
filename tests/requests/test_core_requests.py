@@ -152,19 +152,29 @@ class TestCoreRequests:
         mock_response.status_code = 404
         mock_get.return_value = mock_response
 
-        # Test _get_player_data method
-        result = core_requests._get_player_data(player_id=12345)
+        # Build a Player so the 404 record can capture name/team
+        player = Player(
+            data={"id": 12345, "fullName": "Test Player", "proTeamId": 0},
+            current_season=2025,
+        )
 
-        # Verify request was made correctly
+        # Test _get_player_data method
+        result = core_requests._get_player_data(player_id=12345, player=player)
+
+        # Verify request was made exactly once (no retries on 404)
         mock_get.assert_called_once()
 
         # Verify result is None (indicating failure)
         assert result is None
 
-        # Verify log messages were called correctly
-        core_requests.logger.logging.warning.assert_any_call(
-            "Player ID 12345 not found (404) - skipping retries"
-        )
+        # 404s are now recorded silently to not_found_players instead of
+        # logging inline (which would interrupt the rich progress bar).
+        assert len(core_requests.not_found_players) == 1
+        entry = core_requests.not_found_players[0]
+        assert entry["id"] == 12345
+        assert entry["name"] == "Test Player"
+        assert entry["kind"] == "bio"
+        core_requests.logger.logging.warning.assert_not_called()
 
     @mock.patch("requests.get")
     def test_get_player_data_retry_non_404(self, mock_get, core_requests):
@@ -219,6 +229,52 @@ class TestCoreRequests:
         core_requests.logger.logging.error.assert_called_once_with(
             "Failed to fetch player 12345 after 3 attempts"
         )
+
+    @mock.patch("requests.get")
+    def test_fetch_player_stats_retry_non_404(self, mock_get, core_requests):
+        """_fetch_player_stats should retry on non-404 errors and log via
+        _check_request_status (covers the non-404 branch added in the
+        aggregate-404-logging refactor)."""
+        mock_response1 = mock.MagicMock()
+        mock_response1.status_code = 500  # Retryable server error
+
+        mock_response2 = mock.MagicMock()
+        mock_response2.status_code = 200
+        mock_response2.json.return_value = {"stats": "data_after_retry"}
+
+        mock_get.side_effect = [mock_response1, mock_response2]
+
+        with mock.patch("time.sleep"):
+            result = core_requests._fetch_player_stats(player_id=12345)
+
+        assert mock_get.call_count == 2
+        assert result == {"stats": "data_after_retry"}
+        # _check_request_status logs "Internal server error" for 500.
+        core_requests.logger.logging.warning.assert_any_call("Internal server error")
+        # 404 store should remain empty for non-404 paths.
+        assert core_requests.not_found_players == []
+
+    @mock.patch("requests.get")
+    def test_fetch_player_stats_404(self, mock_get, core_requests):
+        """_fetch_player_stats records 404 hits silently to not_found_players."""
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 404
+        mock_get.return_value = mock_response
+
+        player = Player(
+            data={"id": 12345, "fullName": "Test Player", "proTeamId": 0},
+            current_season=2025,
+        )
+
+        result = core_requests._fetch_player_stats(player_id=12345, player=player)
+
+        mock_get.assert_called_once()
+        assert result is None
+        assert len(core_requests.not_found_players) == 1
+        entry = core_requests.not_found_players[0]
+        assert entry["id"] == 12345
+        assert entry["kind"] == "stats"
+        core_requests.logger.logging.warning.assert_not_called()
 
     def test_hydrate_player_with_bio_without_id(self, core_requests):
         """Test _hydrate_player_with_bio with a player missing ID"""

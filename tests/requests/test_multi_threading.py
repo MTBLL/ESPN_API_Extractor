@@ -72,8 +72,9 @@ class TestMultiThreading:
         assert result_player.bats == "Right"
         assert result_player.throws == "Right"
 
-        # Verify _get_player_data was called correctly
-        core_requests._get_player_data.assert_called_once_with(1)
+        # Verify _get_player_data was called correctly. _hydrate_player_with_bio
+        # passes the Player object so 404s can be recorded with name/team.
+        core_requests._get_player_data.assert_called_once_with(1, player=player)
 
     def test_hydrate_players_threading(self, mock_players, mock_logger, mock_response):
         """Test that hydrate_players uses multi-threading correctly"""
@@ -113,7 +114,7 @@ class TestMultiThreading:
         core_requests = EspnCoreRequests(sport="mlb", year=2025, max_workers=4)
 
         # Function to simulate API calls - returns None for player ID 5 (404 error)
-        def mock_get_player_data(player_id):
+        def mock_get_player_data(player_id, **kwargs):
             if player_id == 5:
                 return None
             return {
@@ -156,7 +157,7 @@ class TestMultiThreading:
         players = [Player({"id": i, "fullName": f"Player {i}"}) for i in range(1, 101)]
 
         # Function that simulates a slow API call (0.05 seconds per call)
-        def slow_get_player_data(player_id):
+        def slow_get_player_data(player_id, **kwargs):
             time.sleep(0.05)  # Simulate network delay
             return {
                 "id": str(player_id),

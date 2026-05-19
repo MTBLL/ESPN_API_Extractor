@@ -6,6 +6,8 @@ from threading import Lock
 
 import requests
 from requests.cookies import RequestsCookieJar
+from rich.console import Group
+from rich.live import Live
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
@@ -52,6 +54,12 @@ class EspnCoreRequests:
         )
         self.session.cookies = RequestsCookieJar()
 
+        # In-memory store of players that returned 404 during hydration.
+        # Populated by _get_player_data / _fetch_player_stats and reported
+        # in aggregate at the end of hydrate_players to avoid interrupting
+        # the rich progress bar with per-request 404 log lines.
+        self.not_found_players: List[Dict[str, Any]] = []
+
     def _check_request_status(
         self,
         status: int,
@@ -66,8 +74,9 @@ class EspnCoreRequests:
         # Use thread-safe logging
         with self.logger_lock:
             if status == 404:
-                pass
-                # self.logger.logging.warning(f"Endpoint not found: {extend}")
+                # 404s are tracked separately via not_found_players and
+                # reported in aggregate at the end of hydrate_players.
+                return
             elif status == 429:
                 self.logger.logging.warning("Rate limit exceeded")
             elif status == 500:
@@ -92,7 +101,11 @@ class EspnCoreRequests:
         return r.json()
 
     def _get_player_data(
-        self, player_id: int, params: dict = {}, max_retries: int = 3
+        self,
+        player_id: int,
+        params: dict = {},
+        max_retries: int = 3,
+        player: Optional[Player] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Get player data with retry mechanism.
@@ -100,6 +113,8 @@ class EspnCoreRequests:
         Thread-safe implementation.
 
         Note: 404 errors are not retried since they indicate the player ID doesn't exist.
+        When `player` is provided, 404 hits are recorded to ``self.not_found_players``
+        (instead of logged inline) so the rich progress bar isn't interrupted.
         """
         endpoint = self.sport_endpoint + f"/athletes/{player_id}"
         retries = 0
@@ -126,23 +141,24 @@ class EspnCoreRequests:
                                 response=r.json(),
                             )
                     return r.json()
-                else:
-                    # Log the error status using existing method
-                    self._check_request_status(
-                        r.status_code, extend=endpoint, params=params
-                    )
-                    with self.logger_lock:
-                        self.logger.logging.warning(
-                            f"Failed to fetch player {player_id} (attempt {retries + 1}/{max_retries}): HTTP {r.status_code}"
-                        )
 
-                    # Don't retry 404 errors - player ID doesn't exist
-                    if r.status_code == 404:
-                        with self.logger_lock:
-                            self.logger.logging.warning(
-                                f"Player ID {player_id} not found (404) - skipping retries"
-                            )
-                        return None
+                # Don't retry 404 errors - player ID doesn't exist.
+                # Record to in-memory store and skip inline logging so the
+                # progress bar isn't interrupted; reported at end of run.
+                if r.status_code == 404:
+                    self._record_not_found(
+                        player_id=player_id, player=player, kind="bio"
+                    )
+                    return None
+
+                # Log non-404 errors normally
+                self._check_request_status(
+                    r.status_code, extend=endpoint, params=params
+                )
+                with self.logger_lock:
+                    self.logger.logging.warning(
+                        f"Failed to fetch player {player_id} (attempt {retries + 1}/{max_retries}): HTTP {r.status_code}"
+                    )
 
             except Exception as e:
                 # Handle connection errors, timeouts, etc.
@@ -165,7 +181,11 @@ class EspnCoreRequests:
         return None
 
     def _fetch_player_stats(
-        self, player_id: int, params: dict = {}, max_retries: int = 3
+        self,
+        player_id: int,
+        params: dict = {},
+        max_retries: int = 3,
+        player: Optional[Player] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Get player statistics with retry mechanism.
@@ -173,6 +193,8 @@ class EspnCoreRequests:
         Thread-safe implementation.
 
         Note: 404 errors are not retried since they indicate the player ID doesn't exist.
+        When `player` is provided, 404 hits are recorded to ``self.not_found_players``
+        (instead of logged inline) so the rich progress bar isn't interrupted.
         """
         current_year = datetime.now().year
         season_type = STAT_SEASON_TYPE  # 2 for regular season
@@ -203,24 +225,18 @@ class EspnCoreRequests:
                                 response=r.json(),
                             )
                     return r.json()
-                else:
-                    # Log the error status using existing method
-                    self._check_request_status(
-                        r.status_code, extend=endpoint, params=params
-                    )
-                    with self.logger_lock:
-                        pass
-                        # self.logger.logging.warning(
-                        #     f"Failed to fetch statistics for player {player_id} (attempt {retries + 1}/{max_retries}): HTTP {r.status_code}"
-                        # )
 
-                    # Don't retry 404 errors - player ID doesn't exist
-                    if r.status_code == 404:
-                        with self.logger_lock:
-                            self.logger.logging.warning(
-                                f"Statistics for player ID {player_id} not found (404) - skipping retries"
-                            )
-                        return None
+                # 404: record silently, don't retry.
+                if r.status_code == 404:
+                    self._record_not_found(
+                        player_id=player_id, player=player, kind="stats"
+                    )
+                    return None
+
+                # Non-404: log via shared status handler and continue retrying.
+                self._check_request_status(
+                    r.status_code, extend=endpoint, params=params
+                )
 
             except Exception as e:
                 # Handle connection errors, timeouts, etc.
@@ -242,6 +258,26 @@ class EspnCoreRequests:
             )
         return None
 
+    def _record_not_found(
+        self, player_id: int, player: Optional[Player], kind: str
+    ) -> None:
+        """Record a 404 hit for later aggregated reporting.
+
+        Thread-safe; writes through ``logger_lock`` to keep the in-memory
+        list consistent across worker threads.
+        """
+        name = getattr(player, "name", None) if player is not None else None
+        team = getattr(player, "pro_team", None) if player is not None else None
+        with self.logger_lock:
+            self.not_found_players.append(
+                {
+                    "id": player_id,
+                    "name": name or "Unknown",
+                    "team": team or "Unknown",
+                    "kind": kind,
+                }
+            )
+
     def _hydrate_player_with_bio(self, player: Player) -> Tuple[Player, bool]:
         """
         Hydrate a player with biographical data from API.
@@ -250,7 +286,7 @@ class EspnCoreRequests:
         """
         assert player.id is not None, "Player ID is required"
 
-        data = self._get_player_data(player.id)
+        data = self._get_player_data(player.id, player=player)
         if data is None:
             return player, False
 
@@ -301,6 +337,10 @@ class EspnCoreRequests:
         failed_players: List[Player] = []
         total_players = len(players)
 
+        # Reset 404 store for this hydration cycle so the aggregated summary
+        # at the end reflects only the current run.
+        self.not_found_players = []
+
         # Log start of multi-threaded hydration
         with self.logger_lock:
             self.logger.logging.info(
@@ -310,16 +350,22 @@ class EspnCoreRequests:
         total_batches = (total_players + batch_size - 1) // batch_size
         hydration_start = time.perf_counter()
 
-        with Progress(
+        # Two separate Progress instances grouped in a Live render so batch
+        # progress stays above the overall total bar regardless of when each
+        # task was added.
+        progress_columns = (
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
             MofNCompleteColumn(),
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             TimeElapsedColumn(),
             TimeRemainingColumn(),
-            transient=True,
-        ) as progress:
-            overall_task = progress.add_task(
+        )
+        batch_progress = Progress(*progress_columns, transient=True)
+        overall_progress = Progress(*progress_columns, transient=True)
+
+        with Live(Group(batch_progress, overall_progress), refresh_per_second=10):
+            overall_task = overall_progress.add_task(
                 "Total progress", total=total_players
             )
 
@@ -328,7 +374,7 @@ class EspnCoreRequests:
                 batch_size_actual = len(batch)
                 batch_num = i // batch_size + 1
 
-                batch_task = progress.add_task(
+                batch_task = batch_progress.add_task(
                     f"Batch {batch_num}/{total_batches}",
                     total=batch_size_actual,
                 )
@@ -349,12 +395,10 @@ class EspnCoreRequests:
                                 if success:
                                     hydrated_players.append(hydrated_player)
                                 else:
+                                    # Per-player failure logs would interrupt the
+                                    # rich progress bar; the end-of-run summary
+                                    # below reports failures in aggregate.
                                     failed_players.append(hydrated_player)
-                                    with self.logger_lock:
-                                        self.logger.logging.warning(
-                                            f"Failed to hydrate player: {player.id} - "
-                                            f"{player.display_name if hasattr(player, 'display_name') else 'Unknown'}"
-                                        )
                             except Exception as exc:
                                 with self.logger_lock:
                                     self.logger.logging.error(
@@ -362,10 +406,10 @@ class EspnCoreRequests:
                                     )
                                 failed_players.append(player)
 
-                            progress.advance(batch_task)
-                            progress.advance(overall_task)
+                            batch_progress.advance(batch_task)
+                            overall_progress.advance(overall_task)
                 finally:
-                    progress.remove_task(batch_task)
+                    batch_progress.remove_task(batch_task)
 
         hydration_elapsed = time.perf_counter() - hydration_start
 
@@ -373,6 +417,19 @@ class EspnCoreRequests:
             self.logger.logging.info(
                 f"Successfully hydrated {len(hydrated_players)} players in {hydration_elapsed:.1f}s"
             )
+
+            # Aggregate report for 404s collected during this run. Printed
+            # after the progress bar exits so it doesn't get clobbered.
+            if self.not_found_players:
+                self.logger.logging.warning(
+                    f"Skipped {len(self.not_found_players)} player(s) returning 404:"
+                )
+                for entry in self.not_found_players:
+                    self.logger.logging.warning(
+                        f"  [404 {entry['kind']}] {entry['id']}, "
+                        f"{entry['name']}, {entry['team']}"
+                    )
+
             if failed_players:
                 self.logger.logging.warning(
                     f"Failed to hydrate {len(failed_players)} players"
@@ -382,11 +439,13 @@ class EspnCoreRequests:
                 ):  # Log first 10 failed players
                     player_name = (
                         player.display_name
-                        if hasattr(player, "display_name")
-                        else "Unknown"
+                        if hasattr(player, "display_name") and player.display_name
+                        else getattr(player, "name", None) or "Unknown"
                     )
+                    player_team = getattr(player, "pro_team", None) or "Unknown"
                     self.logger.logging.warning(
-                        f"  Failed player {i + 1}: ID={player.id}, Name={player_name}"
+                        f"  Failed player {i + 1}: {player.id}, "
+                        f"{player_name}, {player_team}"
                     )
                 if len(failed_players) > 10:
                     self.logger.logging.warning(
