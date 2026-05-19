@@ -426,8 +426,8 @@ class EspnCoreRequests:
                 )
                 for entry in self.not_found_players:
                     self.logger.logging.warning(
-                        f"  [404 {entry['kind']}] ID={entry['id']}, "
-                        f"Name={entry['name']}, Team={entry['team']}"
+                        f"  [404 {entry['kind']}] {entry['id']}, "
+                        f"{entry['name']}, {entry['team']}"
                     )
 
             if failed_players:
@@ -444,8 +444,8 @@ class EspnCoreRequests:
                     )
                     player_team = getattr(player, "pro_team", None) or "Unknown"
                     self.logger.logging.warning(
-                        f"  Failed player {i + 1}: ID={player.id}, "
-                        f"Name={player_name}, Team={player_team}"
+                        f"  Failed player {i + 1}: {player.id}, "
+                        f"{player_name}, {player_team}"
                     )
                 if len(failed_players) > 10:
                     self.logger.logging.warning(
