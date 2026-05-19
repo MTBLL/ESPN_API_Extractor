@@ -308,10 +308,8 @@ class EspnCoreRequests:
             )
 
         total_batches = (total_players + batch_size - 1) // batch_size
+        hydration_start = time.perf_counter()
 
-        # Rich's Progress manages multiple concurrent tasks in one rendered
-        # block — replaces the nested tqdm bars (position=0 overall, position=1
-        # per-batch with leave=False).
         with Progress(
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
@@ -319,7 +317,7 @@ class EspnCoreRequests:
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             TimeElapsedColumn(),
             TimeRemainingColumn(),
-            transient=False,
+            transient=True,
         ) as progress:
             overall_task = progress.add_task(
                 "Total progress", total=total_players
@@ -330,8 +328,6 @@ class EspnCoreRequests:
                 batch_size_actual = len(batch)
                 batch_num = i // batch_size + 1
 
-                # Per-batch task removed after completion (rich equivalent of
-                # tqdm's ``leave=False``).
                 batch_task = progress.add_task(
                     f"Batch {batch_num}/{total_batches}",
                     total=batch_size_actual,
@@ -371,10 +367,11 @@ class EspnCoreRequests:
                 finally:
                     progress.remove_task(batch_task)
 
-        # Log summary of hydration results
+        hydration_elapsed = time.perf_counter() - hydration_start
+
         with self.logger_lock:
             self.logger.logging.info(
-                f"Successfully hydrated {len(hydrated_players)} players"
+                f"Successfully hydrated {len(hydrated_players)} players in {hydration_elapsed:.1f}s"
             )
             if failed_players:
                 self.logger.logging.warning(
