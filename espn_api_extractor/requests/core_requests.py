@@ -6,6 +6,8 @@ from threading import Lock
 
 import requests
 from requests.cookies import RequestsCookieJar
+from rich.console import Group
+from rich.live import Live
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
@@ -348,16 +350,22 @@ class EspnCoreRequests:
         total_batches = (total_players + batch_size - 1) // batch_size
         hydration_start = time.perf_counter()
 
-        with Progress(
+        # Two separate Progress instances grouped in a Live render so batch
+        # progress stays above the overall total bar regardless of when each
+        # task was added.
+        progress_columns = (
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
             MofNCompleteColumn(),
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             TimeElapsedColumn(),
             TimeRemainingColumn(),
-            transient=True,
-        ) as progress:
-            overall_task = progress.add_task(
+        )
+        batch_progress = Progress(*progress_columns, transient=True)
+        overall_progress = Progress(*progress_columns, transient=True)
+
+        with Live(Group(batch_progress, overall_progress), refresh_per_second=10):
+            overall_task = overall_progress.add_task(
                 "Total progress", total=total_players
             )
 
@@ -366,7 +374,7 @@ class EspnCoreRequests:
                 batch_size_actual = len(batch)
                 batch_num = i // batch_size + 1
 
-                batch_task = progress.add_task(
+                batch_task = batch_progress.add_task(
                     f"Batch {batch_num}/{total_batches}",
                     total=batch_size_actual,
                 )
@@ -398,10 +406,10 @@ class EspnCoreRequests:
                                     )
                                 failed_players.append(player)
 
-                            progress.advance(batch_task)
-                            progress.advance(overall_task)
+                            batch_progress.advance(batch_task)
+                            overall_progress.advance(overall_task)
                 finally:
-                    progress.remove_task(batch_task)
+                    batch_progress.remove_task(batch_task)
 
         hydration_elapsed = time.perf_counter() - hydration_start
 
