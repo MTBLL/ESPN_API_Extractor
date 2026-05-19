@@ -362,7 +362,7 @@ class EspnCoreRequests:
             TimeRemainingColumn(),
         )
         batch_progress = Progress(*progress_columns, transient=True)
-        overall_progress = Progress(*progress_columns, transient=True)
+        overall_progress = Progress(*progress_columns, transient=False)
 
         with Live(Group(batch_progress, overall_progress), refresh_per_second=10):
             overall_task = overall_progress.add_task(
