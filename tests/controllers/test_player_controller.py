@@ -65,7 +65,7 @@ def test_player_controller_no_updates_fully_hydrates(
     Since there are no hasura values returned, the controller implicitly does fully hydrate
     """
 
-    def _mock_get_player_data(self, player: Player) -> Dict[str, Any]:
+    def _mock_get_player_data(self, player_id, **kwargs) -> Dict[str, Any]:
         return carroll_athlete_fixture_data
 
     monkeypatch.setattr(

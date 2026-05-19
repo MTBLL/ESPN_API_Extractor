@@ -13,7 +13,7 @@ def create_player_parser(subparsers):
     )
 
     player_parser.add_argument(
-        "--year", type=int, default=2025, help="League year (default: 2025)"
+        "--year", type=int, default=2026, help="League year (default: 2026)"
     )
     player_parser.add_argument(
         "--league-id",
@@ -46,8 +46,12 @@ def create_player_parser(subparsers):
     )
     player_parser.add_argument(
         "--force-full-extraction",
-        action="store_true",
-        help="Force full ESPN extraction, bypassing GraphQL optimization (default: False)",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Force full ESPN extraction, bypassing GraphQL optimization "
+            "(default: True; pass --no-force-full-extraction to disable)"
+        ),
     )
     player_parser.add_argument(
         "--graphql-config",
@@ -71,7 +75,7 @@ def create_league_parser(subparsers):
     )
 
     league_parser.add_argument(
-        "--year", type=int, default=2025, help="League year (default: 2025)"
+        "--year", type=int, default=2026, help="League year (default: 2026)"
     )
     league_parser.add_argument(
         "--league_id",

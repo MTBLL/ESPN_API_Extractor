@@ -152,19 +152,29 @@ class TestCoreRequests:
         mock_response.status_code = 404
         mock_get.return_value = mock_response
 
-        # Test _get_player_data method
-        result = core_requests._get_player_data(player_id=12345)
+        # Build a Player so the 404 record can capture name/team
+        player = Player(
+            data={"id": 12345, "fullName": "Test Player", "proTeamId": 0},
+            current_season=2025,
+        )
 
-        # Verify request was made correctly
+        # Test _get_player_data method
+        result = core_requests._get_player_data(player_id=12345, player=player)
+
+        # Verify request was made exactly once (no retries on 404)
         mock_get.assert_called_once()
 
         # Verify result is None (indicating failure)
         assert result is None
 
-        # Verify log messages were called correctly
-        core_requests.logger.logging.warning.assert_any_call(
-            "Player ID 12345 not found (404) - skipping retries"
-        )
+        # 404s are now recorded silently to not_found_players instead of
+        # logging inline (which would interrupt the rich progress bar).
+        assert len(core_requests.not_found_players) == 1
+        entry = core_requests.not_found_players[0]
+        assert entry["id"] == 12345
+        assert entry["name"] == "Test Player"
+        assert entry["kind"] == "bio"
+        core_requests.logger.logging.warning.assert_not_called()
 
     @mock.patch("requests.get")
     def test_get_player_data_retry_non_404(self, mock_get, core_requests):
