@@ -161,7 +161,7 @@ class PlayerController:
                         f"Successfully hydrated {len(new_players)} new players"
                     )
                 except Exception as e:
-                    error_msg = f"Failed to hydrate new players: {str(e)}"
+                    error_msg = f"Unable to hydrate new players: {str(e)}"
                     self.logger.error(error_msg)
                     failures.append(error_msg)
 
