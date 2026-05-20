@@ -432,7 +432,7 @@ class EspnCoreRequests:
 
             if failed_players:
                 self.logger.logging.warning(
-                    f"Failed to hydrate {len(failed_players)} players"
+                    f"Unable to hydrate {len(failed_players)} players"
                 )
                 for i, player in enumerate(
                     failed_players[:10]

@@ -148,7 +148,7 @@ def test_player_controller_handles_full_hydration_failure(monkeypatch):
     full_handler.execute.assert_awaited_once()
     assert result["players"] == []
     assert any(
-        "Failed to hydrate new players: hydrate boom" in msg
+        "Unable to hydrate new players: hydrate boom" in msg
         for msg in result["failures"]
     )
 
