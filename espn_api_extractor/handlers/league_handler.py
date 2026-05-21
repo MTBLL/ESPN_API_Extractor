@@ -15,6 +15,11 @@ EXCLUDED_SETTINGS_KEYS = {
 }
 ACQUISITION_SETTINGS_KEEP = {"acquisitionBudget"}
 
+# ESPN stat ID for pitcher games started. ESPN enforces a per-period
+# games-started cap on pitchers and tracks the running count under each
+# matchup's cumulativeScore.statBySlot.
+GAMES_STARTED_STAT_ID = 33
+
 
 class LeagueHandler:
     def __init__(
@@ -63,9 +68,70 @@ class LeagueHandler:
         settings = self._filter_acquisition_settings(settings)
         settings = self._filter_scoring_settings(settings)
 
+        games_started_limits = self._build_games_started_limits(settings)
+        if games_started_limits is not None:
+            settings = dict(settings)
+            settings["gamesStartedLimits"] = games_started_limits
+
         updated = dict(data)
         updated["settings"] = settings
         return updated
+
+    def _build_games_started_limits(self, settings: dict) -> Optional[dict]:
+        """Derive the league's pitcher games-started limits into one block.
+
+        ESPN splits this across two settings sections:
+          - scoringSettings.statQualificationMinimum -> the minimum games
+            started needed to qualify for the pitching categories; miss it
+            and those categories are forfeited (auto-loss).
+          - rosterSettings.lineupSlotStatLimits -> the per-scoring-period
+            cap. Multiply by scheduleSettings.matchupPeriodLength for the
+            per-matchup cap -- the "Max" in ESPN's box-score "Game Limits
+            (Cur/Max)" line.
+
+        Both are keyed on statId 33 (GS). Returns None when neither is
+        present (leagues without a games-started limit).
+        """
+        scoring = settings.get("scoringSettings")
+        roster = settings.get("rosterSettings")
+        schedule = settings.get("scheduleSettings")
+
+        min_value = None
+        if isinstance(scoring, dict):
+            qualification = scoring.get("statQualificationMinimum")
+            if (
+                isinstance(qualification, dict)
+                and qualification.get("statId") == GAMES_STARTED_STAT_ID
+            ):
+                min_value = qualification.get("limitValue")
+
+        max_per_period = None
+        if isinstance(roster, dict):
+            slot_limits = roster.get("lineupSlotStatLimits")
+            if isinstance(slot_limits, dict):
+                for limit in slot_limits.values():
+                    if (
+                        isinstance(limit, dict)
+                        and limit.get("statId") == GAMES_STARTED_STAT_ID
+                    ):
+                        max_per_period = limit.get("limitValue")
+                        break
+
+        if min_value is None and max_per_period is None:
+            return None
+
+        max_per_matchup = None
+        if max_per_period is not None and isinstance(schedule, dict):
+            period_length = schedule.get("matchupPeriodLength")
+            if isinstance(period_length, (int, float)) and period_length:
+                max_per_matchup = round(max_per_period * period_length)
+
+        return {
+            "statId": GAMES_STARTED_STAT_ID,
+            "min": min_value,
+            "maxPerScoringPeriod": max_per_period,
+            "maxPerMatchup": max_per_matchup,
+        }
 
     def _drop_settings_keys(self, settings: dict[str, Any]) -> dict[str, Any]:
         return {
@@ -216,6 +282,23 @@ class LeagueHandler:
         if category_results:
             simplified["categoryResults"] = category_results
 
+        # Preserve per-team pitcher games-started count + cap flag. ESPN
+        # enforces a games-started limit on pitchers; this is what the box
+        # score shows as "Game Limits (Cur/Max)". Lives in
+        # cumulativeScore.statBySlot, separate from scoreByStat. Omitted when
+        # ESPN returns no statBySlot (leagues without a games-started limit).
+        games_started = {}
+        if home_team_id is not None:
+            home_gs = self._format_games_started(home.get("cumulativeScore"))
+            if home_gs is not None:
+                games_started[home_team_id] = home_gs
+        if away_team_id is not None:
+            away_gs = self._format_games_started(away.get("cumulativeScore"))
+            if away_gs is not None:
+                games_started[away_team_id] = away_gs
+        if games_started:
+            simplified["gamesStarted"] = games_started
+
         return simplified
 
     def _format_record(self, cumulative_score: Optional[dict]) -> str:
@@ -264,6 +347,38 @@ class LeagueHandler:
                 "result": stat_dict.get("result"),
             }
         return results or None
+
+    def _format_games_started(
+        self, cumulative_score: Optional[dict]
+    ) -> Optional[dict]:
+        """Extract pitcher games-started count + cap flag from statBySlot.
+
+        ESPN tracks the games-started limit under cumulativeScore.statBySlot,
+        keyed by a virtual lineup slot. The entry whose statId is 33 (GS)
+        carries the running count (``value`` — the "Cur" in ESPN's box score),
+        whether the cap was exceeded, and the scoring period it was exceeded
+        on. The cap itself (the "Max") is league-level: see
+        settings.rosterSettings.lineupSlotStatLimits.
+
+        Returns None when no games-started entry is present (e.g. leagues
+        without a pitcher games-started limit), so callers can omit the field.
+        """
+        if not isinstance(cumulative_score, dict):
+            return None
+        stat_by_slot = cumulative_score.get("statBySlot")
+        if not isinstance(stat_by_slot, dict):
+            return None
+        for slot_entry in stat_by_slot.values():
+            if not isinstance(slot_entry, dict):
+                continue
+            if slot_entry.get("statId") != GAMES_STARTED_STAT_ID:
+                continue
+            return {
+                "value": slot_entry.get("value"),
+                "limitExceeded": slot_entry.get("limitExceeded"),
+                "exceededOnScoringPeriod": slot_entry.get("exceededOnScoringPeriod"),
+            }
+        return None
 
     def _normalize_winner(
         self,

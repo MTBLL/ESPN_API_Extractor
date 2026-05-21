@@ -1,3 +1,8 @@
+# ESPN stat id for pitcher games started; the games-started limits are
+# keyed on it. Defined locally to keep the base layer sport-agnostic.
+_GAMES_STARTED_STAT_ID = 33
+
+
 class BaseSettings(object):
     """Creates Settings object"""
 
@@ -7,6 +12,7 @@ class BaseSettings(object):
         draft_settings = data.get("draftSettings", {})
         scoring_settings = data.get("scoringSettings", {})
         acquisition_settings = data.get("acquisitionSettings", {})
+        roster_settings = data.get("rosterSettings", {})
 
         self.reg_season_count = schedule_settings.get("matchupPeriodCount", 0)
         self.matchup_periods = schedule_settings.get("matchupPeriods", {})
@@ -31,6 +37,41 @@ class BaseSettings(object):
         divisions = schedule_settings.get("divisions", [])
         for division in divisions:
             self.division_map[division.get("id", 0)] = division.get("name")
+
+        # Pitcher games-started limits (MLB H2H). ESPN splits these across two
+        # settings sections: statQualificationMinimum is the minimum games
+        # started needed to qualify for the pitching categories (miss it and
+        # they are forfeited); lineupSlotStatLimits is the per-scoring-period
+        # cap, scaled by matchupPeriodLength for the per-matchup cap. All None
+        # for leagues/sports without a games-started limit.
+        self.games_started_min = None
+        self.games_started_max_per_period = None
+        self.games_started_max_per_matchup = None
+
+        qualification = scoring_settings.get("statQualificationMinimum")
+        if (
+            isinstance(qualification, dict)
+            and qualification.get("statId") == _GAMES_STARTED_STAT_ID
+        ):
+            self.games_started_min = qualification.get("limitValue")
+
+        slot_limits = roster_settings.get("lineupSlotStatLimits")
+        if isinstance(slot_limits, dict):
+            for limit in slot_limits.values():
+                if (
+                    isinstance(limit, dict)
+                    and limit.get("statId") == _GAMES_STARTED_STAT_ID
+                ):
+                    self.games_started_max_per_period = limit.get("limitValue")
+                    break
+
+        period_length = schedule_settings.get("matchupPeriodLength")
+        if self.games_started_max_per_period is not None and isinstance(
+            period_length, (int, float)
+        ) and period_length:
+            self.games_started_max_per_matchup = round(
+                self.games_started_max_per_period * period_length
+            )
 
     def __repr__(self):
         return f"Settings({self.name})"

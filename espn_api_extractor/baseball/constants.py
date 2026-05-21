@@ -1,5 +1,10 @@
 from typing import Dict
 
+# Stat id for pitcher games started. ESPN enforces a games-started limit on
+# pitchers and keys both the league-level limits and the per-matchup running
+# count on this id.
+GAMES_STARTED_STAT_ID = 33
+
 # Lineup slot ids (not position ids)
 LINEUP_SLOT_MAP: Dict[int, str] = {
     0: "C",
