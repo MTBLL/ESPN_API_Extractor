@@ -252,6 +252,112 @@ def test_fetch_handles_missing_sections():
     assert result["teams"] is None
 
 
+def test_fetch_preserves_category_results():
+    """H2H category leagues keep per-category scoreByStat breakdown."""
+    league = MagicMock()
+    league.espn_request.get_league.return_value = {
+        "id": 1,
+        "settings": None,
+        "status": {},
+        "teams": None,
+        "schedule": [
+            {
+                "id": 10,
+                "matchupPeriodId": 1,
+                "playoffTierType": "NONE",
+                "winner": "HOME",
+                "home": {
+                    "teamId": 3,
+                    "cumulativeScore": {
+                        "wins": 2,
+                        "losses": 1,
+                        "ties": 0,
+                        "scoreByStat": {
+                            "20": {"score": 45, "result": "WIN"},
+                            "5": {"score": 12, "result": "LOSS"},
+                            "47": {"score": 3.10, "result": "TIE"},
+                            # Component stat (no win/loss) -> filtered out
+                            "1": {"score": 88, "result": None},
+                        },
+                    },
+                },
+                "away": {
+                    "teamId": 7,
+                    "cumulativeScore": {
+                        "wins": 1,
+                        "losses": 2,
+                        "ties": 0,
+                        "scoreByStat": {
+                            "20": {"score": 40, "result": "LOSS"},
+                            "5": {"score": 15, "result": "WIN"},
+                            "47": {"score": 3.10, "result": "TIE"},
+                        },
+                    },
+                },
+            },
+            {
+                # Non-category matchup: no scoreByStat -> no categoryResults key
+                "id": 11,
+                "matchupPeriodId": 1,
+                "playoffTierType": "NONE",
+                "winner": "AWAY",
+                "home": {"teamId": 4, "cumulativeScore": {"wins": 0}},
+                "away": {"teamId": 8, "cumulativeScore": {"wins": 0}},
+            },
+        ],
+    }
+
+    handler = LeagueHandler(year=2024, league_id=6789, league=league)
+    result = handler.fetch()
+
+    category_matchup = next(m for m in result["schedule"] if m["id"] == 10)
+    # Component stat "1" (H, result=None) is filtered; only scored categories remain.
+    # Keyed by stat ID (not name) so non-injective STATS_MAP entries can't collide.
+    assert category_matchup["categoryResults"] == {
+        3: {
+            20: {"name": "R", "value": 45, "result": "WIN"},
+            5: {"name": "HR", "value": 12, "result": "LOSS"},
+            47: {"name": "ERA", "value": 3.10, "result": "TIE"},
+        },
+        7: {
+            20: {"name": "R", "value": 40, "result": "LOSS"},
+            5: {"name": "HR", "value": 15, "result": "WIN"},
+            47: {"name": "ERA", "value": 3.10, "result": "TIE"},
+        },
+    }
+    # Component stat 1 (H, result=None) is filtered out
+    assert 1 not in category_matchup["categoryResults"][3]
+    # Category names resolved through the shared STATS_MAP
+    assert STATS_MAP[20] == "R"
+
+    plain_matchup = next(m for m in result["schedule"] if m["id"] == 11)
+    assert "categoryResults" not in plain_matchup
+
+
+def test_format_category_results_handles_malformed_input():
+    """Malformed scoreByStat shapes are skipped, not raised on."""
+    handler = LeagueHandler(year=2024, league_id=6789, league=MagicMock())
+
+    # Non-dict cumulative_score -> None
+    assert handler._format_category_results(None) is None
+    assert handler._format_category_results("not a dict") is None
+
+    # Non-dict stat entry and non-integer stat key are both skipped; the one
+    # well-formed scored category still comes through.
+    score = {
+        "cumulativeScore": {
+            "scoreByStat": {
+                "20": {"score": 45, "result": "WIN"},
+                "5": "not a dict",
+                "bogus": {"score": 1, "result": "WIN"},
+            }
+        }
+    }
+    assert handler._format_category_results(score["cumulativeScore"]) == {
+        20: {"name": "R", "value": 45, "result": "WIN"},
+    }
+
+
 def test_fetch_handles_roster_entry_shapes():
     league = MagicMock()
     league.espn_request.get_league.return_value = {

@@ -189,13 +189,34 @@ class LeagueHandler:
             len(teams),
         )
 
-        return {
+        simplified = {
             "id": matchup.get("id"),
             "matchupPeriodId": matchup.get("matchupPeriodId"),
             "playoffTierType": matchup.get("playoffTierType"),
             "winner": winner,
             "teams": teams,
         }
+
+        # Preserve per-category breakdown for H2H category leagues. Only
+        # present when ESPN returns scoreByStat (category leagues); points and
+        # roster-limit leagues have no scoreByStat and the key is omitted.
+        category_results = {}
+        if home_team_id is not None:
+            home_categories = self._format_category_results(
+                home.get("cumulativeScore")
+            )
+            if home_categories:
+                category_results[home_team_id] = home_categories
+        if away_team_id is not None:
+            away_categories = self._format_category_results(
+                away.get("cumulativeScore")
+            )
+            if away_categories:
+                category_results[away_team_id] = away_categories
+        if category_results:
+            simplified["categoryResults"] = category_results
+
+        return simplified
 
     def _format_record(self, cumulative_score: Optional[dict]) -> str:
         if not isinstance(cumulative_score, dict):
@@ -204,6 +225,45 @@ class LeagueHandler:
         losses = cumulative_score.get("losses", 0)
         ties = cumulative_score.get("ties", 0)
         return f"{wins}-{losses}-{ties}"
+
+    def _format_category_results(
+        self, cumulative_score: Optional[dict]
+    ) -> Optional[dict]:
+        """Map ESPN scoreByStat to {stat_id: {name, value, result}}.
+
+        Keyed by stat ID rather than category name because STATS_MAP is not
+        injective (e.g. stat IDs 12 and 42 both map to "HBP"); a name key would
+        silently drop one category in leagues that score both.
+
+        Returns None when no category data is present (non-category leagues),
+        so callers can omit the field entirely.
+        """
+        if not isinstance(cumulative_score, dict):
+            return None
+        score_by_stat = cumulative_score.get("scoreByStat")
+        if not isinstance(score_by_stat, dict) or not score_by_stat:
+            return None
+
+        results = {}
+        for stat_key, stat_dict in score_by_stat.items():
+            if not isinstance(stat_dict, dict):
+                continue
+            # Only scored categories carry a WIN/LOSS/TIE result. ESPN also
+            # returns component stats (AB, H, ER, ...) with result=None; skip
+            # those so the breakdown matches the matchup's category line.
+            if stat_dict.get("result") is None:
+                continue
+            try:
+                stat_id = int(stat_key)
+            except (TypeError, ValueError):
+                continue
+            category = STATS_MAP.get(stat_id, f"STAT_{stat_id}")
+            results[stat_id] = {
+                "name": category,
+                "value": stat_dict.get("score"),
+                "result": stat_dict.get("result"),
+            }
+        return results or None
 
     def _normalize_winner(
         self,
