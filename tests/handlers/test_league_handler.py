@@ -311,20 +311,22 @@ def test_fetch_preserves_category_results():
     result = handler.fetch()
 
     category_matchup = next(m for m in result["schedule"] if m["id"] == 10)
-    # Component stat "1" (H, result=None) is filtered; only scored categories remain
+    # Component stat "1" (H, result=None) is filtered; only scored categories remain.
+    # Keyed by stat ID (not name) so non-injective STATS_MAP entries can't collide.
     assert category_matchup["categoryResults"] == {
         3: {
-            "R": {"value": 45, "result": "WIN"},
-            "HR": {"value": 12, "result": "LOSS"},
-            "ERA": {"value": 3.10, "result": "TIE"},
+            20: {"name": "R", "value": 45, "result": "WIN"},
+            5: {"name": "HR", "value": 12, "result": "LOSS"},
+            47: {"name": "ERA", "value": 3.10, "result": "TIE"},
         },
         7: {
-            "R": {"value": 40, "result": "LOSS"},
-            "HR": {"value": 15, "result": "WIN"},
-            "ERA": {"value": 3.10, "result": "TIE"},
+            20: {"name": "R", "value": 40, "result": "LOSS"},
+            5: {"name": "HR", "value": 15, "result": "WIN"},
+            47: {"name": "ERA", "value": 3.10, "result": "TIE"},
         },
     }
-    assert "H" not in category_matchup["categoryResults"][3]
+    # Component stat 1 (H, result=None) is filtered out
+    assert 1 not in category_matchup["categoryResults"][3]
     # Category names resolved through the shared STATS_MAP
     assert STATS_MAP[20] == "R"
 

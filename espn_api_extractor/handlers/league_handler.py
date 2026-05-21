@@ -229,7 +229,11 @@ class LeagueHandler:
     def _format_category_results(
         self, cumulative_score: Optional[dict]
     ) -> Optional[dict]:
-        """Map ESPN scoreByStat to {category_name: {value, result}}.
+        """Map ESPN scoreByStat to {stat_id: {name, value, result}}.
+
+        Keyed by stat ID rather than category name because STATS_MAP is not
+        injective (e.g. stat IDs 12 and 42 both map to "HBP"); a name key would
+        silently drop one category in leagues that score both.
 
         Returns None when no category data is present (non-category leagues),
         so callers can omit the field entirely.
@@ -254,7 +258,8 @@ class LeagueHandler:
             except (TypeError, ValueError):
                 continue
             category = STATS_MAP.get(stat_id, f"STAT_{stat_id}")
-            results[category] = {
+            results[stat_id] = {
+                "name": category,
                 "value": stat_dict.get("score"),
                 "result": stat_dict.get("result"),
             }
