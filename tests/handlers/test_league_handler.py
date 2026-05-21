@@ -334,6 +334,30 @@ def test_fetch_preserves_category_results():
     assert "categoryResults" not in plain_matchup
 
 
+def test_format_category_results_handles_malformed_input():
+    """Malformed scoreByStat shapes are skipped, not raised on."""
+    handler = LeagueHandler(year=2024, league_id=6789, league=MagicMock())
+
+    # Non-dict cumulative_score -> None
+    assert handler._format_category_results(None) is None
+    assert handler._format_category_results("not a dict") is None
+
+    # Non-dict stat entry and non-integer stat key are both skipped; the one
+    # well-formed scored category still comes through.
+    score = {
+        "cumulativeScore": {
+            "scoreByStat": {
+                "20": {"score": 45, "result": "WIN"},
+                "5": "not a dict",
+                "bogus": {"score": 1, "result": "WIN"},
+            }
+        }
+    }
+    assert handler._format_category_results(score["cumulativeScore"]) == {
+        20: {"name": "R", "value": 45, "result": "WIN"},
+    }
+
+
 def test_fetch_handles_roster_entry_shapes():
     league = MagicMock()
     league.espn_request.get_league.return_value = {
