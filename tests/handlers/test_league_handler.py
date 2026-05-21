@@ -153,13 +153,38 @@ def test_fetch_simplifies_schedule(league_response_fixture):
     else:
         expected_winner = None
 
-    assert simplified_matchup == {
+    expected = {
         "id": source_matchup["id"],
         "matchupPeriodId": source_matchup["matchupPeriodId"],
         "playoffTierType": source_matchup["playoffTierType"],
         "winner": expected_winner,
         "teams": expected_teams,
     }
+
+    # Pitcher games-started is preserved per team when ESPN returns statBySlot.
+    def _expected_games_started(team_record):
+        for slot_entry in team_record.get("statBySlot", {}).values():
+            if slot_entry.get("statId") == 33:
+                return {
+                    "value": slot_entry.get("value"),
+                    "limitExceeded": slot_entry.get("limitExceeded"),
+                    "exceededOnScoringPeriod": slot_entry.get(
+                        "exceededOnScoringPeriod"
+                    ),
+                }
+        return None
+
+    expected_games_started = {}
+    home_gs = _expected_games_started(home_record)
+    if home_gs is not None:
+        expected_games_started[home["teamId"]] = home_gs
+    away_gs = _expected_games_started(away_record)
+    if away_gs is not None:
+        expected_games_started[away["teamId"]] = away_gs
+    if expected_games_started:
+        expected["gamesStarted"] = expected_games_started
+
+    assert simplified_matchup == expected
 
 
 def test_fetch_marks_bye_week_when_single_team(league_response_fixture):
@@ -332,6 +357,163 @@ def test_fetch_preserves_category_results():
 
     plain_matchup = next(m for m in result["schedule"] if m["id"] == 11)
     assert "categoryResults" not in plain_matchup
+
+
+def test_fetch_preserves_games_started():
+    """Matchups carry per-team pitcher games-started count + cap flag."""
+    league = MagicMock()
+    league.espn_request.get_league.return_value = {
+        "id": 1,
+        "settings": None,
+        "status": {},
+        "teams": None,
+        "schedule": [
+            {
+                "id": 48,
+                "matchupPeriodId": 7,
+                "playoffTierType": "NONE",
+                "winner": "AWAY",
+                "home": {
+                    "teamId": 1,
+                    "cumulativeScore": {
+                        "wins": 0,
+                        "statBySlot": {
+                            "22": {
+                                "statId": 33,
+                                "value": 5,
+                                "limitExceeded": False,
+                                "exceededOnScoringPeriod": 0,
+                            }
+                        },
+                    },
+                },
+                "away": {
+                    "teamId": 8,
+                    "cumulativeScore": {
+                        "wins": 0,
+                        "statBySlot": {
+                            "22": {
+                                "statId": 33,
+                                "value": 2,
+                                "limitExceeded": False,
+                                "exceededOnScoringPeriod": 0,
+                            }
+                        },
+                    },
+                },
+            },
+            {
+                # No statBySlot -> no gamesStarted key
+                "id": 49,
+                "matchupPeriodId": 7,
+                "playoffTierType": "NONE",
+                "winner": "HOME",
+                "home": {"teamId": 2, "cumulativeScore": {"wins": 0}},
+                "away": {"teamId": 9, "cumulativeScore": {"wins": 0}},
+            },
+        ],
+    }
+
+    handler = LeagueHandler(year=2024, league_id=6789, league=league)
+    result = handler.fetch()
+
+    matchup = next(m for m in result["schedule"] if m["id"] == 48)
+    assert matchup["gamesStarted"] == {
+        1: {"value": 5, "limitExceeded": False, "exceededOnScoringPeriod": 0},
+        8: {"value": 2, "limitExceeded": False, "exceededOnScoringPeriod": 0},
+    }
+
+    plain = next(m for m in result["schedule"] if m["id"] == 49)
+    assert "gamesStarted" not in plain
+
+
+def test_build_games_started_limits():
+    """Min + max games-started limits are derived into one settings block."""
+    handler = LeagueHandler(year=2024, league_id=6789, league=MagicMock())
+
+    settings = {
+        "scoringSettings": {
+            "statQualificationMinimum": {"limitValue": 4, "statId": 33},
+        },
+        "rosterSettings": {
+            "lineupSlotStatLimits": {
+                "22": {"limitValue": 1.4285714285714286, "statId": 33},
+            },
+        },
+        "scheduleSettings": {"matchupPeriodLength": 7},
+    }
+
+    assert handler._build_games_started_limits(settings) == {
+        "statId": 33,
+        "min": 4,
+        "maxPerScoringPeriod": 1.4285714285714286,
+        "maxPerMatchup": 10,
+    }
+
+    # Wrong statId on either source is ignored; nothing usable -> None.
+    assert (
+        handler._build_games_started_limits(
+            {
+                "scoringSettings": {
+                    "statQualificationMinimum": {"limitValue": 4, "statId": 81}
+                },
+                "rosterSettings": {
+                    "lineupSlotStatLimits": {"7": {"limitValue": 9, "statId": 81}}
+                },
+            }
+        )
+        is None
+    )
+
+    # Min present but no cap / no period length -> maxPerMatchup is None.
+    assert handler._build_games_started_limits(
+        {"scoringSettings": {"statQualificationMinimum": {"limitValue": 4, "statId": 33}}}
+    ) == {
+        "statId": 33,
+        "min": 4,
+        "maxPerScoringPeriod": None,
+        "maxPerMatchup": None,
+    }
+
+
+def test_fetch_adds_games_started_limits(league_response_fixture):
+    """The derived gamesStartedLimits block is attached to settings."""
+    league = MagicMock()
+    league.espn_request.get_league.return_value = league_response_fixture
+
+    handler = LeagueHandler(year=2024, league_id=6789, league=league)
+    result = handler.fetch()
+
+    limits = result["settings"]["gamesStartedLimits"]
+    assert limits["statId"] == 33
+    assert limits["min"] == 4
+    assert limits["maxPerScoringPeriod"] == 1.4285714285714286
+
+
+def test_format_games_started_handles_malformed_input():
+    """Malformed statBySlot shapes are skipped, not raised on."""
+    handler = LeagueHandler(year=2024, league_id=6789, league=MagicMock())
+
+    # Non-dict cumulative_score -> None
+    assert handler._format_games_started(None) is None
+    assert handler._format_games_started("not a dict") is None
+
+    # Missing / non-dict statBySlot -> None
+    assert handler._format_games_started({"wins": 0}) is None
+    assert handler._format_games_started({"statBySlot": "nope"}) is None
+
+    # Non-dict slot entry skipped; no GS-statId entry -> None
+    assert (
+        handler._format_games_started(
+            {"statBySlot": {"22": "bad", "23": {"statId": 81, "value": 30}}}
+        )
+        is None
+    )
+
+    # Well-formed GS entry comes through
+    assert handler._format_games_started(
+        {"statBySlot": {"22": {"statId": 33, "value": 7, "limitExceeded": True}}}
+    ) == {"value": 7, "limitExceeded": True, "exceededOnScoringPeriod": None}
 
 
 def test_format_category_results_handles_malformed_input():
