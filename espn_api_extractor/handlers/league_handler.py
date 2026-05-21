@@ -244,6 +244,11 @@ class LeagueHandler:
         for stat_key, stat_dict in score_by_stat.items():
             if not isinstance(stat_dict, dict):
                 continue
+            # Only scored categories carry a WIN/LOSS/TIE result. ESPN also
+            # returns component stats (AB, H, ER, ...) with result=None; skip
+            # those so the breakdown matches the matchup's category line.
+            if stat_dict.get("result") is None:
+                continue
             try:
                 stat_id = int(stat_key)
             except (TypeError, ValueError):

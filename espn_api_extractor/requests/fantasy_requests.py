@@ -132,8 +132,17 @@ class EspnFantasyRequests(object):
 
     def get_league(self):
         """Gets all of the leagues initial data (teams, roster, matchups, settings)"""
+        # mScoreboard is required for per-category scoreByStat in the schedule;
+        # mMatchupScore alone only yields wins/losses/ties and statBySlot.
         params = {
-            "view": ["mTeam", "mRoster", "mMatchupScore", "mSettings", "mStandings"]
+            "view": [
+                "mTeam",
+                "mRoster",
+                "mMatchupScore",
+                "mScoreboard",
+                "mSettings",
+                "mStandings",
+            ]
         }
         data = self.league_get(params=params)
         return data

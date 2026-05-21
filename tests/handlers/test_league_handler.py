@@ -276,6 +276,8 @@ def test_fetch_preserves_category_results():
                             "20": {"score": 45, "result": "WIN"},
                             "5": {"score": 12, "result": "LOSS"},
                             "47": {"score": 3.10, "result": "TIE"},
+                            # Component stat (no win/loss) -> filtered out
+                            "1": {"score": 88, "result": None},
                         },
                     },
                 },
@@ -309,6 +311,7 @@ def test_fetch_preserves_category_results():
     result = handler.fetch()
 
     category_matchup = next(m for m in result["schedule"] if m["id"] == 10)
+    # Component stat "1" (H, result=None) is filtered; only scored categories remain
     assert category_matchup["categoryResults"] == {
         3: {
             "R": {"value": 45, "result": "WIN"},
@@ -321,6 +324,7 @@ def test_fetch_preserves_category_results():
             "ERA": {"value": 3.10, "result": "TIE"},
         },
     }
+    assert "H" not in category_matchup["categoryResults"][3]
     # Category names resolved through the shared STATS_MAP
     assert STATS_MAP[20] == "R"
 
