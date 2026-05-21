@@ -252,6 +252,82 @@ def test_fetch_handles_missing_sections():
     assert result["teams"] is None
 
 
+def test_fetch_preserves_category_results():
+    """H2H category leagues keep per-category scoreByStat breakdown."""
+    league = MagicMock()
+    league.espn_request.get_league.return_value = {
+        "id": 1,
+        "settings": None,
+        "status": {},
+        "teams": None,
+        "schedule": [
+            {
+                "id": 10,
+                "matchupPeriodId": 1,
+                "playoffTierType": "NONE",
+                "winner": "HOME",
+                "home": {
+                    "teamId": 3,
+                    "cumulativeScore": {
+                        "wins": 2,
+                        "losses": 1,
+                        "ties": 0,
+                        "scoreByStat": {
+                            "20": {"score": 45, "result": "WIN"},
+                            "5": {"score": 12, "result": "LOSS"},
+                            "47": {"score": 3.10, "result": "TIE"},
+                        },
+                    },
+                },
+                "away": {
+                    "teamId": 7,
+                    "cumulativeScore": {
+                        "wins": 1,
+                        "losses": 2,
+                        "ties": 0,
+                        "scoreByStat": {
+                            "20": {"score": 40, "result": "LOSS"},
+                            "5": {"score": 15, "result": "WIN"},
+                            "47": {"score": 3.10, "result": "TIE"},
+                        },
+                    },
+                },
+            },
+            {
+                # Non-category matchup: no scoreByStat -> no categoryResults key
+                "id": 11,
+                "matchupPeriodId": 1,
+                "playoffTierType": "NONE",
+                "winner": "AWAY",
+                "home": {"teamId": 4, "cumulativeScore": {"wins": 0}},
+                "away": {"teamId": 8, "cumulativeScore": {"wins": 0}},
+            },
+        ],
+    }
+
+    handler = LeagueHandler(year=2024, league_id=6789, league=league)
+    result = handler.fetch()
+
+    category_matchup = next(m for m in result["schedule"] if m["id"] == 10)
+    assert category_matchup["categoryResults"] == {
+        3: {
+            "R": {"value": 45, "result": "WIN"},
+            "HR": {"value": 12, "result": "LOSS"},
+            "ERA": {"value": 3.10, "result": "TIE"},
+        },
+        7: {
+            "R": {"value": 40, "result": "LOSS"},
+            "HR": {"value": 15, "result": "WIN"},
+            "ERA": {"value": 3.10, "result": "TIE"},
+        },
+    }
+    # Category names resolved through the shared STATS_MAP
+    assert STATS_MAP[20] == "R"
+
+    plain_matchup = next(m for m in result["schedule"] if m["id"] == 11)
+    assert "categoryResults" not in plain_matchup
+
+
 def test_fetch_handles_roster_entry_shapes():
     league = MagicMock()
     league.espn_request.get_league.return_value = {
