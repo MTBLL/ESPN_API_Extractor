@@ -377,9 +377,15 @@ class EspnCoreRequests:
             return hydrated_player, False
 
         if include_news and hydrated_player.id is not None:
-            news_data = self._fetch_player_news(hydrated_player.id)
-            if news_data is not None:
-                hydrated_player.hydrate_news(news_data)
+            try:
+                news_data = self._fetch_player_news(hydrated_player.id)
+                if news_data is not None:
+                    hydrated_player.hydrate_news(news_data)
+            except Exception as e:
+                with self.logger_lock:
+                    self.logger.logging.warning(
+                        f"Failed to hydrate news for player {hydrated_player.id}: {str(e)}"
+                    )
 
         return hydrated_player, bio_success
 

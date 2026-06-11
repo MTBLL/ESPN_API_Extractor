@@ -474,6 +474,23 @@ class TestCoreRequests:
         assert len(result_player.news) == 1
         assert result_player.news[0]["headline"] == "Test news"
 
+    def test_hydrate_player_worker_news_exception_still_succeeds(self, core_requests):
+        """News hydration failure does not fail the worker — bio success is preserved."""
+        player = Player({"id": 123, "fullName": "Test Player"})
+
+        core_requests._hydrate_player_with_bio = mock.MagicMock(
+            return_value=(player, True)
+        )
+        core_requests._fetch_player_news = mock.MagicMock(
+            side_effect=ValueError("bad JSON")
+        )
+
+        result_player, success = core_requests._hydrate_player_worker(player)
+
+        assert success is True
+        assert result_player.news == []
+        core_requests.logger.logging.warning.assert_called_once()
+
     def test_hydrate_player_worker_include_news_false(self, core_requests):
         """Worker skips news fetch when include_news=False."""
         player = Player({"id": 123, "fullName": "Test Player"})
