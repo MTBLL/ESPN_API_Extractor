@@ -21,7 +21,12 @@ from typing_extensions import Any, Dict, List, Optional, Tuple
 from espn_api_extractor.baseball.player import Player
 from espn_api_extractor.utils.logger import Logger
 
-from .constants import ESPN_CORE_SPORT_ENDPOINTS, STAT_CATEGORY, STAT_SEASON_TYPE
+from .constants import (
+    ESPN_CORE_SPORT_ENDPOINTS,
+    ESPN_PLAYER_NEWS_ENDPOINT,
+    STAT_CATEGORY,
+    STAT_SEASON_TYPE,
+)
 
 
 class EspnCoreRequests:
@@ -30,6 +35,7 @@ class EspnCoreRequests:
             assert sport in ["nfl", "mlb"]
             self.sport = sport
             self.sport_endpoint = ESPN_CORE_SPORT_ENDPOINTS[sport]
+            self.news_endpoint = ESPN_PLAYER_NEWS_ENDPOINT.get(sport, "")
             self.year = year
         except AssertionError:
             print("Invalid sport")
@@ -258,6 +264,59 @@ class EspnCoreRequests:
             )
         return None
 
+    def _fetch_player_news(
+        self,
+        player_id: int,
+        limit: int = 5,
+        max_retries: int = 2,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Fetch player news from ESPN Fantasy API.
+        Returns response dict on success, None on failure or missing news endpoint.
+        404 responses return None without recording to not_found_players (no news is normal).
+        """
+        if not self.news_endpoint:
+            return None
+
+        params = {"playerId": player_id, "limit": limit}
+        retries = 0
+        backoff_time = 1
+
+        while retries < max_retries:
+            try:
+                r = requests.get(
+                    self.news_endpoint,
+                    params=params,
+                    headers=self.session.headers,
+                    cookies=self.session.cookies,
+                    timeout=10,
+                )
+
+                if r.status_code == 200:
+                    return r.json()
+
+                # 404 means no news for this player — not an error
+                if r.status_code == 404:
+                    return None
+
+                self._check_request_status(
+                    r.status_code, extend=self.news_endpoint, params=params
+                )
+
+            except Exception as e:
+                with self.logger_lock:
+                    self.logger.logging.warning(
+                        f"Exception fetching news for player {player_id} "
+                        f"(attempt {retries + 1}/{max_retries}): {str(e)}"
+                    )
+
+            retries += 1
+            if retries < max_retries:
+                time.sleep(backoff_time)
+                backoff_time *= 2
+
+        return None
+
     def _record_not_found(
         self, player_id: int, player: Optional[Player], kind: str
     ) -> None:
@@ -303,25 +362,33 @@ class EspnCoreRequests:
             return player, False
 
     def _hydrate_player_worker(
-        self, player: Player, include_stats: bool = False
+        self, player: Player, include_stats: bool = False, include_news: bool = True
     ) -> Tuple[Player, bool]:
         """
         Worker function for ThreadPoolExecutor that handles the hydration logic.
-        Calls appropriate hydration methods based on include_stats parameter.
-        Stats hydration is no longer performed; include_stats is retained for compatibility.
+        Fetches bio data and optionally player news per player.
+        include_stats is retained for compatibility but has no effect.
         """
         if include_stats:
             pass
-        # First, hydrate with biographical data
         hydrated_player, bio_success = self._hydrate_player_with_bio(player)
 
         if not bio_success:
             return hydrated_player, False
 
+        if include_news and hydrated_player.id is not None:
+            news_data = self._fetch_player_news(hydrated_player.id)
+            if news_data is not None:
+                hydrated_player.hydrate_news(news_data)
+
         return hydrated_player, bio_success
 
     def hydrate_players(
-        self, players: list[Player], batch_size: int = 100, include_stats: bool = False
+        self,
+        players: list[Player],
+        batch_size: int = 100,
+        include_stats: bool = False,
+        include_news: bool = True,
     ) -> Tuple[List[Player], List[Player]]:
         """
         Hydrate a list of players with additional data using multi-threading.
@@ -332,6 +399,7 @@ class EspnCoreRequests:
             batch_size: Number of players to process in each batch (to manage progress bar)
             include_stats: Ignored. Kona playercard provides stats, so Core API
                 hydration only fetches biographical data.
+            include_news: Whether to fetch player news alongside bio data.
         """
         hydrated_players: List[Player] = []
         failed_players: List[Player] = []
@@ -382,7 +450,10 @@ class EspnCoreRequests:
                     with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                         futures_to_players = {
                             executor.submit(
-                                self._hydrate_player_worker, player, include_stats
+                                self._hydrate_player_worker,
+                                player,
+                                include_stats,
+                                include_news,
                             ): player
                             for player in batch
                         }

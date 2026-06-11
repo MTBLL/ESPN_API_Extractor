@@ -75,6 +75,7 @@ class Player(object):
         self.bats: str | None = None
         self.throws: str | None = None
         self.active: bool | None = None
+        self.news: List[Dict[str, Any]] = []
 
         # Handle case where player info might be missing
         player = data.get("playerPoolEntry", {}).get("player") or data.get("player", {})
@@ -249,6 +250,7 @@ class Player(object):
             "throws",
             "active",
             "eligible_slots",
+            "news",
         ]
 
         for field in additional_fields:
@@ -393,6 +395,26 @@ class Player(object):
                 }
 
         self._reorder_stats()
+
+    def hydrate_news(self, data: dict) -> None:
+        """
+        Hydrates the player with news items from the ESPN Fantasy news API.
+
+        Args:
+            data: Response dict from ESPN Fantasy news endpoint
+        """
+        feed = data.get("news", {}).get("feed", [])
+        self.news = [
+            {
+                "id": item.get("id"),
+                "headline": item.get("headline", ""),
+                "description": item.get("description", ""),
+                "story": item.get("story", ""),
+                "published": item.get("published", ""),
+                "type": item.get("type", ""),
+            }
+            for item in feed
+        ]
 
     def _extract_draft_auction_value(
         self, transactions: List[Dict[str, Any]]

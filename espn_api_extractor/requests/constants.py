@@ -23,6 +23,11 @@ ESPN_CORE_SPORT_ENDPOINTS = {
     "nhl": ESPN_CORE_ENDPOINT_V2 + "/sports/hockey/leagues/nhl",
 }
 
+ESPN_PLAYER_NEWS_ENDPOINT = {
+    "mlb": NEWS_BASE_ENDPOINT + "flb/news/players",
+    "nfl": NEWS_BASE_ENDPOINT + "ffl/news/players",
+}
+
 # Statistics endpoints and constants
 # Type 2 = Regular Season, Type 1 = Spring Training
 STAT_SEASON_TYPE = 2

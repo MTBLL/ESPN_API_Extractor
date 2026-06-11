@@ -312,25 +312,21 @@ class TestCoreRequests:
 
     def test_hydrate_player_worker_bio_only(self, core_requests):
         """Test _hydrate_player_worker with include_stats=False (bio only)"""
-        # Create a player with valid ID
         player = Player({"id": 123, "fullName": "Test Player"})
 
-        # Mock _hydrate_player_with_bio to return success
         core_requests._hydrate_player_with_bio = mock.MagicMock(
             return_value=(player, True)
         )
+        core_requests._fetch_player_news = mock.MagicMock(return_value=None)
 
-        # Call _hydrate_player_worker with include_stats=False
         result_player, success = core_requests._hydrate_player_worker(
             player, include_stats=False
         )
 
-        # Verify results
         assert result_player is player
         assert success is True
-
-        # Verify _hydrate_player_with_bio was called
         core_requests._hydrate_player_with_bio.assert_called_once_with(player)
+        core_requests._fetch_player_news.assert_called_once_with(123)
 
     def test_hydrate_player_worker_ignores_include_stats(self, core_requests):
         """Test _hydrate_player_worker ignores include_stats flag"""
@@ -342,6 +338,7 @@ class TestCoreRequests:
         core_requests._hydrate_player_with_bio = mock.MagicMock(
             return_value=(hydrated_player, True)
         )
+        core_requests._fetch_player_news = mock.MagicMock(return_value=None)
 
         result_player, success = core_requests._hydrate_player_worker(
             player, include_stats=True
@@ -353,90 +350,182 @@ class TestCoreRequests:
 
     def test_hydrate_player_worker_bio_fails(self, core_requests):
         """Test _hydrate_player_worker when bio hydration fails"""
-        # Create a player with valid ID
         player = Player({"id": 123, "fullName": "Test Player"})
 
-        # Mock _hydrate_player_with_bio to return failure
         core_requests._hydrate_player_with_bio = mock.MagicMock(
             return_value=(player, False)
         )
-        # Call _hydrate_player_worker with include_stats=True
+        core_requests._fetch_player_news = mock.MagicMock(return_value=None)
+
         result_player, success = core_requests._hydrate_player_worker(
             player, include_stats=True
         )
 
-        # Verify results
         assert result_player is player
         assert success is False
-
-        # Verify _hydrate_player_with_bio was called
         core_requests._hydrate_player_with_bio.assert_called_once_with(player)
+        # News should not be fetched when bio fails
+        core_requests._fetch_player_news.assert_not_called()
+
+    @mock.patch("requests.get")
+    def test_fetch_player_news_success(self, mock_get, core_requests):
+        """_fetch_player_news returns parsed JSON on 200."""
+        news_payload = {
+            "news": {
+                "feed": [
+                    {
+                        "id": 100,
+                        "type": "Rotowire",
+                        "headline": "Player homers",
+                        "description": "Went deep.",
+                        "story": "Hit a solo shot.",
+                        "published": "2026-06-11T04:00:00Z",
+                    }
+                ]
+            }
+        }
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = news_payload
+        mock_get.return_value = mock_response
+
+        result = core_requests._fetch_player_news(player_id=39832)
+
+        assert result == news_payload
+        mock_get.assert_called_once_with(
+            core_requests.news_endpoint,
+            params={"playerId": 39832, "limit": 5},
+            headers=core_requests.session.headers,
+            cookies=core_requests.session.cookies,
+            timeout=10,
+        )
+
+    @mock.patch("requests.get")
+    def test_fetch_player_news_404_returns_none(self, mock_get, core_requests):
+        """404 from news endpoint returns None without recording to not_found_players."""
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 404
+        mock_get.return_value = mock_response
+
+        result = core_requests._fetch_player_news(player_id=99999)
+
+        assert result is None
+        assert core_requests.not_found_players == []
+        core_requests.logger.logging.warning.assert_not_called()
+
+    @mock.patch("requests.get")
+    def test_fetch_player_news_no_endpoint(self, mock_get, core_requests):
+        """_fetch_player_news returns None immediately when news_endpoint is empty."""
+        core_requests.news_endpoint = ""
+
+        result = core_requests._fetch_player_news(player_id=39832)
+
+        assert result is None
+        mock_get.assert_not_called()
+
+    def test_hydrate_player_worker_applies_news(self, core_requests):
+        """Worker calls hydrate_news on player when news data is returned."""
+        player = Player({"id": 123, "fullName": "Test Player"})
+        news_payload = {"news": {"feed": [{"id": 1, "headline": "Test news", "description": "", "story": "", "published": "", "type": "Rotowire"}]}}
+
+        core_requests._hydrate_player_with_bio = mock.MagicMock(
+            return_value=(player, True)
+        )
+        core_requests._fetch_player_news = mock.MagicMock(return_value=news_payload)
+
+        result_player, success = core_requests._hydrate_player_worker(player)
+
+        assert success is True
+        assert len(result_player.news) == 1
+        assert result_player.news[0]["headline"] == "Test news"
+
+    def test_hydrate_player_worker_include_news_false(self, core_requests):
+        """Worker skips news fetch when include_news=False."""
+        player = Player({"id": 123, "fullName": "Test Player"})
+
+        core_requests._hydrate_player_with_bio = mock.MagicMock(
+            return_value=(player, True)
+        )
+        core_requests._fetch_player_news = mock.MagicMock(return_value=None)
+
+        result_player, success = core_requests._hydrate_player_worker(
+            player, include_news=False
+        )
+
+        assert success is True
+        core_requests._fetch_player_news.assert_not_called()
 
     def test_hydrate_players_with_include_stats_false(self, core_requests):
         """Test hydrate_players method with include_stats=False"""
-        # Create test players
         players = [
             Player({"id": 1, "fullName": "Player 1"}),
             Player({"id": 2, "fullName": "Player 2"}),
         ]
 
-        # Mock _hydrate_player_worker to return success for both players
-        def mock_worker(player, include_stats):
-            assert include_stats is False  # Verify the parameter is passed correctly
+        def mock_worker(player, include_stats, include_news):
+            assert include_stats is False
             return player, True
 
         core_requests._hydrate_player_worker = mock.MagicMock(side_effect=mock_worker)
 
-        # Call hydrate_players with include_stats=False (default)
         hydrated_players, failed_players = core_requests.hydrate_players(
             players, batch_size=5
         )
 
-        # Verify results
         assert len(hydrated_players) == 2
         assert len(failed_players) == 0
-
-        # Verify _hydrate_player_worker was called correctly for each player
         assert core_requests._hydrate_player_worker.call_count == 2
 
-        # Verify each call had include_stats=False
         for call in core_requests._hydrate_player_worker.call_args_list:
             args, kwargs = call
-            player_arg, include_stats_arg = args
+            _, include_stats_arg, include_news_arg = args
             assert include_stats_arg is False
+            assert include_news_arg is True  # default
 
     def test_hydrate_players_with_include_stats_true(self, core_requests):
         """Test hydrate_players method with include_stats=True"""
-        # Create test players
         players = [
             Player({"id": 1, "fullName": "Player 1"}),
             Player({"id": 2, "fullName": "Player 2"}),
         ]
 
-        # Mock _hydrate_player_worker to return success for both players
-        def mock_worker(player, include_stats):
-            assert include_stats is True  # Verify the parameter is passed correctly
+        def mock_worker(player, include_stats, include_news):
+            assert include_stats is True
             return player, True
 
         core_requests._hydrate_player_worker = mock.MagicMock(side_effect=mock_worker)
 
-        # Call hydrate_players with include_stats=True
         hydrated_players, failed_players = core_requests.hydrate_players(
             players, batch_size=5, include_stats=True
         )
 
-        # Verify results
         assert len(hydrated_players) == 2
         assert len(failed_players) == 0
-
-        # Verify _hydrate_player_worker was called correctly for each player
         assert core_requests._hydrate_player_worker.call_count == 2
 
-        # Verify each call had include_stats=True
         for call in core_requests._hydrate_player_worker.call_args_list:
             args, kwargs = call
-            player_arg, include_stats_arg = args
+            _, include_stats_arg, _ = args
             assert include_stats_arg is True
+
+    def test_hydrate_players_include_news_false(self, core_requests):
+        """Test hydrate_players passes include_news=False to worker."""
+        players = [Player({"id": 1, "fullName": "Player 1"})]
+
+        def mock_worker(player, include_stats, include_news):
+            assert include_news is False
+            return player, True
+
+        core_requests._hydrate_player_worker = mock.MagicMock(side_effect=mock_worker)
+
+        hydrated_players, failed_players = core_requests.hydrate_players(
+            players, batch_size=5, include_news=False
+        )
+
+        assert len(hydrated_players) == 1
+        for call in core_requests._hydrate_player_worker.call_args_list:
+            args, _ = call
+            assert args[2] is False  # include_news
 
 
 class TestCoreRequestsIntegration:
