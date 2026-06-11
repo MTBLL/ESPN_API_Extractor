@@ -423,6 +423,41 @@ class TestCoreRequests:
         assert result is None
         mock_get.assert_not_called()
 
+    @mock.patch("requests.get")
+    def test_fetch_player_news_retry_non_404(self, mock_get, core_requests):
+        """Non-404 error is logged via _check_request_status then retried."""
+        mock_bad = mock.MagicMock()
+        mock_bad.status_code = 500
+
+        news_payload = {"news": {"feed": []}}
+        mock_ok = mock.MagicMock()
+        mock_ok.status_code = 200
+        mock_ok.json.return_value = news_payload
+
+        mock_get.side_effect = [mock_bad, mock_ok]
+
+        with mock.patch("time.sleep"):
+            result = core_requests._fetch_player_news(player_id=39832)
+
+        assert result == news_payload
+        assert mock_get.call_count == 2
+        core_requests.logger.logging.warning.assert_any_call("Internal server error")
+
+    @mock.patch("requests.get")
+    def test_fetch_player_news_exception_retries_then_none(self, mock_get, core_requests):
+        """Exception during request retries up to max_retries then returns None."""
+        mock_get.side_effect = [
+            ConnectionError("timeout"),
+            ConnectionError("timeout"),
+        ]
+
+        with mock.patch("time.sleep"):
+            result = core_requests._fetch_player_news(player_id=39832, max_retries=2)
+
+        assert result is None
+        assert mock_get.call_count == 2
+        assert core_requests.logger.logging.warning.call_count >= 1
+
     def test_hydrate_player_worker_applies_news(self, core_requests):
         """Worker calls hydrate_news on player when news data is returned."""
         player = Player({"id": 123, "fullName": "Test Player"})
