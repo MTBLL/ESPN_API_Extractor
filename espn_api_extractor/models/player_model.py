@@ -87,6 +87,9 @@ class PlayerModel(BaseModel):
     # Also includes split_id, split_name, split_abbreviation, split_type, categories from season stats
     stats: Dict[str, Any] = Field(default_factory=dict)
 
+    # News items from ESPN Fantasy news API (Rotowire notes)
+    news: List[Dict[str, Any]] = Field(default_factory=list)
+
     @field_validator("eligible_slots", mode="before")
     @classmethod
     def parse_eligible_slots(cls, v):
