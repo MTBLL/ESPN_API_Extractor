@@ -52,12 +52,10 @@ class EspnCoreRequests:
             max_workers if max_workers is not None else min(32, cpu_count * 4)
         )
 
+        # No spoofed browser User-Agent: ESPN's edge (Akamai) 403s requests
+        # whose UA claims a browser but whose TLS fingerprint isn't one
+        # (site.api.espn.com news endpoint). requests' honest default UA passes.
         self.session = requests.Session()
-        self.session.headers.update(
-            {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
-            }
-        )
         self.session.cookies = RequestsCookieJar()
 
         # In-memory store of players that returned 404 during hydration.
